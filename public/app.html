@@ -4557,6 +4557,7 @@ const lyricsNotifyDismiss = document.getElementById('lyrics-notify-dismiss');
 
 let pendingLyricsTrack = null;
 let pendingTimecode = 0;
+let lyricsEverEnabled = false; // once true, auto-enable all future detections
 
 function recordAudioClip(durationMs) {
   return new Promise((resolve, reject) => {
@@ -4666,10 +4667,18 @@ async function autoDetectSong(silent) {
         pendingLyricsTrack = data.lyrics;
         pendingTimecode = detectedSeconds;
         lastDetectedTitle = title;
-        lyricsNotifyBtn.textContent = 'Enable';
-        lyricsNotifyBtn.onclick = () => enablePendingLyrics();
-        showLyricsNotification(title, artist);
-        if (!silent) detectStatus.textContent = `Found: ${title}`;
+
+        if (lyricsEverEnabled) {
+          // Auto-enable: user already opted in once, just seamlessly switch
+          enablePendingLyrics();
+          if (!silent) detectStatus.textContent = `Now playing: ${title}`;
+        } else {
+          // First time: show notification bar for user to opt in
+          lyricsNotifyBtn.textContent = 'Enable';
+          lyricsNotifyBtn.onclick = () => enablePendingLyrics();
+          showLyricsNotification(title, artist);
+          if (!silent) detectStatus.textContent = `Found: ${title}`;
+        }
       } else {
         if (!silent) detectStatus.textContent = title
           ? `"${title}" detected, no synced lyrics available`
@@ -4691,14 +4700,13 @@ function enablePendingLyrics() {
   if (!pendingLyricsTrack) return;
   loadTrackLyrics(pendingLyricsTrack);
 
-  // Auto-set offset from timecode
-  // Recording took ~5s, API took ~2s, so song is ~7s ahead of when we started recording
   const processingDelay = 7;
   lyricsOffset = pendingTimecode + processingDelay;
   lyricsStartTime = performance.now() / 1000;
   document.getElementById('lyrics-offset-val').textContent = '0.0s';
   if (syncStatus) syncStatus.textContent = `Synced at ${Math.floor(pendingTimecode / 60)}:${String(Math.floor(pendingTimecode % 60)).padStart(2, '0')}`;
 
+  lyricsEverEnabled = true; // from now on, auto-enable all detections
   hideLyricsNotification();
   pendingLyricsTrack = null;
 }
@@ -4709,18 +4717,45 @@ function checkForSilence(currentRms) {
 
   if (currentRms < SILENCE_THRESHOLD) {
     silenceFrames++;
-    if (silenceFrames === SILENCE_FRAMES_TO_REDETECT && lyricsActive) {
+    if (silenceFrames === SILENCE_FRAMES_TO_REDETECT) {
       // Silence detected, song likely changed
-      clearLyrics();
+      if (lyricsActive) clearLyrics();
       silenceFrames = SILENCE_FRAMES_TO_REDETECT + 1; // prevent re-triggering
       // Wait 3 seconds for new song to start, then detect
       setTimeout(() => {
         silenceFrames = 0;
-        autoDetectSong(true);
+        if (lyricsEverEnabled) autoDetectSong(true);
       }, 3000);
     }
   } else {
     silenceFrames = 0;
+  }
+}
+
+// Periodic re-detect: catches song changes without silence gaps (crossfade playlists)
+// Only runs if user has opted into lyrics
+let lastRedetectTime = 0;
+const REDETECT_INTERVAL = 45000; // 45 seconds
+
+function checkForSongChange() {
+  if (!lyricsEverEnabled || isDetecting) return;
+  const now = performance.now();
+  if (now - lastRedetectTime < REDETECT_INTERVAL) return;
+
+  // Only re-detect if lyrics are near the end of the song (last 30 seconds)
+  // or if we have no active lyrics
+  if (!lyricsActive) {
+    lastRedetectTime = now;
+    autoDetectSong(true);
+  } else if (lyricsData.length > 0) {
+    const lyricNow = now / 1000 - lyricsStartTime + lyricsOffset;
+    const lastLine = lyricsData[lyricsData.length - 1];
+    // If we're past the last lyric line by 10+ seconds, song probably changed
+    if (lyricNow > lastLine.time + 10) {
+      lastRedetectTime = now;
+      clearLyrics();
+      autoDetectSong(true);
+    }
   }
 }
 
@@ -5012,9 +5047,10 @@ function animate() {
   // Cinematic camera journey
   updateCinematicCamera(elapsed, bass, rms);
 
-  // Lyrics + silence detection
+  // Lyrics + song change detection
   updateLyrics();
   checkForSilence(audio.sRms);
+  checkForSongChange();
 
   // Dynamic bloom
   bloomPass.strength = glowIntensity + rms * glowIntensity * 0.3;
