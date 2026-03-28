@@ -2637,6 +2637,1469 @@ if (i === 0) setInfo("Quantum Lattice", "3D crystal lattice with radial wave pro
 `
   },
 
+  {
+    name: 'STORM',
+    cam: [20, 100, 250],
+    code: `
+const speed       = addControl("speed",   "Storm Speed",          0.1,  3.0,  1.0);
+const spread      = addControl("spread",  "Storm Width",          20,   80,   45);
+const churn       = addControl("churn",   "Turbulence",           0.0,  3.0,  1.4);
+const rainDensity = addControl("rain",    "Rain Intensity",       0.0,  1.0,  0.6);
+const rainSpeed   = addControl("rainSpd", "Rain Speed",           0.1,  3.0,  1.0);
+const waveHeight  = addControl("waveH",   "Wave Height",          0.0,  5.0,  1.5);
+const waveFreq    = addControl("waveF",   "Wave Frequency",       0.02, 0.5,  0.18);
+const ceilHeight  = addControl("ceil",    "Cloud Ceiling",       -10.0, 20.0, -4.0);
+const lightFreq   = addControl("lfreq",   "Lightning Frequency",  1.0,  80.0, 61.0);
+const lightBright = addControl("lbright", "Lightning Brightness", 0.2,  1.0,  0.6);
+const lumpScale   = addControl("lump",    "Cloud Lumpiness",      0.5,  4.0,  1.0);
+const tearRagged  = addControl("tear",    "Edge Raggedness",      0.0,  1.0,  0.3);
+
+const oceanCount    = Math.floor(count * 0.28);
+const rainCount     = Math.floor(count * 0.14);
+const boltCount     = Math.floor(count * 0.05);
+const stormCount    = count - oceanCount - rainCount - boltCount;
+const boltParticles = Math.floor(boltCount / 4);
+
+const b0ph = (time / 1.1) % 1.0;
+const b1ph = ((time + 0.6) / 1.7) % 1.0;
+const b2ph = ((time + 1.3) / 2.3) % 1.0;
+const b3ph = ((time + 0.9) / 1.4) % 1.0;
+const ss   = 0.12;
+const b0br = b0ph < ss ? (1.0 - b0ph / ss) * lightBright : 0.0;
+const b1br = b1ph < ss ? (1.0 - b1ph / ss) * lightBright : 0.0;
+const b2br = b2ph < ss ? (1.0 - b2ph / ss) * lightBright : 0.0;
+const b3br = b3ph < ss ? (1.0 - b3ph / ss) * lightBright : 0.0;
+
+const b0x =  spread * 0.35; const b0z =  spread * 0.20;
+const b1x = -spread * 0.40; const b1z =  spread * 0.15;
+const b2x =  spread * 0.10; const b2z = -spread * 0.38;
+const b3x = -spread * 0.25; const b3z = -spread * 0.30;
+
+const fs   = 0.08;
+const c0fl = ((time + 0.2) / 0.9) % 1.0;
+const c1fl = ((time + 0.7) / 1.3) % 1.0;
+const c2fl = ((time + 1.1) / 1.8) % 1.0;
+const c3fl = ((time + 1.6) / 0.7) % 1.0;
+const c4fl = ((time + 0.4) / 2.1) % 1.0;
+const c5fl = ((time + 1.9) / 1.5) % 1.0;
+const cf0 = c0fl < fs ? (1.0 - c0fl / fs) : 0.0;
+const cf1 = c1fl < fs ? (1.0 - c1fl / fs) : 0.0;
+const cf2 = c2fl < fs ? (1.0 - c2fl / fs) : 0.0;
+const cf3 = c3fl < fs ? (1.0 - c3fl / fs) : 0.0;
+const cf4 = c4fl < fs ? (1.0 - c4fl / fs) : 0.0;
+const cf5 = c5fl < fs ? (1.0 - c5fl / fs) : 0.0;
+
+const c0x =  spread * 0.25; const c0z =  spread * 0.10;
+const c1x = -spread * 0.30; const c1z = -spread * 0.20;
+const c2x =  spread * 0.05; const c2z =  spread * 0.35;
+const c3x = -spread * 0.15; const c3z =  spread * 0.28;
+const c4x =  spread * 0.42; const c4z = -spread * 0.12;
+const c5x = -spread * 0.38; const c5z = -spread * 0.35;
+
+const cloudGlow = function(px, pz) {
+  const r  = 30.0;
+  const g0 = Math.max(0.0, 1.0 - Math.sqrt((px-c0x)*(px-c0x)+(pz-c0z)*(pz-c0z)) / r) * cf0;
+  const g1 = Math.max(0.0, 1.0 - Math.sqrt((px-c1x)*(px-c1x)+(pz-c1z)*(pz-c1z)) / r) * cf1;
+  const g2 = Math.max(0.0, 1.0 - Math.sqrt((px-c2x)*(px-c2x)+(pz-c2z)*(pz-c2z)) / r) * cf2;
+  const g3 = Math.max(0.0, 1.0 - Math.sqrt((px-c3x)*(px-c3x)+(pz-c3z)*(pz-c3z)) / r) * cf3;
+  const g4 = Math.max(0.0, 1.0 - Math.sqrt((px-c4x)*(px-c4x)+(pz-c4z)*(pz-c4z)) / r) * cf4;
+  const g5 = Math.max(0.0, 1.0 - Math.sqrt((px-c5x)*(px-c5x)+(pz-c5z)*(pz-c5z)) / r) * cf5;
+  return Math.min(1.0, g0+g1+g2+g3+g4+g5);
+};
+
+// ===================== OCEAN =====================
+if (i < oceanCount) {
+  const gs    = Math.ceil(Math.sqrt(oceanCount));
+  const ox    = (i % gs / gs - 0.5) * spread * 3.2;
+  const oz    = (Math.floor(i / gs) / gs - 0.5) * spread * 3.2;
+  const oDist = Math.sqrt(ox*ox + oz*oz);
+  const oMask = oDist < spread * 1.6 ? 1.0 : 0.0;
+  const wh    = waveHeight;
+  const w1    = Math.sin(ox * waveFreq            + time * speed * 0.7) * wh * 1.1;
+  const w2    = Math.cos(oz * waveFreq * 1.2      + time * speed * 0.5) * wh * 0.8;
+  const w3    = Math.sin((ox+oz) * waveFreq * 0.7 + time * speed * 0.9) * wh * 0.6;
+  const peak  = (w1+w2+w3 + wh*2.5) / (wh*5.0 + 0.001);
+  const foam  = Math.pow(Math.max(0.0, Math.sin(ox*0.4 + oz*0.3 + time*2.0)), 8.0);
+  const sg    = Math.min(1.0,
+    Math.max(0.0, 1.0 - Math.sqrt((ox-b0x)*(ox-b0x)+(oz-b0z)*(oz-b0z)) / 18.0) * b0br +
+    Math.max(0.0, 1.0 - Math.sqrt((ox-b1x)*(ox-b1x)+(oz-b1z)*(oz-b1z)) / 18.0) * b1br +
+    Math.max(0.0, 1.0 - Math.sqrt((ox-b2x)*(ox-b2x)+(oz-b2z)*(oz-b2z)) / 18.0) * b2br +
+    Math.max(0.0, 1.0 - Math.sqrt((ox-b3x)*(ox-b3x)+(oz-b3z)*(oz-b3z)) / 18.0) * b3br
+  );
+  target.set(ox, (-18.0 + w1+w2+w3) * oMask + (1.0 - oMask) * 9999.0, oz);
+  color.setHSL(0.58 + peak*0.04, 0.85, (0.06 + peak*0.12 + foam*0.3 + sg*0.5) * oMask);
+
+// ===================== RAIN =====================
+} else if (i < oceanCount + rainCount) {
+  const ri      = i - oceanCount;
+  const rt      = ri / rainCount;
+  const rphi    = rt * 2.399963;
+  const rSheetR = Math.sqrt(rt) * spread * 1.8;
+  const rx      = Math.cos(rphi * 37.0) * rSheetR;
+  const rz      = Math.sin(rphi * 37.0) * rSheetR;
+  const rainTop  = -3.0;
+  const rainBot  = -17.0;
+  const rainSpan = rainTop - rainBot;
+  const rate     = rainSpeed * (0.8 + Math.sin(ri * 7.3) * 0.2);
+  const descent  = (rt + time * rate * (0.5 + rainDensity * 0.5)) % 1.0;
+  const ry       = rainTop - descent * rainSpan;
+  const alpha    = Math.min((rainTop - ry) / (rainSpan * 0.06), 1.0) *
+                   Math.min((ry - rainBot) / (rainSpan * 0.06), 1.0);
+  target.set(rx, ry, rz);
+  color.setHSL(0.60, 0.55, 0.10 + Math.max(0.0, alpha) * 0.25);
+
+// ===================== BOLTS =====================
+} else if (i < oceanCount + rainCount + boltCount) {
+  const bi  = i - oceanCount - rainCount;
+  const idx = Math.floor(bi / boltParticles);
+  const bt  = (bi % boltParticles) / boltParticles;
+  const bx  = idx === 0 ? b0x : idx === 1 ? b1x : idx === 2 ? b2x : b3x;
+  const bz  = idx === 0 ? b0z : idx === 1 ? b1z : idx === 2 ? b2z : b3z;
+  const bbr = idx === 0 ? b0br : idx === 1 ? b1br : idx === 2 ? b2br : b3br;
+  const by  = (ceilHeight - 2.0) + (-17.5 - (ceilHeight - 2.0)) * bt;
+  const env = Math.sin(bt * Math.PI) * 0.3;
+  const tx  = Math.sin(bt*22.0 + time*18.0 + idx*5.3) * env;
+  const tz  = Math.cos(bt*31.0 + time*14.0 + idx*3.7) * env;
+  const brT = Math.max(0.0, bt - 0.70) / 0.30;
+  const bx2 = Math.sin(bt*71.0 + time*9.0  + idx*7.1) * brT * 0.9;
+  const bz2 = Math.cos(bt*53.0 + time*11.0 + idx*4.9) * brT * 0.6;
+  target.set(bx+tx+bx2, by, bz+tz+bz2);
+  color.setHSL(0.62 - bt*0.08, bbr > 0.0 ? 0.15 + bt*0.15 : 0.0, bbr * 0.95);
+
+// ===================== CLOUD =====================
+} else {
+  const si    = i - oceanCount - rainCount - boltCount;
+  const st    = si / stormCount;
+  const phi   = st * 2.399963;
+  const sR    = Math.sqrt(st) * spread * 1.8;
+  const sx    = Math.cos(phi * 37.0) * sR;
+  const sz    = Math.sin(phi * 37.0) * sR;
+  const ls    = lumpScale;
+  const sr1   = Math.sin(sx*0.07 + time*speed*0.30)     * Math.cos(sz*0.06 + time*speed*0.20) * 4.5*ls;
+  const sr2   = Math.cos(sx*0.05 - time*speed*0.25+1.3) * Math.sin(sz*0.08 + time*speed*0.35) * 3.5*ls;
+  const ml1   = Math.sin(sx*0.18 + sz*0.14 + time*churn*0.70) * 2.2*ls;
+  const ml2   = Math.cos(sx*0.22 - sz*0.16 + time*churn*0.55+2.1) * 1.8*ls;
+  const sd1   = Math.sin(sx*0.41 + sz*0.37 + time*churn*1.10) * 0.9*ls;
+  const sd2   = Math.cos(sx*0.53 - sz*0.44 + time*churn*0.90+1.7) * 0.7*ls;
+  const md1   = Math.sin(sx*0.89 + sz*0.71 + time*churn*1.60) * 0.4*ls;
+  const md2   = Math.cos(sx*1.13 - sz*0.97 + time*churn*1.30+0.9) * 0.3*ls;
+  const md3   = Math.sin(sx*1.47 + sz*1.21 + time*churn*1.80+2.4) * 0.2*ls;
+  const belly = sr1+sr2+ml1+ml2+sd1+sd2+md1+md2+md3;
+  const thick = Math.sin(st*127.3 + sx*0.3) * 0.5 + 0.5;
+  const py    = ceilHeight + thick * 3.0;
+  const eFade = Math.max(0.0, 1.0 - sR / (spread * 1.8));
+  const eMask = Math.min(1.0, eFade*(3.0 - tearRagged*2.5) + (Math.sin(st*311.7+phi*53.0)*0.5+0.5)*tearRagged);
+  const lp    = Math.pow(Math.max(0.0, Math.sin(st*lightFreq + time*7.0 + sx*0.1)), 14.0) * lightBright;
+  const shim  = Math.pow(Math.max(0.0, Math.sin(st*lightFreq*0.3 + time*3.0 + sz*0.08)), 6.0) * lightBright*0.25;
+  const gsHit = Math.min(1.0,
+    Math.max(0.0, 1.0 - Math.sqrt((sx-b0x)*(sx-b0x)+(sz-b0z)*(sz-b0z)) / 12.0) * b0br +
+    Math.max(0.0, 1.0 - Math.sqrt((sx-b1x)*(sx-b1x)+(sz-b1z)*(sz-b1z)) / 12.0) * b1br +
+    Math.max(0.0, 1.0 - Math.sqrt((sx-b2x)*(sx-b2x)+(sz-b2z)*(sz-b2z)) / 12.0) * b2br +
+    Math.max(0.0, 1.0 - Math.sqrt((sx-b3x)*(sx-b3x)+(sz-b3z)*(sz-b3z)) / 12.0) * b3br
+  );
+  const cglow = cloudGlow(sx, sz);
+  const lit   = Math.min(1.0, 0.05 + thick*0.14 + eFade*0.10 + lp + shim + gsHit*0.6 + cglow*lightBright*1.8) * eMask;
+  target.set(sx, py*eMask + (1.0-eMask)*(py+8.0), sz);
+  color.setHSL(0.60 - cglow*0.10 + belly*0.003 + lp*0.05, Math.max(0.0, 0.50 - cglow*0.45) + lp*0.4 + shim*0.2, lit);
+}
+
+if (i === 0) {
+  setInfo("Cumulonimbus Storm", "Ocean clipped to circle — grid density with round edges. Rain and cloud independent.");
+  annotate("ann_ocean", new THREE.Vector3(0, -18, 0), "Ocean Surface");
+  annotate("ann_rain",  new THREE.Vector3(spread * 0.4, -8, 0), "Rain Curtain");
+  annotate("ann_ceil",  new THREE.Vector3(0, ceilHeight, 0), "Cloud Base");
+  annotate("ann_top",   new THREE.Vector3(0, ceilHeight + 4, 0), "Cloud Top");
+}
+`
+  },
+  {
+    name: 'BLACK HOLE',
+    cam: [15, 80, 200],
+    code: `
+// === SCHWARZSCHILD BLACK HOLE — SOLAR PLASMA (COMPLEX) ===
+// 8 physically-distinct zones: accretion disk, ISCO plunge, photon sphere,
+// ergosphere frame-dragging, bipolar jets, jet cocoon, lensing arcs, Hawking corona.
+
+const scale      = addControl("scale",      "Scale",          15, 100, 55);
+const consumeSpd = addControl("consume",    "Infall Speed",    0,   3,  1.0);
+const jetPower   = addControl("jetpwr",     "Jet Power",       0,   3,  1.4);
+const accDensity = addControl("accdense",   "Disk Density",    0,   3,  1.2);
+const lensStr    = addControl("lensstr",    "Lens Warp",       0,   2,  0.8);
+const frameDrag  = addControl("framedrag",  "Frame Drag",      0,   2,  0.6);
+const hawkingT   = addControl("hawking",    "Hawking Temp",    0,   1,  0.5);
+const chaos      = addControl("chaos",      "Chaos Field",     0,   2,  0.4);
+
+if (i === 0) {
+  setInfo(
+    "Schwarzschild Black Hole",
+    "25,000 plasma particles across 8 zones: accretion disk, ISCO plunge, photon sphere, ergosphere, bipolar jets, jet cocoon, lensing arcs, Hawking radiation corona."
+  );
+  annotate("singularity", new THREE.Vector3(0, 0, 0), "Event Horizon");
+  annotate("jetN", new THREE.Vector3(0, scale * 0.018 * 80, 0), "Polar Jet +");
+  annotate("jetS", new THREE.Vector3(0, -scale * 0.018 * 80, 0), "Polar Jet −");
+}
+
+const TAU = 6.28318530718;
+const t   = i / count;
+
+// ── Zone masks (branchless) ──
+const mDisk   = t < 0.35                   ? 1.0 : 0.0;
+const mISCO   = t >= 0.35 && t < 0.48     ? 1.0 : 0.0;
+const mPhot   = t >= 0.48 && t < 0.58     ? 1.0 : 0.0;
+const mErgo   = t >= 0.58 && t < 0.67     ? 1.0 : 0.0;
+const mJet    = t >= 0.67 && t < 0.76     ? 1.0 : 0.0;
+const mSheath = t >= 0.76 && t < 0.84     ? 1.0 : 0.0;
+const mLens   = t >= 0.84 && t < 0.92     ? 1.0 : 0.0;
+const mHawk   = t >= 0.92                  ? 1.0 : 0.0;
+
+// ── ACCRETION DISK — 5 warped spiral arms ──
+const dT    = t / 0.35;
+const arm   = Math.floor(dT * 5.0);
+const armT  = (dT * 5.0) % 1.0;
+const dAng  = armT * TAU + arm * (TAU / 5.0) + time * (0.5 + armT * consumeSpd) + dT * TAU * 22.0;
+const dRad  = 7.5 + dT * dT * 38.0 * accDensity;
+const dWarp = Math.sin(dT * TAU * 3.0 + time * 0.4) * (0.8 + arm * 0.12);
+const dCurl = Math.cos(dAng * 0.5 + time * 0.2) * chaos * 2.0;
+const dX    = Math.cos(dAng + dCurl * 0.05) * dRad;
+const dZ    = Math.sin(dAng + dCurl * 0.05) * dRad;
+const dY    = dWarp + Math.sin(dT * TAU * 7.0 + time * 0.9) * 1.1 + dCurl * 0.3;
+
+// ── ISCO / PLUNGE REGION — spiraling infall ──
+const iT    = (t - 0.35) / 0.13;
+const iAng  = iT * TAU * 18.0 + time * (1.8 + iT * consumeSpd * 2.0);
+const iRad  = 7.5 * (1.0 - iT * 0.55) + Math.sin(iT * TAU * 5.0 + time) * 0.4;
+const iX    = Math.cos(iAng) * iRad;
+const iZ    = Math.sin(iAng) * iRad;
+const iY    = (iT - 0.5) * 1.2 + Math.sin(iAng * 3.0 + time * 2.0) * 0.3;
+
+// ── PHOTON SPHERE — light trapped at r=1.5rs ──
+const pT     = (t - 0.48) / 0.10;
+const pPhi   = pT * TAU * 31.0 + time * 1.4;
+const pTheta = pT * TAU * 11.7 + time * 0.7;
+const pRad   = 9.75 + Math.sin(pT * TAU * 5.0 + time * 2.5) * 0.15;
+const pX     = Math.cos(pPhi) * Math.sin(pTheta) * pRad;
+const pY     = Math.cos(pTheta) * pRad;
+const pZ     = Math.sin(pPhi) * Math.sin(pTheta) * pRad;
+
+// ── ERGOSPHERE — Kerr frame-dragging vortex ──
+const eT    = (t - 0.58) / 0.09;
+const eSpin = frameDrag * 2.8;
+const eAng  = eT * TAU * 14.0 + time * eSpin + eT * TAU * 8.0;
+const eRad  = 8.5 + Math.sin(eT * TAU * 4.0 + time * 0.5) * 1.5;
+const eTilt = eT * Math.PI * 0.6 - Math.PI * 0.3;
+const eX    = Math.cos(eAng) * eRad;
+const eZ    = Math.sin(eAng) * eRad * Math.cos(eTilt * 0.3);
+const eY    = Math.sin(eAng) * eRad * Math.sin(eTilt * 0.3) + Math.sin(eT * TAU * 9.0 + time) * 0.8;
+
+// ── RELATIVISTIC JETS — bipolar plasma columns ──
+const jT    = (t - 0.67) / 0.09;
+const jSide = jT < 0.5 ? 1.0 : -1.0;
+const jFrac = (jT % 0.5) / 0.5;
+const jH    = jSide * (1.0 + jFrac * jFrac * jFrac * 80.0 * jetPower);
+const jAng  = jFrac * TAU * 12.0 + time * (3.0 + jFrac * 4.0);
+const jRad  = Math.pow(1.0 - jFrac, 1.5) * 5.0 * jetPower + Math.sin(jFrac * TAU * 6.0 + time * 4.0) * 0.3 * jetPower;
+const jKink = Math.sin(jH * 0.08 + time * 2.0) * chaos * 1.5;
+const jX    = Math.cos(jAng) * jRad + jKink;
+const jZ    = Math.sin(jAng) * jRad;
+const jY    = jH;
+
+// ── JET COCOON — warm sheath around jet columns ──
+const sT    = (t - 0.76) / 0.08;
+const sSide = sT < 0.5 ? 1.0 : -1.0;
+const sFrac = (sT % 0.5) / 0.5;
+const sH    = sSide * (2.0 + sFrac * 55.0 * jetPower * 0.7);
+const sAng  = sFrac * TAU * 6.0 + time * 1.5;
+const sRad  = (1.0 - sFrac * 0.4) * 8.0 * jetPower + Math.sin(sFrac * TAU * 3.0 + time * 2.0) * 1.0;
+const sX    = Math.cos(sAng) * sRad;
+const sZ    = Math.sin(sAng) * sRad;
+const sY    = sH;
+
+// ── GRAVITATIONAL LENSING ARCS — 8 inclined orbital families ──
+const lT    = (t - 0.84) / 0.08;
+const lArc  = Math.floor(lT * 8.0);
+const lFrac = (lT * 8.0) % 1.0;
+const lIncl = lArc * 0.39 + 0.2;
+const lAng  = lFrac * TAU * (0.65 + lArc * 0.08) + time * (0.15 + lArc * 0.06);
+const lRad  = 14.0 + lArc * 4.0 + Math.sin(time * 0.3 + lArc) * 1.5;
+const lX0   = Math.cos(lAng) * lRad;
+const lY0   = Math.sin(lAng) * lRad * Math.sin(lIncl);
+const lZ0   = Math.sin(lAng) * lRad * Math.cos(lIncl);
+const lDst  = Math.sqrt(lX0*lX0 + lY0*lY0 + lZ0*lZ0) + 0.001;
+const lW    = lensStr / (lDst * 0.6 + 1.5);
+const lX    = lX0 * (1.0 - lW);
+const lY    = lY0 * (1.0 - lW);
+const lZ    = lZ0 * (1.0 - lW);
+
+// ── HAWKING RADIATION CORONA — quantum sparks ──
+const hT    = (t - 0.92) / 0.08;
+const hPhi  = hT * TAU * 53.0 + time * (0.8 + hawkingT * 3.0);
+const hThet = hT * TAU * 17.3 + time * (0.5 + hawkingT * 1.5);
+const hRad  = 9.5 + hawkingT * 8.0 + Math.sin(hT * TAU * 4.0 + time * 2.0) * hawkingT * 3.0;
+const hJit  = chaos * (Math.sin(hT * 197.3 + time * 5.0) * 2.0);
+const hX    = Math.cos(hPhi) * Math.sin(hThet) * hRad + hJit;
+const hY    = Math.cos(hThet) * hRad + hJit * 0.5;
+const hZ    = Math.sin(hPhi) * Math.sin(hThet) * hRad;
+
+// ── COMBINE ALL ZONES ──
+const rx = dX*mDisk + iX*mISCO + pX*mPhot + eX*mErgo + jX*mJet + sX*mSheath + lX*mLens + hX*mHawk;
+const ry = dY*mDisk + iY*mISCO + pY*mPhot + eY*mErgo + jY*mJet + sY*mSheath + lY*mLens + hY*mHawk;
+const rz = dZ*mDisk + iZ*mISCO + pZ*mPhot + eZ*mErgo + jZ*mJet + sZ*mSheath + lZ*mLens + hZ*mHawk;
+
+target.set(rx * scale * 0.018, ry * scale * 0.018, rz * scale * 0.018);
+
+// ── SOLAR PLASMA COLORING ──
+const dist  = Math.sqrt(rx*rx + ry*ry + rz*rz) + 0.01;
+const heat  = 1.0 / (dist * 0.045 + 0.28);
+const heatC = Math.min(heat, 1.0);
+
+// Blackbody curve: deep red → orange → gold → yellow-white
+let hue  = 0.06 - heatC * 0.062;
+let sat  = 0.98 - heatC * 0.70;
+let lite = 0.12 + heatC * 0.75;
+
+// Photon sphere: electric blue-white
+hue  += mPhot * (0.58 - hue) * 0.9;
+sat  += mPhot * (0.60 - sat) * 0.8;
+lite += mPhot * 0.30;
+
+// Ergosphere: pulsing cyan-gold
+const ergoPhase = Math.sin(time * 3.0 + t * TAU * 4.0) * 0.5 + 0.5;
+hue  += mErgo * (0.14 + ergoPhase * 0.08 - hue) * 0.6;
+lite += mErgo * 0.15;
+
+// Jets: brilliant blue-white at base, fading cool white at tip
+hue  += mJet * (0.55 - hue) * 0.5;
+sat  += mJet * (0.40 - sat) * 0.7;
+lite += mJet * 0.45;
+
+// Cocoon sheath: warm amber
+hue  += mSheath * (0.08 - hue) * 0.6;
+lite += mSheath * 0.10;
+
+// Lensing arcs: ghostly pale blue
+hue  += mLens * (0.60 - hue) * 0.7;
+sat  += mLens * (0.30 - sat) * 0.6;
+lite += mLens * 0.08;
+
+// Hawking corona: flickering blue-white sparks
+const hawkFlicker = Math.abs(Math.sin(t * 1337.7 + time * 8.0));
+hue  += mHawk * (0.55 - hue) * 0.8;
+sat  += mHawk * (0.50 - sat) * 0.7;
+lite += mHawk * (hawkFlicker * 0.6 * hawkingT + 0.05);
+
+color.setHSL((hue + 1.0) % 1.0, Math.max(0.0, sat), Math.min(1.0, lite));
+`
+  },
+  {
+    name: 'ANYONS',
+    cam: [15, 90, 200],
+    code: `
+const scale4D     = addControl("scale4d",    "4D Scale",           20, 200, 90);
+const wSlice      = addControl("wslice",     "W-Axis Slice",        0, 100, 50);
+const thetaFrac   = addControl("theta",      "Anyon Phase (x pi)", 10, 100, 33);
+const braidStr    = addControl("braidstr",   "Braid Strength",       0, 100, 60);
+const fluxTube    = addControl("flux",       "Flux Tube Radius",     1, 100, 40);
+const anyonType   = addControl("type",       "Anyon Type (0-3)",     0,   3,  0);
+const rotXW       = addControl("rotxw",      "Rot XW Plane",         0, 100, 18);
+const rotYZ       = addControl("rotyz",      "Rot YZ Plane",         0, 100, 22);
+const tesseract   = addControl("tesseract",  "Tesseract Strength",   0, 100, 55);
+const worldsheet  = addControl("worldsheet", "Worldsheet Density",   0, 100, 70);
+
+const theta_stat  = (thetaFrac / 100) * Math.PI * 2;   
+const braidK      = braidStr  / 100;
+const fluxR       = fluxTube  / 100;
+const wsD         = worldsheet / 100;
+const tessW       = tesseract  / 100;
+
+const norm      = i / count;
+const layer     = Math.floor(norm * 4);           
+const layerNorm = (norm * 4) - layer;             
+const idx       = layerNorm;
+
+const angXY = time * 0.13;
+const angXZ = time * 0.09;
+const angXW = time * (rotXW / 100) * 0.25 + time * 0.07;
+const angYZ = time * (rotYZ / 100) * 0.20 + time * 0.05;
+const angYW = time * 0.11;
+const angZW = time * 0.08;
+
+let px = 0, py = 0, pz = 0, pw = 0;
+
+const wl_phi   = idx * Math.PI * 2 * 12 + time * 0.4;
+const wl_t     = idx * 2.0 - 1.0;                         
+const wl_r     = scale4D * (0.5 + 0.5 * Math.abs(Math.sin(idx * Math.PI * 7)));
+const wl_braid = Math.sin(wl_t * Math.PI * 3 + time * braidK * 2) * braidK * scale4D * 0.35;
+const wl_x0    = Math.cos(wl_phi + theta_stat * idx * 5) * wl_r + wl_braid;
+const wl_y0    = Math.sin(wl_phi + theta_stat * idx * 5) * wl_r - wl_braid;
+const wl_z0    = wl_t * scale4D * 0.9;
+const wl_w0    = Math.sin(idx * Math.PI * 4 + time * 0.3) * scale4D * fluxR
+               + (wSlice / 100 - 0.5) * scale4D;
+
+const bs_s     = Math.floor(idx * 40) / 40;               
+const bs_t     = (idx * 40) - Math.floor(idx * 40);      
+const bs_angle = bs_s * Math.PI * 2 + time * 0.15;
+const bs_r0    = scale4D * 0.7 * wsD;
+const bs_r1    = scale4D * 0.35 * wsD;
+const bs_twist = bs_t * theta_stat * 4 + time * 0.2;       
+const ws_x0    = Math.cos(bs_angle) * bs_r0 + Math.cos(bs_twist) * bs_r1;
+const ws_y0    = Math.sin(bs_angle) * bs_r0 + Math.sin(bs_twist) * bs_r1;
+const ws_z0    = (bs_t - 0.5) * scale4D * 1.1;
+const ws_w0    = Math.sin(bs_angle * 2 + bs_t * Math.PI) * scale4D * 0.5
+               + (wSlice / 100 - 0.5) * scale4D * 0.7;
+
+
+const tess_edge = Math.floor(idx * 32);                    
+const tess_t    = (idx * 32) - tess_edge;                  
+
+const vA        = tess_edge % 16;
+const vB        = (tess_edge + 1 + Math.floor(tess_edge / 4)) % 16;
+const vAx       = (vA & 1) ? 1.0 : -1.0;
+const vAy       = (vA & 2) ? 1.0 : -1.0;
+const vAz       = (vA & 4) ? 1.0 : -1.0;
+const vAw       = (vA & 8) ? 1.0 : -1.0;
+const vBx       = (vB & 1) ? 1.0 : -1.0;
+const vBy       = (vB & 2) ? 1.0 : -1.0;
+const vBz       = (vB & 4) ? 1.0 : -1.0;
+const vBw       = (vB & 8) ? 1.0 : -1.0;
+
+const tessBreath = 1.0 + 0.18 * Math.sin(time * 0.5);
+const ts_x0     = (vAx + (vBx - vAx) * tess_t) * scale4D * 0.75 * tessBreath * tessW;
+const ts_y0     = (vAy + (vBy - vAy) * tess_t) * scale4D * 0.75 * tessBreath * tessW;
+const ts_z0     = (vAz + (vBz - vAz) * tess_t) * scale4D * 0.75 * tessBreath * tessW;
+const ts_w0     = (vAw + (vBw - vAw) * tess_t) * scale4D * 0.75 * tessBreath * tessW;
+
+const ft_tube   = Math.floor(idx * 15);                    // 15 flux tubes
+const ft_t      = (idx * 15) - ft_tube;                   // height along tube
+const ft_angle  = ft_tube * (Math.PI * 2 / 15) + time * 0.08;
+const ft_base_r = scale4D * 0.65;
+const ft_rad    = scale4D * fluxR * 0.18;
+const ft_spin   = ft_t * Math.PI * 2 * 3 + time * 0.5;    // solenoid winding
+const fl_x0     = Math.cos(ft_angle) * ft_base_r + Math.cos(ft_spin) * ft_rad;
+const fl_y0     = Math.sin(ft_angle) * ft_base_r + Math.sin(ft_spin) * ft_rad;
+const fl_z0     = (ft_t - 0.5) * scale4D * 1.2;
+const fl_w0     = Math.cos(ft_angle * 2 + ft_t * Math.PI * 2) * scale4D * 0.4
+               + (wSlice / 100 - 0.5) * scale4D;
+
+const lm0 = Math.max(0, Math.sin((1.0 - Math.abs(norm * 4 - 0.5)) * Math.PI));
+const lm1 = Math.max(0, Math.sin((1.0 - Math.abs(norm * 4 - 1.5)) * Math.PI));
+const lm2 = Math.max(0, Math.sin((1.0 - Math.abs(norm * 4 - 2.5)) * Math.PI));
+const lm3 = Math.max(0, Math.sin((1.0 - Math.abs(norm * 4 - 3.5)) * Math.PI));
+
+const raw_x = wl_x0 * lm0 + ws_x0 * lm1 + ts_x0 * lm2 + fl_x0 * lm3;
+const raw_y = wl_y0 * lm0 + ws_y0 * lm1 + ts_y0 * lm2 + fl_y0 * lm3;
+const raw_z = wl_z0 * lm0 + ws_z0 * lm1 + ts_z0 * lm2 + fl_z0 * lm3;
+const raw_w = wl_w0 * lm0 + ws_w0 * lm1 + ts_w0 * lm2 + fl_w0 * lm3;
+
+const cXY = Math.cos(angXY), sXY = Math.sin(angXY);
+const r1x = cXY * raw_x - sXY * raw_y;
+const r1y = sXY * raw_x + cXY * raw_y;
+const r1z = raw_z, r1w = raw_w;
+
+const cXZ = Math.cos(angXZ), sXZ = Math.sin(angXZ);
+const r2x = cXZ * r1x - sXZ * r1z;
+const r2z = sXZ * r1x + cXZ * r1z;
+const r2y = r1y, r2w = r1w;
+
+const cXW = Math.cos(angXW), sXW = Math.sin(angXW);
+const r3x = cXW * r2x - sXW * r2w;
+const r3w = sXW * r2x + cXW * r2w;
+const r3y = r2y, r3z = r2z;
+
+const cYZ = Math.cos(angYZ), sYZ = Math.sin(angYZ);
+const r4y = cYZ * r3y - sYZ * r3z;
+const r4z = sYZ * r3y + cYZ * r3z;
+const r4x = r3x, r4w = r3w;
+
+const cYW = Math.cos(angYW), sYW = Math.sin(angYW);
+const r5y = cYW * r4y - sYW * r4w;
+const r5w = sYW * r4y + cYW * r4w;
+const r5x = r4x, r5z = r4z;
+
+const cZW = Math.cos(angZW), sZW = Math.sin(angZW);
+const r6z = cZW * r5z - sZW * r5w;
+const r6w = sZW * r5z + cZW * r5w;
+const r6x = r5x, r6y = r5y;
+
+const wDist   = scale4D * 1.5;
+const wDenom  = 1.0 / (wDist - r6w + 0.001);   // guard zero
+px = r6x * wDist * wDenom;
+py = r6y * wDist * wDenom;
+pz = r6z * wDist * wDenom;
+
+const clamp = 999;
+px = Math.max(-clamp, Math.min(clamp, px));
+py = Math.max(-clamp, Math.min(clamp, py));
+pz = Math.max(-clamp, Math.min(clamp, pz));
+
+target.set(px, py, pz);
+
+const phase_hue  = ((norm + theta_stat / (Math.PI * 2) + time * 0.04) % 1.0 + 1.0) % 1.0;
+
+// Layer-based hue shifts: worldlines=cyan, worldsheets=violet, tesseract=gold, flux=orange
+const hShift0 = 0.52;  // cyan
+const hShift1 = 0.75;  // violet
+const hShift2 = 0.13;  // gold
+const hShift3 = 0.06;  // orange
+const hBase   = hShift0 * lm0 + hShift1 * lm1 + hShift2 * lm2 + hShift3 * lm3;
+
+const finalHue = (hBase + phase_hue * 0.18) % 1.0;
+
+const wNorm   = (r6w / (scale4D + 0.001) + 1.0) * 0.5;   // 0..1
+const lit     = 0.38 + wNorm * 0.38;
+const sat     = 0.80 + wNorm * 0.20;
+
+color.setHSL(finalHue, sat, lit);
+
+if (i === 0) {
+  const typeNames = ["Abelian (v=1/3)", "Fibonacci", "Ising", "Semion"];
+  const tIdx = Math.min(3, Math.max(0, Math.floor(anyonType)));
+  const tName = typeNames[tIdx];
+  const csK = Math.round(Math.PI / (theta_stat + 0.001));
+
+  setInfo(
+    "4D Anyon Particle Simulation",
+    "Type: " + tName +
+    " | Phase theta=" + (thetaFrac / 100 * 2).toFixed(2) + "pi" +
+    " | Chern-Simons k=" + csK +
+    " | 4D->3D stereographic projection with 6-plane rotation" +
+    " | Layers: Worldlines + Braiding Worldsheets + Tesseract + Flux Tubes"
+  );
+
+  annotate("origin",   new THREE.Vector3(0, 0, 0),              "Vacuum |0>");
+  annotate("waxis",    new THREE.Vector3(0, scale4D * 0.9, 0),  "W-Axis (4th dim)");
+  annotate("braid",    new THREE.Vector3(scale4D * 0.7, 0, 0),  "Braid Zone");
+  annotate("flux",     new THREE.Vector3(-scale4D * 0.7, 0, 0), "Flux Lattice");
+  annotate("tesseract",new THREE.Vector3(0, 0, scale4D * 0.85), "Tesseract Shell");
+}
+`
+  },
+  {
+    name: 'SPARK OF LIFE',
+    cam: [12, 70, 160],
+    code: `
+const simSpeed = addControl("Sim Speed", "Animation flow", 0.1, 3.0, 1.2);
+const chaos = addControl("Energy Chaos", "Lightning & Fusion intensity", 0.0, 3.0, 1.0);
+const overallScale = addControl("Global Scale", "Size multiplier", 0.5, 2.5, 1.0);
+
+const loopTime = 24.0;
+const tCycle = (time * simSpeed) % loopTime;
+
+let spermZ = 0;
+let enteringRatio = 0;
+let fusionRatio = 0;
+
+if (tCycle < 8.0) {
+    spermZ = 250.0 - (tCycle / 8.0) * 190.0;
+} else if (tCycle < 14.0) {
+    enteringRatio = (tCycle - 8.0) / 6.0;
+    spermZ = 60.0 - enteringRatio * 45.0;
+} else if (tCycle < 20.0) {
+    fusionRatio = (tCycle - 14.0) / 6.0;
+    spermZ = 15.0 - fusionRatio * 15.0;
+} else {
+    fusionRatio = 1.0;
+    spermZ = 0.0;
+}
+
+const safeTotalSperm = Math.max(10, Math.min(2000, Math.floor(count * 0.1)));
+const actualHead = Math.floor(safeTotalSperm * 0.2);
+const actualTail = safeTotalSperm - actualHead;
+
+let px = 0, py = 0, pz = 0;
+let hue = 0, sat = 0, lit = 0;
+
+if (i < safeTotalSperm) {
+    if (i < actualHead) {
+        const norm = (i + 0.5) / actualHead;
+        const phi = Math.acos(1.0 - 2.0 * norm);
+        const theta = i * Math.PI * 2.0 * 1.6180339887;
+        
+        const rx = 2.5, ry = 2.5, rz = 4.5;
+        px = Math.sin(phi) * Math.cos(theta) * rx;
+        py = Math.sin(phi) * Math.sin(theta) * ry;
+        pz = Math.cos(phi) * rz;
+        
+        pz += spermZ;
+        
+        hue = 0.6; sat = 0.4; lit = 0.8;
+        
+        if (fusionRatio > 0) {
+            const scatter = fusionRatio * 40.0 * chaos;
+            px += Math.sin(i * 11.3 + time * 5.0) * scatter;
+            py += Math.cos(i * 13.7 + time * 5.0) * scatter;
+            pz += Math.sin(i * 17.1 - time * 5.0) * scatter;
+            hue = 0.1; sat = 1.0; 
+            lit = Math.max(0.0, 0.8 - fusionRatio);
+        }
+    } else {
+        const tailIdx = i - actualHead;
+        const tailNorm = tailIdx / actualTail;
+        const tailLength = 60.0;
+        
+        let wiggleSpd = 25.0;
+        let wiggleAmp = 3.5;
+        
+        if (enteringRatio > 0 && fusionRatio === 0) {
+            wiggleSpd = 50.0;
+            wiggleAmp = 2.0;
+        } else if (fusionRatio > 0) {
+            wiggleSpd = 5.0;
+            wiggleAmp = 0.5;
+        }
+        
+        const taper = 1.0 - tailNorm;
+        px = Math.sin(tailNorm * 20.0 - time * wiggleSpd) * wiggleAmp * taper;
+        py = Math.cos(tailNorm * 15.0 - time * wiggleSpd * 0.8) * wiggleAmp * taper * 0.5;
+        pz = spermZ + 4.5 + tailNorm * tailLength;
+        
+        hue = 0.6; sat = 0.4; lit = 0.6 - tailNorm * 0.4;
+        
+        if (fusionRatio > 0) {
+            const scatter = fusionRatio * 30.0 * chaos;
+            px += Math.sin(i * 5.1 + time * 2.0) * scatter;
+            py += Math.cos(i * 6.3 + time * 2.0) * scatter;
+            pz += Math.sin(i * 7.7 - time * 2.0) * scatter;
+            lit = Math.max(0.0, lit - fusionRatio);
+        }
+    }
+} else {
+    const ovumIdx = i - safeTotalSperm;
+    const ovumTotal = Math.max(1, count - safeTotalSperm);
+    
+    const phiO = Math.acos(1.0 - 2.0 * ((ovumIdx + 0.5) / ovumTotal));
+    const thetaO = ovumIdx * Math.PI * 2.0 * 1.6180339887;
+    
+    let nx = Math.sin(phiO) * Math.cos(thetaO);
+    let ny = Math.sin(phiO) * Math.sin(thetaO);
+    let nz = Math.cos(phiO);
+    
+    const hash = Math.abs((Math.sin(ovumIdx * 12.9898) * 43758.5453) % 1.0);
+    
+    let layer = 0;
+    let r = 0;
+    
+    if (hash < 0.15) {
+        layer = 0;
+        r = 16.0 * Math.cbrt(hash / 0.15);
+    } else if (hash < 0.65) {
+        layer = 1;
+        r = 45.0 + 15.0 * ((hash - 0.15) / 0.50);
+    } else {
+        layer = 2;
+        r = 60.0 + 20.0 * ((hash - 0.65) / 0.35);
+    }
+    
+    let clumpR = r;
+    if (layer === 2) {
+        clumpR += Math.sin(nx * 15.0) * Math.cos(ny * 15.0) * Math.sin(nz * 15.0) * 4.0;
+    }
+    
+    px = nx * clumpR;
+    py = ny * clumpR;
+    pz = nz * clumpR;
+    
+    let lightningVal = 0;
+    const distToEntry = Math.sqrt(px*px + py*py + (pz - 60.0)*(pz - 60.0));
+    
+    if (enteringRatio > 0 && enteringRatio < 1.0 && layer === 1) {
+        const proximity = Math.max(0.0, 1.0 - distToEntry / 45.0);
+        const spark = Math.pow(Math.sin(distToEntry * 1.5 - time * 40.0 + ovumIdx), 4.0);
+        lightningVal = spark * proximity * Math.sin(enteringRatio * Math.PI);
+        
+        const slice = Math.floor((thetaO + Math.PI + time * 3.0) * 5.0);
+        if (slice % 3 === 0 && distToEntry < 50.0) {
+            px += Math.sin(clumpR * 10.0 + time * 60.0) * 6.0 * chaos * proximity;
+            py += Math.cos(clumpR * 12.0 + time * 60.0) * 6.0 * chaos * proximity;
+            lightningVal += 0.6 * proximity;
+        }
+        
+        px += nx * lightningVal * 10.0 * chaos;
+        py += ny * lightningVal * 10.0 * chaos;
+        pz += nz * lightningVal * 10.0 * chaos;
+    }
+    
+    if (fusionRatio > 0) {
+        if (layer === 0) {
+            let coreScale = 1.0;
+            if (fusionRatio < 0.2) {
+                coreScale = 1.0 - (fusionRatio / 0.2) * 0.9;
+            } else {
+                const expand = (fusionRatio - 0.2) / 0.8;
+                coreScale = 0.1 + Math.pow(expand, 3.0) * 4.5;
+            }
+            
+            const swirl = fusionRatio * 25.0;
+            const tTheta = thetaO + swirl * (ny > 0 ? 1.0 : -1.0);
+            
+            px = Math.sin(phiO) * Math.cos(tTheta) * (clumpR * coreScale);
+            py = Math.sin(phiO) * Math.sin(tTheta) * (clumpR * coreScale);
+            pz = Math.cos(phiO) * (clumpR * coreScale);
+            
+            const pseudoRnd = Math.sin(ovumIdx * 123.456 + time * 20.0);
+            px += nx * pseudoRnd * coreScale * chaos * 3.0;
+            py += ny * pseudoRnd * coreScale * chaos * 3.0;
+            pz += nz * pseudoRnd * coreScale * chaos * 3.0;
+            
+        } else if (layer === 1) {
+            const shock = Math.max(0.0, Math.sin(clumpR * 0.2 - fusionRatio * 15.0));
+            px += nx * shock * 8.0 * chaos;
+            py += ny * shock * 8.0 * chaos;
+            pz += nz * shock * 8.0 * chaos;
+        }
+    }
+    
+    if (layer === 0) {
+        hue = 0.85; sat = 0.9; lit = 0.3 + hash * 0.2;
+        if (fusionRatio > 0) {
+            hue = (0.85 + fusionRatio * 0.3) % 1.0;
+            sat = 1.0;
+            lit = Math.min(1.0, lit + fusionRatio * 0.6 * chaos);
+        }
+    } else if (layer === 1) {
+        hue = 0.55; sat = 0.7; lit = 0.15 + hash * 0.15;
+        if (lightningVal > 0) {
+            sat = 1.0;
+            lit = Math.min(1.0, lit + lightningVal * 1.5);
+        }
+        if (fusionRatio > 0) {
+            hue -= fusionRatio * 0.1;
+            lit = Math.min(1.0, lit + fusionRatio * 0.25);
+        }
+    } else {
+        hue = 0.05 + hash * 0.08; sat = 0.6; lit = 0.2 + hash * 0.1;
+        if (lightningVal > 0 && distToEntry < 55.0) {
+            lit = Math.min(1.0, lit + lightningVal * 0.4);
+        }
+        if (fusionRatio > 0) {
+            lit += fusionRatio * 0.1;
+        }
+    }
+}
+
+target.set(px * overallScale, py * overallScale, pz * overallScale);
+color.setHSL(hue, sat, lit);
+
+if (i === 0) {
+    setInfo("Conception: The Spark of Life", "Simulating massive swarm intelligence: Traveling, Penetration (Lightning), and Nuclear Fusion.");
+    let phase = "Traveling";
+    if (fusionRatio === 1.0) phase = "Zygote Formed";
+    else if (fusionRatio > 0) phase = "Nuclear Fusion!";
+    else if (enteringRatio > 0) phase = "Membrane Penetration & Lightning";
+    annotate("phase", new THREE.Vector3(0, 90 * overallScale, 0), "Phase: " + phase);
+}
+`
+  },
+  {
+    name: 'CHLADNI RESONANCE',
+    cam: [20, 120, 250],
+    code: `
+const scale = addControl("scale", "Scale", 40, 180, 92);
+const seed = addControl("seed", "Seed", 0, 100, 1);
+
+const mode = Math.floor(addControl("mode", "Mode", 0, 3, 0));
+const a = Math.floor(addControl("a", "A", 1, 12, 4));
+const b = Math.floor(addControl("b", "B", 1, 12, 7));
+const c = Math.floor(addControl("c", "C", 1, 12, 9));
+const d = Math.floor(addControl("d", "D", 1, 12, 2));
+
+const iterations = Math.floor(addControl("iterations", "Iterations", 0, 8, 4));
+const project = addControl("project", "Project", 0.0, 1.5, 0.72);
+const thickness = addControl("thickness", "Thickness", 0.02, 1.2, 0.18);
+const jitter = addControl("jitter", "Jitter", 0.0, 1.0, 0.22);
+
+const warp = addControl("warp", "Warp", 0.0, 2.0, 0.35);
+const ripple = addControl("ripple", "Ripple", 0.0, 2.0, 0.55);
+const drift = addControl("drift", "Drift", 0.0, 2.0, 0.22);
+const lift = addControl("lift", "Lift", 0.0, 20.0, 5.5);
+
+const textBlend = addControl("textBlend", "Text Blend", 0.0, 1.0, 0.62);
+const textScale = addControl("textScale", "Text Scale", 40.0, 220.0, 140.0);
+const textJitter = addControl("textJitter", "Text Jitter", 0.0, 1.0, 0.18);
+const textLift = addControl("textLift", "Text Lift", 0.0, 20.0, 4.0);
+
+const hue = addControl("hue", "Hue", 0.0, 1.0, 0.08);
+const saturation = addControl("saturation", "Saturation", 0.0, 1.0, 0.82);
+
+function fract(v) {
+  return v - Math.floor(v);
+}
+
+function hash(n) {
+  return fract(Math.sin(n) * 43758.5453123);
+}
+
+function mix(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function glyphRow(letter, row) {
+  // 5x7 font for A C H T U N G
+  if (letter < 0.5) {         // A
+    if (row < 0.5) return 14; // 01110
+    if (row < 1.5) return 17; // 10001
+    if (row < 2.5) return 17;
+    if (row < 3.5) return 31; // 11111
+    if (row < 4.5) return 17;
+    if (row < 5.5) return 17;
+    return 17;
+  }
+  if (letter < 1.5) {         // C
+    if (row < 0.5) return 14; // 01110
+    if (row < 1.5) return 17;
+    if (row < 2.5) return 16; // 10000
+    if (row < 3.5) return 16;
+    if (row < 4.5) return 16;
+    if (row < 5.5) return 17;
+    return 14;
+  }
+  if (letter < 2.5) {         // H
+    if (row < 0.5) return 17;
+    if (row < 1.5) return 17;
+    if (row < 2.5) return 17;
+    if (row < 3.5) return 31;
+    if (row < 4.5) return 17;
+    if (row < 5.5) return 17;
+    return 17;
+  }
+  if (letter < 3.5) {         // T
+    if (row < 0.5) return 31;
+    if (row < 1.5) return 4;  // 00100
+    if (row < 2.5) return 4;
+    if (row < 3.5) return 4;
+    if (row < 4.5) return 4;
+    if (row < 5.5) return 4;
+    return 4;
+  }
+  if (letter < 4.5) {         // U
+    if (row < 0.5) return 17;
+    if (row < 1.5) return 17;
+    if (row < 2.5) return 17;
+    if (row < 3.5) return 17;
+    if (row < 4.5) return 17;
+    if (row < 5.5) return 17;
+    return 14;
+  }
+  if (letter < 5.5) {         // N
+    if (row < 0.5) return 17; // 10001
+    if (row < 1.5) return 25; // 11001
+    if (row < 2.5) return 21; // 10101
+    if (row < 3.5) return 19; // 10011
+    if (row < 4.5) return 17;
+    if (row < 5.5) return 17;
+    return 17;
+  }
+  // G
+  if (row < 0.5) return 14;   // 01110
+  if (row < 1.5) return 17;
+  if (row < 2.5) return 16;   // 10000
+  if (row < 3.5) return 23;   // 10111
+  if (row < 4.5) return 17;
+  if (row < 5.5) return 17;
+  return 15;                  // 01111
+}
+
+function wordPixelActive(px, py) {
+  if (px < 0.0 || px >= 41.0 || py < 0.0 || py >= 7.0) return 0.0;
+
+  const letter = Math.floor(px / 6.0);
+  if (letter < 0.0 || letter > 6.0) return 0.0;
+
+  const lx = px - letter * 6.0;
+  if (lx >= 5.0) return 0.0; // gap column
+
+  const rowMask = glyphRow(letter, py);
+  const bit = 4.0 - lx;
+  return ((rowMask >> bit) & 1) ? 1.0 : 0.0;
+}
+
+function chladni(px, py, tt) {
+  const pi = 3.141592653589793;
+
+  let x = px;
+  let y = py;
+
+  if (warp > 0.0) {
+    const wx = warp * 0.12 * Math.sin((y * 2.3 + tt * 0.9) * pi);
+    const wy = warp * 0.12 * Math.sin((x * 2.1 - tt * 0.7) * pi);
+    x += wx;
+    y += wy;
+  }
+
+  let f = 0.0;
+
+  if (mode === 0) {
+    f =
+      Math.sin(a * pi * x) * Math.sin(b * pi * y) -
+      Math.sin(c * pi * x) * Math.sin(d * pi * y);
+  } else if (mode === 1) {
+    f =
+      Math.cos(a * pi * x) -
+      Math.cos(b * pi * y) +
+      0.35 * Math.sin(c * pi * (x + y));
+  } else if (mode === 2) {
+    f =
+      Math.sin(a * pi * x) +
+      Math.sin(b * pi * y) -
+      Math.sin(c * pi * (x + y) * 0.5) -
+      0.5 * Math.sin(d * pi * (x - y) * 0.5);
+  } else {
+    const r = Math.sqrt(x * x + y * y);
+    const ang = Math.atan2(y, x);
+    f =
+      Math.sin(a * pi * r) +
+      0.7 * Math.cos(b * ang) -
+      0.55 * Math.sin(c * pi * x) * Math.cos(d * pi * y);
+  }
+
+  if (ripple > 0.0) {
+    const rr = Math.sqrt(x * x + y * y);
+    f += 0.18 * ripple * Math.sin((rr * 4.0 - tt * 1.4) * pi);
+  }
+
+  return f;
+}
+
+const t = time * drift;
+const q = i + seed * 131.17;
+
+// --- Chladni base point ---
+let x = 2.0 * fract(i / Math.max(1.0, count) + hash(q + 1.3) * 0.37) - 1.0;
+let y = 2.0 * fract(i * 0.61803398875 + hash(q + 8.1) * 0.41) - 1.0;
+
+const rr0 = Math.sqrt(x * x + y * y);
+const comp = 0.88 + 0.12 / (1.0 + 1.8 * rr0);
+x *= comp;
+y *= comp;
+
+const eps = 0.0035;
+for (let k = 0; k < iterations; k++) {
+  const f0 = chladni(x, y, t);
+  const gx0 = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+  const gy0 = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+  const g20 = gx0 * gx0 + gy0 * gy0 + 1e-6;
+  const step = project * f0 / g20;
+  x -= gx0 * step;
+  y -= gy0 * step;
+}
+
+const f = chladni(x, y, t);
+const gx = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+const gy = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+const gLen = Math.sqrt(gx * gx + gy * gy) + 1e-6;
+
+const tx = -gy / gLen;
+const ty = gx / gLen;
+const spread = (hash(q + 17.7) - 0.5) * jitter * 0.08;
+x += tx * spread;
+y += ty * spread;
+
+// --- Text target search on the bitmap word ACHTUNG ---
+let px = 0.0;
+let py = 0.0;
+let found = 0.0;
+
+for (let attempt = 0; attempt < 12; attempt++) {
+  const sx = Math.floor(hash(q + attempt * 13.1 + 41.0) * 41.0);
+  const sy = Math.floor(hash(q + attempt * 17.7 + 91.0) * 7.0);
+
+  if (wordPixelActive(sx, sy) > 0.5) {
+    px = sx;
+    py = sy;
+    found = 1.0;
+    break;
+  }
+}
+
+if (found < 0.5) {
+  px = 2.0;
+  py = 3.0;
+}
+
+// jitter within selected text pixel
+const jx = (hash(q + 301.0) - 0.5) * textJitter;
+const jy = (hash(q + 401.0) - 0.5) * textJitter;
+
+const cell = textScale / 41.0;
+const textX = (px + 0.5 + jx - 20.5) * cell / scale;
+const textY = (3.5 - (py + 0.5 + jy)) * cell / scale;
+
+// --- Blend text + Chladni ---
+const blend = textBlend;
+const fx = mix(x, textX, blend);
+const fy = mix(y, textY, blend);
+
+// proximity to text center makes letters brighter
+const localCX = (px + 0.5 - 20.5) * cell / scale;
+const localCY = (3.5 - (py + 0.5)) * cell / scale;
+const dxText = fx - localCX;
+const dyText = fy - localCY;
+const textNear = Math.exp(-(dxText * dxText + dyText * dyText) / 0.012);
+
+const near = Math.exp(-Math.abs(f) / Math.max(0.0001, thickness));
+const ring = 0.5 + 0.5 * Math.sin(10.0 * Math.sqrt(fx * fx + fy * fy) - t * 1.8 + a * 0.3);
+
+const finalX = fx * scale;
+const finalY = fy * scale;
+const finalZ =
+  lift * near +
+  textLift * textNear +
+  1.2 * ring * near +
+  0.35 * Math.sin(i * 0.11 + t) * (0.4 + 0.6 * near);
+
+// color control
+const h = hue + 0.06 * near + 0.03 * textNear;
+const s = saturation;
+const l =
+  0.14 +
+  0.52 * near +
+  0.20 * textNear +
+  0.06 * ring;
+
+target.set(finalX, finalY, finalZ);
+color.setHSL(h - Math.floor(h), s, Math.max(0.05, Math.min(0.95, l)));
+
+if (i === 0) {
+  setInfo(
+    "Chladni ACHTUNG",
+    "A hybrid Chladni nodal field blended into the bitmap word ACHTUNG, with live hue and saturation controls."
+  );
+}
+`
+  },
+  {
+    name: 'BIMERONS',
+    cam: [15, 85, 190],
+    code: `
+const scale = addControl("scale", "Global Scale", 10, 200, 85);
+const dmiStr = addControl("dmi", "DM Interaction Strength", 0, 100, 62);
+const topoCharge = addControl("nsk", "Topological Charge NSk", 0, 100, 50);
+const hallEffect = addControl("hall", "Skyrmion Hall Angle", 0, 100, 40);
+const racetrack = addControl("race", "Racetrack Current", 0, 100, 55);
+const transition = addControl("trans", "Skyrmion<->Bimeron", 0, 100, 30);
+const hopfion = addControl("hopf", "Hopfion 3D Torus", 0, 100, 45);
+const fractalMix = addControl("frac", "Fractal Intensity", 0, 100, 65);
+const apollonian = addControl("apoll", "Apollonian Meron Pack", 0, 100, 50);
+const dragonCurve = addControl("dragon", "Dragon Curve Lattice", 0, 100, 58);
+
+const Dmi = dmiStr / 100;
+const Nsk = topoCharge / 100;
+const Hall = hallEffect / 100;
+const Jc = racetrack / 100;
+const Trans = transition / 100;
+const Hopf = hopfion / 100;
+const Frac = fractalMix / 100;
+const Apoll = apollonian / 100;
+const Drag = dragonCurve / 100;
+
+const norm = i / count;
+
+let dcX = 0.0, dcY = 0.0, dcAngle = 0.0;
+const dcStep = scale * 0.018 * Drag;
+const dcBits = 12;
+let dcSign = 1;
+for (let b = 0; b < dcBits; b++) {
+  const bit = (Math.floor(norm * (1 << dcBits)) >> b) & 1;
+  dcAngle += (bit === 1 ? 1 : -1) * Math.PI * 0.5;
+  dcX += Math.cos(dcAngle) * dcStep;
+  dcY += Math.sin(dcAngle) * dcStep;
+}
+const dragonX = dcX;
+const dragonY = dcY;
+const dragonZ = Math.sin(norm * Math.PI * 18 + time * 0.3) * scale * 0.12 * Drag;
+
+const apBase = norm * Math.PI * 2;
+const apR0 = scale * 0.72 * Apoll;
+const apR1 = apR0 * 0.33;
+const apR2 = apR1 * 0.33;
+const apR3 = apR2 * 0.33;
+const apPhi1 = norm * Math.PI * 6 + time * 0.12;
+const apPhi2 = norm * Math.PI * 18 + time * 0.22;
+const apPhi3 = norm * Math.PI * 54 + time * 0.38;
+const apollX = Math.cos(apBase) * apR0 + Math.cos(apPhi1) * apR1 + Math.cos(apPhi2) * apR2 + Math.cos(apPhi3) * apR3;
+const apollY = Math.sin(apBase) * apR0 + Math.sin(apPhi1) * apR1 + Math.sin(apPhi2) * apR2 + Math.sin(apPhi3) * apR3;
+const apollZ = Math.sin(norm * Math.PI * 9 + time * 0.18) * scale * 0.25 * Apoll;
+
+let sX = norm, sY = (Math.sin(norm * Math.PI * 3) * 0.5 + 0.5);
+for (let k = 0; k < 5; k++) {
+  sX = (sX * 2.0) % 1.0;
+  sY = (sY * 2.0) % 1.0;
+  const inExcl = (sX + sY > 1.0) ? 0.72 : 1.0;
+  sX *= inExcl;
+  sY *= inExcl;
+}
+const sierpX = (sX - 0.5) * scale * 1.2 * Frac;
+const sierpY = (sY - 0.5) * scale * 1.2 * Frac;
+const sierpZ = Math.sin(norm * Math.PI * 24 + time * 0.25) * scale * 0.15 * Frac;
+
+let hX = 0.0, hY = 0.0;
+let hN = Math.floor(norm * 256);
+let hRx = 0, hRy = 0;
+let hS = 1;
+for (let hOrd = 0; hOrd < 8; hOrd++) {
+  hRx = 1 & (hN >> 1);
+  hRy = 1 & (hN ^ hRx);
+  if (hRy === 0) {
+    if (hRx === 1) { hX = hS - 1 - hX; hY = hS - 1 - hY; }
+    const hTmp = hX; hX = hY; hY = hTmp;
+  }
+  hX += hRx * hS;
+  hY += hRy * hS;
+  hN >>= 2;
+  hS <<= 1;
+}
+const hScale = scale * 0.55 / 128.0;
+const hilbX = (hX - 128) * hScale;
+const hilbY = (hY - 128) * hScale;
+const hilbZ = Math.sin(norm * Math.PI * 4 + time * Jc * 1.5) * scale * 0.18;
+
+const mA_phi = norm * Math.PI * 2 * 9 + time * Dmi * 0.35;
+const mA_r = scale * Nsk * (0.3 + 0.5 * Math.abs(Math.sin(norm * Math.PI * 11)));
+const mA_tilt = Math.PI * 0.5 * (1.0 - Trans);
+const mA_x = Math.cos(mA_phi) * mA_r;
+const mA_y = Math.sin(mA_phi) * mA_r * Math.cos(mA_tilt);
+const mA_z = Math.sin(mA_phi) * mA_r * Math.sin(mA_tilt) + apollX * Apoll * 0.22;
+
+const mB_phi = norm * Math.PI * 2 * 7 + time * Dmi * 0.28 + Math.PI;
+const mB_r = scale * Nsk * (0.35 + 0.45 * Math.abs(Math.cos(norm * Math.PI * 13)));
+const mB_sep = scale * Dmi * 0.55;
+const mB_x = Math.cos(mB_phi) * mB_r + mB_sep * Math.cos(mB_phi + Math.PI * 0.5);
+const mB_y = Math.sin(mB_phi) * mB_r - mB_sep * Math.sin(mB_phi + Math.PI * 0.5);
+const mB_z = Math.cos(norm * Math.PI * 8 + time * 0.22) * scale * 0.35 + dragonX * Drag * 0.15;
+
+const bm_phi = norm * Math.PI * 2 * 5 + time * 0.15;
+const bm_theta = norm * Math.PI;
+const bm_R = scale * (0.55 + 0.35 * Nsk);
+const bm_nX = Math.sin(bm_theta) * Math.cos(bm_phi) * bm_R;
+const bm_nY = Math.sin(bm_theta) * Math.sin(bm_phi) * bm_R;
+const bm_nZ = Math.cos(bm_theta) * bm_R * 0.5;
+const bm_bX = Math.sin(bm_theta) * Math.cos(bm_phi + Math.PI * 0.5) * bm_R;
+const bm_bY = Math.sin(bm_theta) * Math.sin(bm_phi + Math.PI * 0.5) * bm_R;
+const bm_bZ = bm_nZ;
+const bm_x = bm_nX * (1.0 - Dmi) + bm_bX * Dmi;
+const bm_y = bm_nY * (1.0 - Dmi) + bm_bY * Dmi;
+const bm_z = bm_bZ + sierpX * Frac * 0.12;
+
+const rt_t = norm + time * Jc * 0.18;
+const rt_hallX = Math.sin(Hall * Math.PI * 0.5) * scale * 0.4 * Jc;
+const rt_x = hilbX + rt_hallX * Math.cos(rt_t * Math.PI * 2);
+const rt_y = hilbY + rt_hallX * Math.sin(rt_t * Math.PI * 2) * 0.3;
+const rt_z = hilbZ + Math.sin(rt_t * Math.PI * 8) * scale * 0.08 * Jc;
+
+const tb_phi = norm * Math.PI * 2 * 14 + time * 0.12;
+const tb_r = scale * 0.65;
+const tb_ecc = 1.0 + Trans * 2.2;
+const tb_x = Math.cos(tb_phi) * tb_r;
+const tb_y = Math.sin(tb_phi) * tb_r / tb_ecc;
+const tb_z = Math.sin(tb_phi * 2.0 + time * 0.2) * scale * 0.28 * Trans + apollY * Apoll * 0.18;
+
+const hf_u = norm * Math.PI * 2 * 7 + time * 0.14;
+const hf_v = norm * Math.PI * 2 * 19 + time * 0.09;
+const hf_R = scale * 0.62 * Hopf;
+const hf_r2 = scale * 0.22 * Hopf;
+const hf_twist = hf_u * 2.0;
+const hf_x = (hf_R + hf_r2 * Math.cos(hf_v + hf_twist)) * Math.cos(hf_u);
+const hf_y = (hf_R + hf_r2 * Math.cos(hf_v + hf_twist)) * Math.sin(hf_u);
+const hf_z = hf_r2 * Math.sin(hf_v + hf_twist) * 1.4;
+
+const ps_lon = norm * Math.PI * 2 * 11 + time * 0.1;
+const ps_lat = (norm * Math.PI) - Math.PI * 0.5;
+const ps_R = scale * 0.7 * Nsk;
+const ps_x = ps_R * Math.cos(ps_lat) * Math.cos(ps_lon);
+const ps_y = ps_R * Math.cos(ps_lat) * Math.sin(ps_lon);
+const ps_z = ps_R * Math.sin(ps_lat);
+
+const bc_col = Math.floor(norm * 10);
+const bc_row = Math.floor(norm * 100) % 10;
+const bc_offX = (bc_col % 2) * 0.5;
+const bc_lx = (bc_col - 4.5 + bc_offX) * scale * 0.18;
+const bc_ly = (bc_row - 4.5) * scale * 0.16;
+const bc_x = bc_lx + Math.cos(time * 0.08 + bc_col * 0.7) * scale * 0.04 * Dmi;
+const bc_y = bc_ly + Math.sin(time * 0.08 + bc_row * 0.7) * scale * 0.04 * Dmi;
+const bc_z = Math.sin(norm * Math.PI * 6 + time * 0.2) * scale * 0.14 + dragonY * Drag * 0.2;
+
+const zones = 8.0;
+const lm0 = Math.max(0, 1.0 - Math.abs(norm * zones - 0.5) * 2.5);
+const lm1 = Math.max(0, 1.0 - Math.abs(norm * zones - 1.5) * 2.5);
+const lm2 = Math.max(0, 1.0 - Math.abs(norm * zones - 2.5) * 2.5);
+const lm3 = Math.max(0, 1.0 - Math.abs(norm * zones - 3.5) * 2.5);
+const lm4 = Math.max(0, 1.0 - Math.abs(norm * zones - 4.5) * 2.5);
+const lm5 = Math.max(0, 1.0 - Math.abs(norm * zones - 5.5) * 2.5);
+const lm6 = Math.max(0, 1.0 - Math.abs(norm * zones - 6.5) * 2.5);
+const lm7 = Math.max(0, 1.0 - Math.abs(norm * zones - 7.5) * 2.5);
+
+const blendX = mA_x * lm0 + mB_x * lm1 + bm_x * lm2 + rt_x * lm3 + tb_x * lm4 + hf_x * lm5 + ps_x * lm6 + bc_x * lm7;
+const blendY = mA_y * lm0 + mB_y * lm1 + bm_y * lm2 + rt_y * lm3 + tb_y * lm4 + hf_y * lm5 + ps_y * lm6 + bc_y * lm7;
+const blendZ = mA_z * lm0 + mB_z * lm1 + bm_z * lm2 + rt_z * lm3 + tb_z * lm4 + hf_z * lm5 + ps_z * lm6 + bc_z * lm7;
+
+const hallDrift = Hall * scale * 0.06 * Math.sin(time * 0.5 + norm * Math.PI * 2);
+const finalX = blendX + hallDrift;
+const finalY = blendY;
+const finalZ = blendZ;
+
+const clamp = 999;
+target.set(Math.max(-clamp, Math.min(clamp, finalX)), Math.max(-clamp, Math.min(clamp, finalY)), Math.max(-clamp, Math.min(clamp, finalZ)));
+
+const h0 = 0.02;
+const h1 = 0.62;
+const h2 = 0.12;
+const h3 = 0.50;
+const h4 = 0.33;
+const h5 = 0.77;
+const h6 = 0.10;
+const h7 = 0.46;
+
+const baseHue = h0 * lm0 + h1 * lm1 + h2 * lm2 + h3 * lm3 + h4 * lm4 + h5 * lm5 + h6 * lm6 + h7 * lm7;
+const spinWind = (norm * Math.PI * 2 * (1.0 + Nsk)) % 1.0;
+const fracHue = (baseHue + spinWind * 0.14 * Frac) % 1.0;
+const sat = 0.72 + Dmi * 0.28;
+const coreR = Math.sqrt(finalX * finalX + finalY * finalY) / (scale + 0.001);
+const lit = 0.28 + (1.0 - Math.min(1, coreR)) * 0.48 + lm5 * 0.18 * Hopf;
+
+color.setHSL(fracHue, sat, Math.min(0.92, lit));
+
+if (i === 0) {
+  setInfo("Bimeron Quasiparticle — Fractal Spintronic Simulation", "Meron-Antimeron pair | Topological charge NSk=+-1 | Neel/Bloch spin texture (DMI-controlled) | Skyrmion-Bimeron continuous transition | Racetrack current-driven motion + Skyrmion Hall deflection | Hopfion 3D torus generalization | Bimeron crystal lattice | Poincare sphere spin mapping | Fractals: Dragon curve + Apollonian gasket + Sierpinski + Hilbert racetrack");
+  annotate("meronA", new THREE.Vector3(scale * 0.5, 0, 0), "Meron +1/2");
+  annotate("antimeronB", new THREE.Vector3(-scale * 0.5, 0, 0), "Antimeron -1/2");
+  annotate("bimeron", new THREE.Vector3(0, 0, 0), "Bimeron NSk=1");
+  annotate("racetrack", new THREE.Vector3(0, -scale * 0.7, 0), "Racetrack Nanotrack");
+  annotate("hopfion", new THREE.Vector3(0, scale * 0.75, 0), "Hopfion Torus");
+  annotate("poincare", new THREE.Vector3(scale * 0.65, scale * 0.5, 0), "Poincare Sphere");
+  annotate("crystal", new THREE.Vector3(-scale * 0.6, scale * 0.5, 0), "Bimeron Crystal");
+  annotate("dragon", new THREE.Vector3(scale * 0.6, -scale * 0.5, 0), "Dragon Lattice");
+}
+`
+  },
+  {
+    name: 'SOLAR SYSTEM',
+    cam: [30, 150, 300],
+    code: `
+// === CONTROLS ===
+const orbitSpeed = addControl("orbitSpeed", "Orbit Speed", 0.1, 5.0, 1.0);
+const systemScale = addControl("systemScale", "System Scale", 20, 120, 60);
+const starGlow = addControl("starGlow", "Star Intensity", 0.3, 1.0, 0.7);
+const trailSpread = addControl("trailSpread", "Orbital Dust", 0.0, 2.0, 0.5);
+
+// === PARTICLE BUDGET ALLOCATION ===
+// Sun: 0-3999 (4000), Mercury: 4000-4399 (400), Venus: 4400-5099 (700),
+// Earth: 5100-6099 (1000), Mars: 6100-6699 (600), Jupiter: 6700-9199 (2500),
+// Saturn: 9200-11699 (2500 - includes rings), Uranus: 11700-12899 (1200),
+// Neptune: 12900-13899 (1000), Stars: 13900-19999 (6100)
+
+const sunEnd = 4000;
+const mercEnd = 4400;
+const venEnd = 5100;
+const earEnd = 6100;
+const marEnd = 6700;
+const jupEnd = 9200;
+const satEnd = 11700;
+const uraEnd = 12900;
+const nepEnd = 13900;
+
+// === PLANET RENDERING (branchless via math) ===
+let x = 0;
+let y = 0;
+let z = 0;
+let h = 0;
+let s = 1.0;
+let l = 0.5;
+
+if (i < sunEnd) {
+  // SUN - fiery sphere with corona
+  const si = i / sunEnd;
+  const phi = si * 6.2831853 * 40.0;
+  const cosTheta = 1.0 - 2.0 * si;
+  const sinTheta = Math.sqrt(1.0 - cosTheta * cosTheta);
+  const coreR = 5.0;
+  const pulse = 1.0 + 0.08 * Math.sin(time * 2.0 + si * 30.0);
+  const corona = si > 0.85 ? (1.0 + 0.6 * Math.sin(time * 3.0 + phi * 2.0)) : 1.0;
+  const r = coreR * pulse * corona;
+  x = r * sinTheta * Math.cos(phi);
+  y = r * sinTheta * Math.sin(phi);
+  z = r * cosTheta;
+  const flicker = 0.5 + 0.5 * Math.sin(time * 5.0 + si * 50.0);
+  h = 0.08 * flicker;
+  s = 1.0;
+  l = starGlow * (0.5 + 0.5 * flicker);
+} else if (i < mercEnd) {
+  // MERCURY
+  const li = (i - sunEnd) / (mercEnd - sunEnd);
+  const orbitR = systemScale * 0.25;
+  const angle = time * orbitSpeed * 4.15 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 15.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 0.8 + trailSpread * 0.3 * Math.sin(time + li * 20.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  h = 0.08;
+  s = 0.3;
+  l = 0.55;
+} else if (i < venEnd) {
+  // VENUS
+  const li = (i - mercEnd) / (venEnd - mercEnd);
+  const orbitR = systemScale * 0.40;
+  const angle = time * orbitSpeed * 1.62 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 18.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 1.5 + trailSpread * 0.3 * Math.sin(time * 1.2 + li * 15.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  h = 0.1;
+  s = 0.7;
+  l = 0.65;
+} else if (i < earEnd) {
+  // EARTH
+  const li = (i - venEnd) / (earEnd - venEnd);
+  const orbitR = systemScale * 0.55;
+  const angle = time * orbitSpeed * 1.0 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 20.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 1.8 + trailSpread * 0.4 * Math.sin(time * 0.8 + li * 18.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  const ocean = 0.58 + 0.04 * Math.sin(phi2 * 3.0);
+  h = li > 0.4 && li < 0.7 ? 0.33 : ocean;
+  s = 0.8;
+  l = 0.45;
+} else if (i < marEnd) {
+  // MARS
+  const li = (i - earEnd) / (marEnd - earEnd);
+  const orbitR = systemScale * 0.72;
+  const angle = time * orbitSpeed * 0.53 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 16.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 1.2 + trailSpread * 0.3 * Math.sin(time * 0.6 + li * 12.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  h = 0.03;
+  s = 0.85;
+  l = 0.4;
+} else if (i < jupEnd) {
+  // JUPITER - gas giant bands
+  const li = (i - marEnd) / (jupEnd - marEnd);
+  const orbitR = systemScale * 1.0;
+  const angle = time * orbitSpeed * 0.084 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 25.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 4.0 + trailSpread * 0.5 * Math.sin(time * 0.4 + li * 10.0);
+  const cx = Math.cos(angle) * orbitR;
+  const cz = Math.sin(angle) * orbitR;
+  x = cx + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = cz + pr * st * Math.sin(phi2);
+  const band = Math.abs(ct);
+  h = 0.08 + 0.04 * Math.sin(band * 12.0);
+  s = 0.6 + 0.2 * Math.sin(band * 8.0);
+  l = 0.45 + 0.1 * Math.sin(band * 15.0 + time);
+} else if (i < satEnd) {
+  // SATURN + RINGS
+  const li = (i - jupEnd) / (satEnd - jupEnd);
+  const orbitR = systemScale * 1.35;
+  const baseAngle = time * orbitSpeed * 0.034;
+  const cx = Math.cos(baseAngle) * orbitR;
+  const cz = Math.sin(baseAngle) * orbitR;
+
+  if (li < 0.5) {
+    // Saturn body
+    const bi = li * 2.0;
+    const phi2 = bi * 6.2831853 * 22.0;
+    const ct = 1.0 - 2.0 * bi;
+    const st = Math.sqrt(1.0 - ct * ct);
+    const pr = 3.5 + trailSpread * 0.4 * Math.sin(time * 0.3 + bi * 8.0);
+    x = cx + pr * st * Math.cos(phi2);
+    y = pr * ct;
+    z = cz + pr * st * Math.sin(phi2);
+    h = 0.12;
+    s = 0.5;
+    l = 0.55;
+  } else {
+    // Saturn rings
+    const ri = (li - 0.5) * 2.0;
+    const ringAngle = ri * 6.2831853 * 3.0 + time * orbitSpeed * 0.5;
+    const ringR = 5.5 + ri * 4.0;
+    const tilt = 0.4;
+    x = cx + Math.cos(ringAngle) * ringR;
+    y = Math.sin(ringAngle) * ringR * Math.sin(tilt) + (Math.random() - 0.5) * trailSpread * 0.3;
+    z = cz + Math.sin(ringAngle) * ringR * Math.cos(tilt);
+    h = 0.1 + ri * 0.03;
+    s = 0.4;
+    l = 0.6 + 0.1 * ri;
+  }
+} else if (i < uraEnd) {
+  // URANUS
+  const li = (i - satEnd) / (uraEnd - satEnd);
+  const orbitR = systemScale * 1.7;
+  const angle = time * orbitSpeed * 0.012 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 20.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 2.5 + trailSpread * 0.3 * Math.sin(time * 0.2 + li * 8.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  h = 0.52;
+  s = 0.6;
+  l = 0.6;
+} else if (i < nepEnd) {
+  // NEPTUNE
+  const li = (i - uraEnd) / (nepEnd - uraEnd);
+  const orbitR = systemScale * 2.0;
+  const angle = time * orbitSpeed * 0.006 + li * 6.2831853;
+  const phi2 = li * 6.2831853 * 18.0;
+  const ct = 1.0 - 2.0 * li;
+  const st = Math.sqrt(1.0 - ct * ct);
+  const pr = 2.2 + trailSpread * 0.3 * Math.sin(time * 0.15 + li * 7.0);
+  x = Math.cos(angle) * orbitR + pr * st * Math.cos(phi2);
+  y = pr * ct;
+  z = Math.sin(angle) * orbitR + pr * st * Math.sin(phi2);
+  h = 0.62;
+  s = 0.8;
+  l = 0.45;
+} else {
+  // BACKGROUND STARS - scattered across a large sphere
+  const li = (i - nepEnd) / (count - nepEnd);
+  const starPhi = li * 6.2831853 * 80.0;
+  const starCt = 1.0 - 2.0 * li;
+  const starSt = Math.sqrt(1.0 - starCt * starCt);
+  const starR = systemScale * 3.5 + li * systemScale * 2.0;
+  x = starR * starSt * Math.cos(starPhi);
+  y = starR * starCt;
+  z = starR * starSt * Math.sin(starPhi);
+  const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * 1.5 + li * 100.0));
+  h = 0.6 * li;
+  s = 0.15;
+  l = twinkle * 0.6;
+}
+
+target.set(x, y, z);
+color.setHSL(h, s, l);
+
+// === HUD & ANNOTATIONS (i === 0 only) ===
+if (i === 0) {
+  setInfo("Solar System", "Astrology Cosmos - 8 planets orbiting the Sun with starfield background");
+  annotate("sun", new THREE.Vector3(0, 0, 0), "Sun");
+  const t1 = time * orbitSpeed;
+  annotate("mercury", new THREE.Vector3(Math.cos(t1 * 4.15) * systemScale * 0.25, 0, Math.sin(t1 * 4.15) * systemScale * 0.25), "Mercury");
+  annotate("venus", new THREE.Vector3(Math.cos(t1 * 1.62) * systemScale * 0.40, 0, Math.sin(t1 * 1.62) * systemScale * 0.40), "Venus");
+  annotate("earth", new THREE.Vector3(Math.cos(t1 * 1.0) * systemScale * 0.55, 0, Math.sin(t1 * 1.0) * systemScale * 0.55), "Earth");
+  annotate("mars", new THREE.Vector3(Math.cos(t1 * 0.53) * systemScale * 0.72, 0, Math.sin(t1 * 0.53) * systemScale * 0.72), "Mars");
+  annotate("jupiter", new THREE.Vector3(Math.cos(t1 * 0.084) * systemScale * 1.0, 0, Math.sin(t1 * 0.084) * systemScale * 1.0), "Jupiter");
+  annotate("saturn", new THREE.Vector3(Math.cos(t1 * 0.034) * systemScale * 1.35, 0, Math.sin(t1 * 0.034) * systemScale * 1.35), "Saturn");
+  annotate("uranus", new THREE.Vector3(Math.cos(t1 * 0.012) * systemScale * 1.7, 0, Math.sin(t1 * 0.012) * systemScale * 1.7), "Uranus");
+  annotate("neptune", new THREE.Vector3(Math.cos(t1 * 0.006) * systemScale * 2.0, 0, Math.sin(t1 * 0.006) * systemScale * 2.0), "Neptune");
+}
+`
+  },
+
 // ── End of simulations ──
 ];
 
