@@ -425,12 +425,12 @@
       .hero { padding: 0 1.5rem 3rem; }
       .hero h1 { font-size: clamp(2.6rem, 10vw, 4rem); }
       .statement { padding: 5rem 1.5rem; }
-      .how-section, .sims-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
+      .how-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
       .how-item { grid-template-columns: 40px 1fr; }
       .how-aside { display: none; }
-      .sims-grid { grid-template-columns: 1fr; }
-      .sim-item:nth-child(odd) { padding-right: 0; border-right: none; }
-      .sim-item:nth-child(even) { padding-left: 0; }
+      .sims-canvas-overlay { bottom: 2rem; left: 1.5rem; }
+      .sims-overlay-name { font-size: clamp(1.8rem, 8vw, 3rem); }
+      .sims-overlay-desc { font-size: 0.78rem; max-width: 260px; }
       .lyrics-info { flex-direction: column; }
       .pricing-cols { grid-template-columns: 1fr; }
       .pricing-col:first-child { padding-right: 0; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -497,38 +497,23 @@
     </div>
   </section>
 
-  <section class="sims-section" id="simulations">
-    <div class="sims-header">
-      <h2>Every shape is a different universe</h2>
-      <span class="sims-count">25 simulations</span>
+  <div class="sims-scroll-container" id="simulations">
+    <div class="sims-canvas-wrap">
+      <canvas id="sims-canvas"></canvas>
+      <div class="sims-canvas-vignette"></div>
+      <div class="sims-canvas-overlay">
+        <p class="sims-overlay-index" id="sims-index">01 / 06</p>
+        <h2 class="sims-overlay-name" id="sims-name">Judy</h2>
+        <p class="sims-overlay-desc" id="sims-desc">4D Hopf fibration, stereographically projected into particle space</p>
+      </div>
     </div>
-    <div class="sims-grid">
-      <div class="sim-item"><span class="sim-name">Judy</span><span class="sim-desc">4D Hopf fibration stereographic projection</span></div>
-      <div class="sim-item"><span class="sim-name">Chladni Plate</span><span class="sim-desc">Acoustic resonance nodal patterns</span></div>
-      <div class="sim-item"><span class="sim-name">Kaballah</span><span class="sim-desc">Sacred geometry in particle space</span></div>
-      <div class="sim-item"><span class="sim-name">Binary Symbiote</span><span class="sim-desc">Lorenz vs Halvorsen attractor duality</span></div>
-      <div class="sim-item"><span class="sim-name">Sierpinski Flow</span><span class="sim-desc">Breathing fractal triangular recursion</span></div>
-      <div class="sim-item"><span class="sim-name">Living Pulsar</span><span class="sim-desc">Neutron star radiation beams</span></div>
-      <div class="sim-item"><span class="sim-name">Turing Morphogenesis</span><span class="sim-desc">Reaction-diffusion biological patterns</span></div>
-      <div class="sim-item"><span class="sim-name">Black Hole</span><span class="sim-desc">Schwarzschild plasma accretion</span></div>
-      <div class="sim-item"><span class="sim-name">QMatrix</span><span class="sim-desc">Photonic crystal band structure</span></div>
-      <div class="sim-item"><span class="sim-name">Storm</span><span class="sim-desc">Multi-layer atmospheric dynamics</span></div>
-      <div class="sim-item"><span class="sim-name">Rainbow Road</span><span class="sim-desc">Spatial highway with star field</span></div>
-      <div class="sim-item"><span class="sim-name">Solar System</span><span class="sim-desc">Orbital mechanics at particle scale</span></div>
-      <div class="sim-item"><span class="sim-name">Fractal Continuum</span><span class="sim-desc">Aperiodic three-system morph</span></div>
-      <div class="sim-item"><span class="sim-name">Bimerons</span><span class="sim-desc">Topological magnetic skyrmion lattice</span></div>
-      <div class="sim-item"><span class="sim-name">Anyons</span><span class="sim-desc">4D braiding statistics with flux tubes</span></div>
-      <div class="sim-item"><span class="sim-name">Chladni Resonance</span><span class="sim-desc">Vibrating plate with warp and ripple</span></div>
-      <div class="sim-item"><span class="sim-name">Geometrical Config</span><span class="sim-desc">Hyperspherical energy shell</span></div>
-      <div class="sim-item"><span class="sim-name">Cloud Formations</span><span class="sim-desc">Fractal atmospheric turbulence</span></div>
-      <div class="sim-item"><span class="sim-name">Quantum Lattice</span><span class="sim-desc">3D crystal wave propagation</span></div>
-      <div class="sim-item"><span class="sim-name">Spark of Life</span><span class="sim-desc">Genesis evolution animation</span></div>
-      <div class="sim-item"><span class="sim-name">Symbiote</span><span class="sim-desc">Iridescent chromatic entity</span></div>
-      <div class="sim-item"><span class="sim-name">Quantum Galaxy</span><span class="sim-desc">Spiral interference shell</span></div>
-      <div class="sim-item"><span class="sim-name">Attractor Bloom</span><span class="sim-desc">Golden-angle warp field</span></div>
-      <div class="sim-item"><span class="sim-name">Hookes Law</span><span class="sim-desc">Spring constant lattice oscillation</span></div>
-    </div>
-  </section>
+    <div class="sim-trigger" data-sim="0"></div>
+    <div class="sim-trigger" data-sim="1"></div>
+    <div class="sim-trigger" data-sim="2"></div>
+    <div class="sim-trigger" data-sim="3"></div>
+    <div class="sim-trigger" data-sim="4"></div>
+    <div class="sim-trigger" data-sim="5"></div>
+  </div>
 
   <section class="lyrics-section">
     <canvas id="lyrics-demo-canvas" class="lyrics-canvas-full"></canvas>
@@ -775,10 +760,318 @@
     })();
   </script>
 
+  <!-- SCROLLYTELLING SIMULATIONS -->
+  <script type="module">
+    import * as THREE from 'three';
+
+    const simsCanvas = document.getElementById('sims-canvas');
+    if (simsCanvas) {
+      const renderer = new THREE.WebGLRenderer({ canvas: simsCanvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x06060c, 1);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+      camera.position.set(0, 0, 70);
+
+      const COUNT = 8000;
+      const positions = new Float32Array(COUNT * 3);
+      const colors = new Float32Array(COUNT * 3);
+      const targetPos = new Float32Array(COUNT * 3);
+      const targetCol = new Float32Array(COUNT * 3);
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const mat = new THREE.PointsMaterial({
+        size: 0.35,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+
+      const pts = new THREE.Points(geo, mat);
+      scene.add(pts);
+
+      const PI = Math.PI;
+      const cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt, max = Math.max;
+
+      // Simulation definitions
+      const SIMS = [
+        {
+          name: 'Judy',
+          desc: '4D Hopf fibration, stereographically projected into particle space',
+          fn: function(i, count, time, pos, col) {
+            const u = i / count;
+            const v = (i % 300) / 300;
+            const eta = u * PI / 2;
+            const xi1 = v * PI * 2 + time * 0.3;
+            const xi2 = u * PI * 2 * 3 + time * 0.15;
+            const x1 = cos(xi1) * sin(eta);
+            const x2 = sin(xi1) * sin(eta);
+            const x3 = cos(xi2) * cos(eta);
+            const x4 = sin(xi2) * cos(eta);
+            const w = 40 / max(0.001, 1.15 - x4);
+            const i3 = i * 3;
+            pos[i3] = x1 * w;
+            pos[i3 + 1] = x2 * w;
+            pos[i3 + 2] = x3 * w;
+            const hue = 0.08 + u * 0.08 + (x4 + 1) * 0.04;
+            const sat = 0.2 + u * 0.25;
+            const lum = 0.4 + (x4 + 1) * 0.15;
+            const c = new THREE.Color().setHSL(hue, sat, lum);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        },
+        {
+          name: 'Sierpinski',
+          desc: 'Fractal triangle iteration, breathing in three dimensions',
+          fn: function(i, count, time, pos, col) {
+            const verts = [[-1, -0.866], [1, -0.866], [0, 0.866]];
+            const seed = i * 2654435761;
+            let rng = seed;
+            function next() { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return rng / 0x7fffffff; }
+            let px = next() * 2 - 1, py = next() * 2 - 1;
+            let depth = 0;
+            for (let k = 0; k < 8; k++) {
+              const vi = Math.floor(next() * 3) % 3;
+              px = (px + verts[vi][0]) * 0.5;
+              py = (py + verts[vi][1]) * 0.5;
+              depth = vi;
+            }
+            const i3 = i * 3;
+            pos[i3] = px * 35;
+            pos[i3+1] = py * 35;
+            pos[i3+2] = sin(time * 0.8 + px * 3 + py * 2) * 6;
+            const hues = [0.06, 0.1, 0.02];
+            const c = new THREE.Color().setHSL(hues[depth], 0.3, 0.45 + sin(time + i * 0.001) * 0.1);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        },
+        {
+          name: 'Galaxy',
+          desc: 'Four-arm logarithmic spiral with interstellar dust',
+          fn: function(i, count, time, pos, col) {
+            const arm = i % 4;
+            const t = (i / count);
+            const dist = t * 40 + 2;
+            const armAngle = (arm / 4) * PI * 2;
+            const spiral = armAngle + dist * 0.12 + time * 0.1;
+            const seed = i * 2654435761;
+            let rng = seed;
+            function next() { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return (rng / 0x7fffffff - 0.5) * 2; }
+            const jx = next() * 3 * (1 + t * 0.5);
+            const jy = next() * 1.5 * (1 - t * 0.3);
+            const jz = next() * 3 * (1 + t * 0.5);
+            const i3 = i * 3;
+            pos[i3] = cos(spiral) * dist + jx;
+            pos[i3+1] = jy;
+            pos[i3+2] = sin(spiral) * dist + jz;
+            const core = max(0, 1 - dist / 40);
+            const hue = 0.08 + t * 0.04;
+            const sat = 0.15 + core * 0.3;
+            const lum = 0.35 + core * 0.25;
+            const c = new THREE.Color().setHSL(hue, sat, lum);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        },
+        {
+          name: 'Storm',
+          desc: 'Multi-layer atmospheric vortex with concentric rotation',
+          fn: function(i, count, time, pos, col) {
+            const layer = Math.floor((i / count) * 8);
+            const inLayer = i % Math.floor(count / 8);
+            const layerCount = Math.floor(count / 8);
+            const t = inLayer / layerCount;
+            const radius = 5 + layer * 4.5;
+            const height = (layer - 3.5) * 4;
+            const speed = (1 + layer * 0.3) * (layer % 2 === 0 ? 1 : -0.7);
+            const angle = t * PI * 2 + time * speed * 0.15;
+            const wobble = sin(time * 0.5 + layer) * 2;
+            const i3 = i * 3;
+            pos[i3] = cos(angle) * (radius + wobble);
+            pos[i3+1] = height + sin(angle * 3 + time * 0.4) * 1.5;
+            pos[i3+2] = sin(angle) * (radius + wobble);
+            const hue = 0.55 + layer * 0.03;
+            const lum = 0.3 + (1 - layer / 8) * 0.2;
+            const c = new THREE.Color().setHSL(hue, 0.25, lum);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        },
+        {
+          name: 'Sphere',
+          desc: 'Fibonacci sphere with surface noise, breathing gently',
+          fn: function(i, count, time, pos, col) {
+            const ga = PI * (3 - sqrt(5));
+            const theta = ga * i;
+            const y = 1 - (i / (count - 1)) * 2;
+            const radiusAtY = sqrt(1 - y * y);
+            const baseR = 28;
+            const noise = sin(time * 0.6 + theta * 2) * 0.08 + sin(time * 0.3 + y * 8) * 0.05;
+            const r = baseR * (1 + noise);
+            const i3 = i * 3;
+            pos[i3] = cos(theta) * radiusAtY * r;
+            pos[i3+1] = y * r;
+            pos[i3+2] = sin(theta) * radiusAtY * r;
+            const phi = (y + 1) * 0.5;
+            const hue = 0.06 + phi * 0.06;
+            const sat = 0.2 + noise * 2;
+            const lum = 0.4 + phi * 0.15;
+            const c = new THREE.Color().setHSL(hue, max(0.05, sat), lum);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        },
+        {
+          name: 'Torus Knot',
+          desc: 'Trefoil curve wound through three-dimensional space',
+          fn: function(i, count, time, pos, col) {
+            const t = (i / count) * PI * 2;
+            const p = 2, q = 3;
+            const r1 = 20, r2 = 8;
+            const x = (r1 + r2 * cos(q * t + time * 0.2)) * cos(p * t + time * 0.1);
+            const y = (r1 + r2 * cos(q * t + time * 0.2)) * sin(p * t + time * 0.1);
+            const z = r2 * sin(q * t + time * 0.2);
+            const i3 = i * 3;
+            pos[i3] = x;
+            pos[i3+1] = y;
+            pos[i3+2] = z;
+            const tt = i / count;
+            const hue = 0.02 + tt * 0.1;
+            const sat = 0.25 + sin(t * 3) * 0.1;
+            const lum = 0.4 + cos(t * 5 + time * 0.5) * 0.1;
+            const c = new THREE.Color().setHSL(hue, sat, lum);
+            col[i3] = c.r; col[i3+1] = c.g; col[i3+2] = c.b;
+          }
+        }
+      ];
+
+      let currentSim = 0;
+      let transitioning = false;
+      let transitionFrame = 0;
+      const TRANSITION_FRAMES = 60;
+
+      // Initialize with first sim
+      const initTime = performance.now() * 0.001;
+      for (let i = 0; i < COUNT; i++) {
+        SIMS[0].fn(i, COUNT, initTime, positions, colors);
+      }
+      targetPos.set(positions);
+      targetCol.set(colors);
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+
+      function switchSim(index) {
+        if (index === currentSim && !transitioning) return;
+        currentSim = index;
+        const t = performance.now() * 0.001;
+        for (let i = 0; i < COUNT; i++) {
+          SIMS[index].fn(i, COUNT, t, targetPos, targetCol);
+        }
+        transitioning = true;
+        transitionFrame = 0;
+
+        // Update overlay text
+        const nameEl = document.getElementById('sims-name');
+        const descEl = document.getElementById('sims-desc');
+        const indexEl = document.getElementById('sims-index');
+        nameEl.classList.remove('visible');
+        descEl.classList.remove('visible');
+        indexEl.classList.remove('visible');
+        setTimeout(() => {
+          nameEl.textContent = SIMS[index].name;
+          descEl.textContent = SIMS[index].desc;
+          indexEl.textContent = String(index + 1).padStart(2, '0') + ' / 06';
+          nameEl.classList.add('visible');
+          descEl.classList.add('visible');
+          indexEl.classList.add('visible');
+        }, 200);
+      }
+
+      // Show initial overlay
+      setTimeout(() => {
+        document.getElementById('sims-name').classList.add('visible');
+        document.getElementById('sims-desc').classList.add('visible');
+        document.getElementById('sims-index').classList.add('visible');
+      }, 300);
+
+      // IntersectionObserver for scroll triggers
+      const triggers = document.querySelectorAll('.sim-trigger');
+      const simObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.dataset.sim);
+            switchSim(idx);
+          }
+        });
+      }, { threshold: 0.4 });
+
+      triggers.forEach(el => simObserver.observe(el));
+
+      function resizeSims() {
+        const wrap = simsCanvas.parentElement;
+        const w = wrap.clientWidth;
+        const h = wrap.clientHeight;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      resizeSims();
+      window.addEventListener('resize', resizeSims);
+
+      function animateSims(time) {
+        requestAnimationFrame(animateSims);
+        const t = time * 0.001;
+
+        // Update target positions for current sim (keeps them animated)
+        for (let i = 0; i < COUNT; i++) {
+          SIMS[currentSim].fn(i, COUNT, t, targetPos, targetCol);
+        }
+
+        // Lerp current to target
+        const posArr = geo.attributes.position.array;
+        const colArr = geo.attributes.color.array;
+        const lerpSpeed = transitioning ? 0.04 : 0.08;
+
+        for (let i = 0; i < COUNT * 3; i++) {
+          posArr[i] += (targetPos[i] - posArr[i]) * lerpSpeed;
+          colArr[i] += (targetCol[i] - colArr[i]) * lerpSpeed;
+        }
+
+        if (transitioning) {
+          transitionFrame++;
+          if (transitionFrame >= TRANSITION_FRAMES) {
+            transitioning = false;
+          }
+        }
+
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+
+        pts.rotation.y = t * 0.03;
+        pts.rotation.x = sin(t * 0.02) * 0.08;
+
+        renderer.render(scene, camera);
+      }
+
+      // Only start animating when the section is visible
+      const startObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          animateSims(performance.now());
+          startObserver.disconnect();
+        }
+      }, { threshold: 0.05 });
+      startObserver.observe(document.querySelector('.sims-scroll-container'));
+    }
+  </script>
+
   <!-- SCROLL ANIMATIONS -->
   <script>
     const obs = new IntersectionObserver(e => e.forEach(x => { if (x.isIntersecting) x.target.classList.add('visible'); }), {threshold: 0.12});
-    document.querySelectorAll('.how-item, .sim-item').forEach((el, i) => {
+    document.querySelectorAll('.how-item').forEach((el, i) => {
       el.style.transitionDelay = `${(i % 6) * 0.06}s`;
       obs.observe(el);
     });
