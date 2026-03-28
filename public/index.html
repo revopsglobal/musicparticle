@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MusicParticle</title>
-  <meta name="description" content="Play music. Watch particles react. 21 simulations, real-time audio, no login.">
+  <meta name="description" content="Play music. Watch particles react. 24 simulations, real-time audio, no login.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -483,7 +483,7 @@
     <canvas id="hero-canvas"></canvas>
     <div class="hero-overlay">
       <h1>See what<br>you <em>hear</em></h1>
-      <p class="hero-sub">21 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
+      <p class="hero-sub">24 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
       <a href="/app" class="hero-launch">Open the visualizer</a>
     </div>
     <span class="scroll-hint">Scroll</span>
@@ -514,7 +514,7 @@
         <span class="how-num">03</span>
         <div class="how-content">
           <h3>Immerse</h3>
-          <p>Particles pulse with every beat. The camera drifts through 24 mathematical universes.</p>
+          <p>Particles pulse with every beat. The camera drifts through 24 particle universes.</p>
         </div>
       </div>
     </div>
@@ -525,7 +525,7 @@
       <canvas id="sims-canvas"></canvas>
       <div class="sims-canvas-vignette"></div>
       <div class="sims-canvas-overlay">
-        <p class="sims-overlay-index" id="sims-index">01 / 06</p>
+        <p class="sims-overlay-index" id="sims-index">01 / 24</p>
         <h2 class="sims-overlay-name" id="sims-name">Judy</h2>
         <p class="sims-overlay-desc" id="sims-desc">4D Hopf fibration, stereographically projected into particle space</p>
       </div>
@@ -536,6 +536,10 @@
     <div class="sim-trigger" data-sim="3"></div>
     <div class="sim-trigger" data-sim="4"></div>
     <div class="sim-trigger" data-sim="5"></div>
+    <div style="height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.2rem; text-align:center; padding:0 2rem;">
+      <p style="font-family:'Instrument Serif',serif; font-size:clamp(1.4rem,3vw,2.2rem); font-weight:400; color:var(--dim);">That was 6 of 24.</p>
+      <a href="/app" style="font-size:0.75rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.8rem 2rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.3s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">See them all</a>
+    </div>
   </div>
 
   <section class="lyrics-section">
@@ -562,7 +566,7 @@
         <p class="pricing-amount">$0</p>
         <p class="pricing-period">No account needed</p>
         <ul class="pricing-list">
-          <li>All 25 simulations</li>
+          <li>All 24 simulations</li>
           <li>5 visual styles (Spark, Plasma, Glass, Ink, Steel)</li>
           <li>Cinematic auto-camera</li>
           <li>Auto-shuffle with cross-fade</li>
@@ -1060,7 +1064,7 @@
         setTimeout(() => {
           nameEl.textContent = SIMS[index].name;
           descEl.textContent = SIMS[index].desc;
-          indexEl.textContent = String(index + 1).padStart(2, '0') + ' / 06';
+          indexEl.textContent = String(index + 1).padStart(2, '0') + ' / 24';
           nameEl.classList.add('visible');
           descEl.classList.add('visible');
           indexEl.classList.add('visible');
