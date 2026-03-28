@@ -4843,14 +4843,14 @@ async function autoDetectSong(silent) {
     const audioBlob = await recordAudioClip(5000);
     if (!silent) detectStatus.textContent = 'Identifying...';
 
-    // Send to our server proxy (AudD key stays server-side)
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'sample.webm');
-
+    // Send raw audio blob to our server proxy (AudD key stays server-side)
     const res = await fetch('/api/detect', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${userSession.access_token}` },
-      body: formData,
+      headers: {
+        'Authorization': `Bearer ${userSession.access_token}`,
+        'Content-Type': 'audio/webm',
+      },
+      body: audioBlob,
     });
 
     const data = await res.json();

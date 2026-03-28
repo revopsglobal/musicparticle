@@ -62,29 +62,31 @@ export default async function handler(req, res) {
     }
 
     // Forward audio to AudD API
-    // req.body is the raw buffer when content-type is multipart or octet-stream
+    // Client sends raw audio blob with Content-Type: audio/webm
+    // Vercel bodyParser gives us a Buffer when content-type isn't JSON/form
+    let audioBuffer;
+
+    if (Buffer.isBuffer(req.body)) {
+      audioBuffer = req.body;
+    } else if (typeof req.body === 'string') {
+      audioBuffer = Buffer.from(req.body, 'base64');
+    } else {
+      // Read raw body from stream
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      audioBuffer = Buffer.concat(chunks);
+    }
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'No audio data provided' });
+    }
+
     const auddForm = new FormData();
     auddForm.append('api_token', AUDD_API_KEY);
     auddForm.append('return', 'timecode');
-
-    // Handle the audio data from the request
-    // Vercel parses multipart by default; we expect the audio in the 'audio' field
-    // If raw body, use it directly
-    if (req.body instanceof Buffer) {
-      auddForm.append('file', new Blob([req.body]), 'audio.wav');
-    } else if (req.body?.audio) {
-      // If Vercel parsed the multipart form, the audio field contains the file
-      const audioData = req.body.audio;
-      if (typeof audioData === 'string') {
-        // Base64 encoded audio
-        const buffer = Buffer.from(audioData, 'base64');
-        auddForm.append('file', new Blob([buffer]), 'audio.wav');
-      } else {
-        auddForm.append('file', new Blob([audioData]), 'audio.wav');
-      }
-    } else {
-      return res.status(400).json({ error: 'No audio data provided' });
-    }
+    auddForm.append('file', new Blob([audioBuffer]), 'audio.webm');
 
     const auddResponse = await fetch('https://api.audd.io/', {
       method: 'POST',
