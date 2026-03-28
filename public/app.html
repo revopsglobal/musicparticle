@@ -6,7 +6,7 @@
 <title>MusicParticle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { overflow: hidden; background: #06060c; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
@@ -305,35 +305,16 @@
 <div id="overlay">
   <canvas id="overlay-canvas"></canvas>
   <div id="overlay-content">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 80" fill="none" style="width:clamp(220px,40vw,380px); height:auto; margin-bottom:1.2rem; opacity:0.85;">
-      <defs>
-        <filter id="ol-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="ol-bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-      <text x="28" y="54" font-family="'Instrument Serif', Georgia, serif" font-style="italic" font-size="46" fill="#e8e4dc" letter-spacing="-0.5">
-        <tspan font-weight="400">Music</tspan><tspan font-weight="400" fill="#c4a882">Particle</tspan>
-      </text>
-      <circle cx="8" cy="28" r="1.8" fill="#e85d3a" filter="url(#ol-bloom)" opacity="0.9"/>
-      <circle cx="14" cy="42" r="1.2" fill="#c4a882" filter="url(#ol-glow)" opacity="0.7"/>
-      <circle cx="6" cy="56" r="1.4" fill="#e8e4dc" opacity="0.4"/>
-      <circle cx="18" cy="18" r="1.0" fill="#c4a882" opacity="0.5"/>
-      <circle cx="22" cy="64" r="0.8" fill="#e85d3a" opacity="0.6"/>
-      <circle cx="460" cy="20" r="2.0" fill="#e85d3a" filter="url(#ol-bloom)" opacity="0.85"/>
-      <circle cx="472" cy="38" r="1.5" fill="#c4a882" filter="url(#ol-glow)" opacity="0.7"/>
-      <circle cx="480" cy="55" r="1.8" fill="#e8e4dc" opacity="0.45"/>
-      <circle cx="490" cy="26" r="1.0" fill="#c4a882" opacity="0.6"/>
-      <circle cx="498" cy="48" r="1.3" fill="#e85d3a" filter="url(#ol-bloom)" opacity="0.5"/>
-      <circle cx="505" cy="32" r="0.7" fill="#e8e4dc" opacity="0.35"/>
-      <circle cx="510" cy="60" r="0.9" fill="#c4a882" opacity="0.4"/>
-      <circle cx="120" cy="12" r="1.1" fill="#e85d3a" opacity="0.5"/>
-      <circle cx="200" cy="70" r="1.3" fill="#c4a882" opacity="0.4"/>
-      <circle cx="280" cy="8" r="0.9" fill="#e8e4dc" opacity="0.3"/>
-      <circle cx="350" cy="72" r="1.0" fill="#e85d3a" opacity="0.45"/>
-      <circle cx="410" cy="10" r="1.2" fill="#c4a882" filter="url(#ol-glow)" opacity="0.55"/>
-      <rect x="12" y="34" width="1.5" height="8" rx="0.75" fill="#c4a882" opacity="0.3"/>
-      <rect x="16" y="30" width="1.5" height="16" rx="0.75" fill="#c4a882" opacity="0.25"/>
-      <rect x="20" y="32" width="1.5" height="12" rx="0.75" fill="#c4a882" opacity="0.2"/>
-    </svg>
+    <div style="display:flex; align-items:center; gap:0; margin-bottom:1.2rem; opacity:0.85;">
+      <span style="font-family:'Syne',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:600; letter-spacing:-0.02em; color:#e8e4dc;">Music</span><span style="font-family:'Syne',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:600; letter-spacing:-0.02em; color:#c4a882;">Particle</span>
+      <span style="position:relative; display:inline-block; width:22px; height:22px; margin-left:4px;">
+        <i style="position:absolute;border-radius:50%;width:3.5px;height:3.5px;background:#e85d3a;top:3px;left:2px;box-shadow:0 0 6px 1px rgba(232,93,58,0.4);"></i>
+        <i style="position:absolute;border-radius:50%;width:2.5px;height:2.5px;background:#c4a882;top:9px;left:9px;opacity:0.6;"></i>
+        <i style="position:absolute;border-radius:50%;width:2px;height:2px;background:#e8e4dc;top:15px;left:4px;opacity:0.3;"></i>
+        <i style="position:absolute;border-radius:50%;width:1.5px;height:1.5px;background:#e85d3a;top:5px;left:15px;opacity:0.35;"></i>
+        <i style="position:absolute;border-radius:50%;width:2px;height:2px;background:#c4a882;top:13px;left:16px;opacity:0.2;"></i>
+      </span>
+    </div>
     <p style="font-size:0.7rem; color:rgba(255,255,255,0.35); letter-spacing:0.2em; text-transform:uppercase; margin-top:0.5rem;">Tap to start</p>
   </div>
 </div>
