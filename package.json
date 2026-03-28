@@ -2,8 +2,9 @@
   "name": "musicparticle",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
-    "stripe": "^14.25.0",
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "stripe": "^21.0.1"
   }
 }
