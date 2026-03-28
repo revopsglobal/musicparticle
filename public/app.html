@@ -5022,6 +5022,514 @@ if (i === 0) {
 `
   },
 
+  // ═══════════════════════════════════════════════════════════
+  // CUSTOM ORIGINALS
+  // ═══════════════════════════════════════════════════════════
+
+  {
+    name: 'SACRED GEOMETRY',
+    cam: [15, 70, 160],
+    code: `
+const breathe = addControl("breathe", "Breath Speed", 0.1, 2.0, 0.5);
+const scale = addControl("scale", "Scale", 10, 80, 40);
+const layers = Math.floor(addControl("layers", "Nested Layers", 2, 6, 4));
+const glow = addControl("glow", "Glow Pulse", 0.0, 1.0, 0.6);
+
+const t = time * breathe;
+
+// Distribute particles across nested platonic solid layers
+const layerIdx = Math.floor(i / (count / layers)) % layers;
+const localI = i % Math.floor(count / layers);
+const localCount = Math.floor(count / layers);
+
+// Each layer is a different platonic solid radius
+const layerR = scale * (0.3 + 0.7 * (layerIdx / Math.max(1, layers - 1)));
+
+// Flower of Life: 6-fold radial symmetry with rotating rings
+const ring = Math.floor(localI / Math.max(1, Math.floor(localCount / 7)));
+const ringT = (localI % Math.max(1, Math.floor(localCount / 7))) / Math.max(1, Math.floor(localCount / 7));
+
+const angle = ringT * Math.PI * 2;
+const ringPhase = ring * Math.PI / 3 + t * (0.3 + layerIdx * 0.1);
+
+// Icosahedron-like distribution with breathing
+const phi = Math.acos(1 - 2 * ringT);
+const theta = angle + ringPhase;
+
+const breathScale = 1.0 + Math.sin(t * 2 + layerIdx * 1.2) * 0.15;
+const r = layerR * breathScale;
+
+// Vertices trace sacred ratios (golden ratio spiral)
+const golden = 1.618033988749;
+const spiralR = r * (0.5 + 0.5 * Math.sin(phi * golden + t));
+
+let x = spiralR * Math.sin(phi) * Math.cos(theta);
+let y = spiralR * Math.sin(phi) * Math.sin(theta);
+let z = spiralR * Math.cos(phi);
+
+// Rotate each layer independently
+const rot = t * 0.2 * (layerIdx % 2 === 0 ? 1 : -1);
+const rx = x * Math.cos(rot) - z * Math.sin(rot);
+const rz = x * Math.sin(rot) + z * Math.cos(rot);
+
+target.set(rx, y, rz);
+
+const energy = Math.pow(Math.abs(Math.sin(phi * 6 + t * 3)), 4) * glow;
+const hue = (layerIdx / layers + t * 0.05) % 1.0;
+const sat = 0.5 + 0.3 * Math.sin(theta + t);
+const lum = 0.2 + 0.3 * (layerIdx / layers) + 0.4 * energy;
+
+color.setHSL(hue, sat, Math.min(1.0, lum));
+
+if (i === 0) {
+    setInfo("Sacred Geometry", "Nested platonic solids breathing in golden-ratio spirals. Each layer rotates independently, tracing the Flower of Life in three dimensions.");
+    annotate("center", new THREE.Vector3(0, 0, 0), "Origin");
+}
+`
+  },
+
+  {
+    name: 'MANDALA',
+    cam: [10, 50, 120],
+    code: `
+const petals = Math.floor(addControl("petals", "Petal Count", 4, 16, 8));
+const rings = Math.floor(addControl("rings", "Ring Count", 3, 12, 7));
+const spin = addControl("spin", "Spin Speed", 0.0, 2.0, 0.4);
+const depth = addControl("depth", "3D Depth", 0, 30, 12);
+
+const t = time * spin;
+
+const ringIdx = Math.floor(i / (count / rings)) % rings;
+const ringFrac = ringIdx / Math.max(1, rings - 1);
+const localI = i % Math.floor(count / rings);
+const localCount = Math.floor(count / rings);
+
+const angle = (localI / localCount) * Math.PI * 2;
+
+// Radial distance with petal modulation
+const petalWave = Math.cos(angle * petals + t * (ringIdx % 2 === 0 ? 1 : -1)) * 0.4 + 0.6;
+const baseR = 5 + ringFrac * 45;
+const r = baseR * petalWave;
+
+// Kaleidoscopic mirroring: alternate rings counter-rotate
+const mirrorAngle = angle + t * (ringIdx % 2 === 0 ? 0.5 : -0.5) + ringIdx * Math.PI / petals;
+
+const x = r * Math.cos(mirrorAngle);
+const y = r * Math.sin(mirrorAngle);
+
+// Z undulation gives 3D mandala bowl shape
+const zWave = Math.sin(ringFrac * Math.PI) * depth;
+const zPulse = Math.sin(angle * petals * 2 + t * 3) * depth * 0.2 * ringFrac;
+const z = zWave + zPulse;
+
+target.set(x, y, z);
+
+// Concentric color rings with rotating hue
+const hue = (ringFrac * 0.6 + t * 0.08 + Math.sin(angle * petals) * 0.1) % 1.0;
+const sat = 0.6 + 0.4 * petalWave;
+const lum = 0.25 + 0.35 * ringFrac + 0.2 * Math.pow(petalWave, 3);
+
+color.setHSL(hue, sat, lum);
+
+if (i === 0) {
+    setInfo("Mandala", "Radial symmetry with concentric counter-rotating rings. Petal modulation creates kaleidoscopic interference patterns that breathe in three dimensions.");
+    annotate("center", new THREE.Vector3(0, 0, 0), "Bindu");
+}
+`
+  },
+
+  {
+    name: 'FLUID DYNAMICS',
+    cam: [20, 80, 180],
+    code: `
+const viscosity = addControl("viscosity", "Viscosity", 0.1, 3.0, 1.0);
+const turbulence = addControl("turbulence", "Turbulence", 0.0, 2.0, 0.8);
+const flowSpeed = addControl("flowSpeed", "Flow Speed", 0.1, 2.0, 0.6);
+const vortexCount = Math.floor(addControl("vortices", "Vortex Count", 1, 5, 3));
+
+const t = time * flowSpeed;
+
+// Initial grid position
+const side = Math.ceil(Math.pow(count, 1/3));
+const xi = i % side;
+const yi = Math.floor(i / side) % side;
+const zi = Math.floor(i / (side * side));
+
+// Normalize to [-1, 1]
+let px = (xi / side - 0.5) * 80;
+let py = (yi / side - 0.5) * 80;
+let pz = (zi / side - 0.5) * 80;
+
+// Apply multiple vortex fields (Navier-Stokes inspired)
+for (let v = 0; v < vortexCount; v++) {
+    const vPhase = v * Math.PI * 2 / vortexCount;
+    const cx = Math.sin(t * 0.3 + vPhase) * 25;
+    const cy = Math.cos(t * 0.4 + vPhase) * 25;
+    const cz = Math.sin(t * 0.2 + vPhase * 1.5) * 15;
+
+    const dx = px - cx;
+    const dy = py - cy;
+    const dz = pz - cz;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.1;
+
+    // Vortex rotation (curl-like)
+    const strength = 30 / (dist * viscosity + 1);
+    px += (-dy * strength * 0.02);
+    py += (dx * strength * 0.02);
+    pz += Math.sin(dist * 0.1 - t * 2) * turbulence * 2;
+}
+
+// Turbulent displacement
+const turb = turbulence * 5;
+px += Math.sin(py * 0.08 + t * 1.5) * turb;
+py += Math.cos(pz * 0.08 + t * 1.3) * turb;
+pz += Math.sin(px * 0.08 + t * 1.7) * turb;
+
+target.set(px, py, pz);
+
+// Color by velocity (approximated by distance from grid origin)
+const vel = Math.sqrt(
+    Math.pow(px - (xi / side - 0.5) * 80, 2) +
+    Math.pow(py - (yi / side - 0.5) * 80, 2)
+) / 40;
+
+const hue = (0.55 + vel * 0.3 + t * 0.02) % 1.0;
+const sat = 0.5 + 0.5 * Math.min(1, vel);
+const lum = 0.15 + 0.45 * Math.min(1, vel * 0.8);
+
+color.setHSL(hue, sat, lum);
+
+if (i === 0) {
+    setInfo("Fluid Dynamics", "Navier-Stokes inspired flow field with multiple vortex centers. Particles trace turbulent streams, shedding eddies as viscosity and turbulence interact.");
+    annotate("vortex", new THREE.Vector3(0, 0, 0), "Flow Center");
+}
+`
+  },
+
+  {
+    name: 'CRYSTAL GROWTH',
+    cam: [15, 60, 150],
+    code: `
+const growSpeed = addControl("growSpeed", "Growth Rate", 0.1, 2.0, 0.5);
+const branches = Math.floor(addControl("branches", "Branch Count", 3, 8, 6));
+const thickness = addControl("thickness", "Dendrite Width", 0.5, 4.0, 1.5);
+const frost = addControl("frost", "Frost Glow", 0.0, 1.0, 0.7);
+
+const t = time * growSpeed;
+
+// Growth front expands over time (cycling)
+const maxReach = 50;
+const growthPhase = (t * 0.3) % 1.0;
+const reach = maxReach * (0.3 + 0.7 * growthPhase);
+
+// Distribute along dendritic branches
+const branchIdx = Math.floor(i / (count / branches)) % branches;
+const branchAngle = (branchIdx / branches) * Math.PI * 2;
+const localI = i % Math.floor(count / branches);
+const localFrac = localI / Math.floor(count / branches);
+
+// Main arm extends outward
+const armLen = localFrac * reach;
+
+// Sub-branches fork at 60-degree angles (dendritic)
+const subBranch = Math.floor(localFrac * 6);
+const subFrac = (localFrac * 6) % 1.0;
+const forkAngle = (subBranch % 2 === 0 ? 1 : -1) * Math.PI / 3;
+const forkLen = subFrac * reach * 0.3 * (1 - localFrac * 0.5);
+
+// Position along main arm + sub-branch offset
+const mainX = armLen * Math.cos(branchAngle);
+const mainY = armLen * Math.sin(branchAngle);
+
+const subAngle = branchAngle + forkAngle;
+const fx = mainX + forkLen * Math.cos(subAngle);
+const fy = mainY + forkLen * Math.sin(subAngle);
+
+// Z: slight crystalline faceting
+const fz = Math.sin(armLen * 0.2 + branchAngle * 3) * thickness
+         + Math.cos(forkLen * 0.5) * thickness * 0.5;
+
+// Scatter for thickness
+const scatter = thickness * (Math.sin(i * 7.31) * 0.5);
+target.set(fx + scatter * 0.3, fy + scatter * 0.3, fz);
+
+// Icy color palette: blues and whites
+const tipGlow = Math.pow(localFrac, 2) * frost;
+const hue = 0.55 + Math.sin(branchAngle + t) * 0.05;
+const sat = 0.3 + 0.4 * (1 - localFrac);
+const lum = 0.3 + 0.3 * localFrac + 0.3 * tipGlow;
+
+color.setHSL(hue, sat, Math.min(1.0, lum));
+
+if (i === 0) {
+    setInfo("Crystal Growth", "Dendritic branching structure growing outward from a seed point. Six-fold symmetry with recursive sub-branches, like frost forming on glass.");
+    annotate("seed", new THREE.Vector3(0, 0, 0), "Seed");
+}
+`
+  },
+
+  {
+    name: 'MANDELBROT',
+    cam: [5, 40, 100],
+    code: `
+const zoom = addControl("zoom", "Zoom Depth", 0.5, 50.0, 5.0);
+const iterations = Math.floor(addControl("iterations", "Max Iterations", 10, 80, 40));
+const drift = addControl("drift", "Drift Speed", 0.0, 1.0, 0.3);
+const scale = addControl("scale", "Scale", 20, 80, 45);
+
+const t = time * drift;
+
+// Zoom target drifts along the boundary
+const cx = -0.745 + Math.sin(t * 0.2) * 0.02;
+const cy = 0.186 + Math.cos(t * 0.3) * 0.02;
+
+// Map particle index to complex plane
+const side = Math.ceil(Math.sqrt(count));
+const px = (i % side) / side;
+const py = Math.floor(i / side) / side;
+
+// Viewport centered on interesting boundary region
+const viewSize = 3.0 / zoom;
+const cr = (px - 0.5) * viewSize + cx;
+const ci = (py - 0.5) * viewSize + cy;
+
+// Mandelbrot iteration
+let zr = 0, zi = 0;
+let iter = 0;
+for (let n = 0; n < iterations; n++) {
+    const zr2 = zr * zr - zi * zi + cr;
+    const zi2 = 2 * zr * zi + ci;
+    zr = zr2;
+    zi = zi2;
+    if (zr * zr + zi * zi > 4) break;
+    iter = n;
+}
+
+const escaped = (zr * zr + zi * zi > 4);
+const iterFrac = iter / iterations;
+
+// Position: X/Y from complex plane, Z from iteration depth
+const xp = (px - 0.5) * scale * 2;
+const yp = (py - 0.5) * scale * 2;
+const zp = escaped ? iterFrac * 20 - 10 : Math.sin(t + cr * 10) * 3;
+
+target.set(xp, yp, zp);
+
+// Color: boundary particles glow, interior is dark
+if (escaped) {
+    const hue = (iterFrac * 2 + t * 0.1) % 1.0;
+    const sat = 0.7 + 0.3 * Math.sin(iterFrac * Math.PI);
+    const lum = 0.1 + 0.6 * Math.pow(iterFrac, 0.5);
+    color.setHSL(hue, sat, lum);
+} else {
+    const pulse = Math.sin(t * 2 + (cr + ci) * 5) * 0.1;
+    color.setHSL(0.7, 0.3, 0.05 + pulse);
+}
+
+if (i === 0) {
+    setInfo("Mandelbrot", "Particles trace the boundary of the Mandelbrot set. Zoom drifts along the fractal edge, with iteration depth extruded into 3D. Interior particles pulse in the dark.");
+    annotate("center", new THREE.Vector3(0, 0, 0), "Fractal Boundary");
+}
+`
+  },
+
+  {
+    name: 'MOBIUS STRIP',
+    cam: [10, 50, 120],
+    code: `
+const twist = addControl("twist", "Twist Count", 0.5, 4.0, 1.0);
+const width = addControl("width", "Strip Width", 3, 20, 10);
+const flowRate = addControl("flow", "Flow Speed", 0.0, 2.0, 0.5);
+const radius = addControl("radius", "Loop Radius", 15, 50, 30);
+
+const t = time * flowRate;
+
+// Parametric Mobius strip: u goes around the loop, v across the width
+const uCount = Math.ceil(Math.sqrt(count * 4));
+const vCount = Math.ceil(count / uCount);
+
+const ui = i % uCount;
+const vi = Math.floor(i / uCount) % vCount;
+
+const u = (ui / uCount) * Math.PI * 2;
+const v = (vi / vCount - 0.5) * width;
+
+// Flow: particles drift along u over time
+const uFlow = u + t;
+
+// Mobius strip parametric equations with N half-twists
+const halfTwist = uFlow * twist / 2;
+
+const x = (radius + v * Math.cos(halfTwist)) * Math.cos(uFlow);
+const y = (radius + v * Math.cos(halfTwist)) * Math.sin(uFlow);
+const z = v * Math.sin(halfTwist);
+
+target.set(x, y, z);
+
+// Color flows along the strip
+const hue = ((ui / uCount) + t * 0.05) % 1.0;
+const edgeFade = 1.0 - Math.pow(Math.abs(vi / vCount - 0.5) * 2, 2);
+const sat = 0.5 + 0.4 * edgeFade;
+const lum = 0.15 + 0.45 * edgeFade + 0.15 * Math.sin(uFlow * 4 + t * 2);
+
+color.setHSL(hue, sat, lum);
+
+if (i === 0) {
+    setInfo("Mobius Strip", "A one-sided surface with a half-twist. Particles flow along the loop, tracing a path that visits both 'sides' before returning to start. Topology made visible.");
+    annotate("twist", new THREE.Vector3(radius, 0, 0), "Twist Point");
+}
+`
+  },
+
+  {
+    name: 'SUPERNOVA',
+    cam: [20, 80, 200],
+    code: `
+const blastSpeed = addControl("blast", "Blast Speed", 0.1, 2.0, 0.7);
+const shellCount = Math.floor(addControl("shells", "Shock Shells", 1, 4, 2));
+const debris = addControl("debris", "Debris Spread", 0.5, 3.0, 1.5);
+const coreGlow = addControl("core", "Core Intensity", 0.0, 1.0, 0.8);
+
+const t = time * blastSpeed;
+
+// Explosion cycle repeats
+const cycle = (t * 0.15) % 1.0;
+const expansion = Math.pow(cycle, 0.6) * 70;
+
+// Split particles: core remnant, shockwave shells, debris field
+const coreCount = Math.floor(count * 0.15);
+const shellTotal = Math.floor(count * 0.5);
+const debrisCount = count - coreCount - shellTotal;
+
+if (i < coreCount) {
+    // Collapsed core: dense, pulsating neutron star remnant
+    const phi = Math.acos(1 - 2 * (i / coreCount));
+    const theta = Math.sqrt(coreCount * Math.PI) * phi + t * 3;
+    const r = 3 + Math.sin(t * 8 + phi * 10) * 1.5;
+
+    target.set(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.sin(phi) * Math.sin(theta),
+        r * Math.cos(phi)
+    );
+
+    const pulse = Math.pow(Math.abs(Math.sin(t * 6)), 4) * coreGlow;
+    color.setHSL(0.1, 0.9, 0.5 + 0.5 * pulse);
+
+} else if (i < coreCount + shellTotal) {
+    // Expanding shockwave shells
+    const si = i - coreCount;
+    const shellIdx = Math.floor(si / (shellTotal / shellCount)) % shellCount;
+    const localI = si % Math.floor(shellTotal / shellCount);
+    const localCount = Math.floor(shellTotal / shellCount);
+
+    const phi = Math.acos(1 - 2 * (localI / localCount));
+    const theta = Math.sqrt(localCount * Math.PI) * phi;
+
+    const shellR = expansion * (0.6 + shellIdx * 0.25);
+    const ripple = Math.sin(phi * 12 + t * 4) * 2;
+
+    target.set(
+        (shellR + ripple) * Math.sin(phi) * Math.cos(theta),
+        (shellR + ripple) * Math.sin(phi) * Math.sin(theta),
+        (shellR + ripple) * Math.cos(phi)
+    );
+
+    const hue = (0.05 + shellIdx * 0.08 + cycle * 0.3) % 1.0;
+    color.setHSL(hue, 0.8, 0.2 + 0.5 * (1 - cycle));
+
+} else {
+    // Debris field: chaotic particles flung outward
+    const di = i - coreCount - shellTotal;
+    const seed1 = Math.sin(di * 12.9898 + 78.233) * 43758.5453 % 1;
+    const seed2 = Math.sin(di * 45.164 + 12.989) * 28461.213 % 1;
+    const seed3 = Math.sin(di * 67.345 + 98.765) * 65432.123 % 1;
+
+    const phi = Math.abs(seed1) * Math.PI;
+    const theta = Math.abs(seed2) * Math.PI * 2;
+    const r = expansion * debris * (0.3 + Math.abs(seed3) * 0.7);
+
+    // Tumbling debris
+    const tumble = t * (0.5 + Math.abs(seed1));
+    target.set(
+        r * Math.sin(phi + tumble * 0.1) * Math.cos(theta + tumble * 0.2),
+        r * Math.sin(phi + tumble * 0.1) * Math.sin(theta + tumble * 0.2),
+        r * Math.cos(phi + tumble * 0.1)
+    );
+
+    const cool = Math.min(1, cycle * 1.5);
+    color.setHSL(0.05 + cool * 0.6, 0.6, 0.1 + 0.2 * (1 - cool));
+}
+
+if (i === 0) {
+    setInfo("Supernova", "Stellar death in particle form. A collapsing core pulses as shockwave shells expand outward, scattering a debris field of cooling stellar material.");
+    annotate("core", new THREE.Vector3(0, 0, 0), "Neutron Core");
+}
+`
+  },
+
+  {
+    name: 'FUNGAL MYCELIUM',
+    cam: [15, 60, 150],
+    code: `
+const growthRate = addControl("growth", "Growth Speed", 0.1, 2.0, 0.6);
+const branchProb = addControl("branching", "Branch Density", 0.1, 1.0, 0.5);
+const spread = addControl("spread", "Network Spread", 20, 80, 50);
+const pulse = addControl("pulse", "Nutrient Pulse", 0.0, 1.0, 0.6);
+
+const t = time * growthRate;
+
+// Create a network of branching hyphae
+const strands = 12;
+const strandIdx = Math.floor(i / (count / strands)) % strands;
+const localI = i % Math.floor(count / strands);
+const localFrac = localI / Math.floor(count / strands);
+
+// Each strand grows from center with pseudo-random branching
+const seed = Math.sin(strandIdx * 73.156 + 12.34) * 1000 % 1;
+const baseAngle = (strandIdx / strands) * Math.PI * 2;
+
+// Growth extends over time (cycling)
+const growPhase = (t * 0.2 + seed * 0.5) % 1.0;
+const maxLen = spread * (0.4 + 0.6 * growPhase);
+
+// Position along hypha with branching
+const along = localFrac * maxLen;
+
+// Organic meandering path
+const meander = branchProb * 8;
+const mx = Math.sin(along * 0.15 + strandIdx * 2.1 + t * 0.3) * meander;
+const my = Math.cos(along * 0.12 + strandIdx * 3.7 + t * 0.2) * meander;
+
+// Branch forks
+const forkPoint = Math.floor(localFrac * 4);
+const forkSide = (forkPoint % 2 === 0 ? 1 : -1);
+const forkOffset = Math.sin(localFrac * 12 + strandIdx) * branchProb * 10 * localFrac;
+
+const angle = baseAngle + mx * 0.03 + forkOffset * 0.02;
+const x = along * Math.cos(angle) + mx + forkSide * forkOffset * Math.cos(angle + Math.PI/2);
+const y = along * Math.sin(angle) + my + forkSide * forkOffset * Math.sin(angle + Math.PI/2);
+const z = Math.sin(along * 0.1 + t + strandIdx) * 5 + Math.cos(localFrac * Math.PI * 3) * 3;
+
+target.set(x, y, z);
+
+// Nutrient pulse traveling along network
+const nutrientWave = Math.sin(localFrac * Math.PI * 4 - t * 3) * 0.5 + 0.5;
+const tip = Math.pow(localFrac, 3);
+
+const hue = (0.08 + strandIdx * 0.02 + nutrientWave * 0.05) % 1.0;
+const sat = 0.3 + 0.4 * nutrientWave * pulse;
+const lum = 0.1 + 0.2 * nutrientWave * pulse + 0.4 * tip;
+
+color.setHSL(hue, sat, Math.min(0.9, lum));
+
+if (i === 0) {
+    setInfo("Fungal Mycelium", "Branching network of hyphae growing outward from a central node. Nutrient pulses travel the network like signals through nature's original internet.");
+    annotate("node", new THREE.Vector3(0, 0, 0), "Central Node");
+}
+`
+  },
+
 // ── End of simulations ──
 ];
 

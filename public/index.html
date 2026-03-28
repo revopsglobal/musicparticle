@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MusicParticle</title>
-  <meta name="description" content="Play music. Watch particles react. 29 simulations, real-time audio, no login.">
+  <meta name="description" content="Play music. Watch particles react. 37 simulations, real-time audio, no login.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -505,7 +505,7 @@
     <canvas id="hero-canvas"></canvas>
     <div class="hero-overlay">
       <h1>See what<br>you <em>hear</em></h1>
-      <p class="hero-sub">29 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
+      <p class="hero-sub">37 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
       <a href="/app" class="hero-launch">Open the visualizer</a>
     </div>
     <span class="scroll-hint">Scroll</span>
@@ -536,7 +536,7 @@
         <span class="how-num">03</span>
         <div class="how-content">
           <h3>Immerse</h3>
-          <p>Particles pulse with every beat. The camera drifts through 29 particle universes.</p>
+          <p>Particles pulse with every beat. The camera drifts through 37 particle universes.</p>
         </div>
       </div>
     </div>
@@ -547,7 +547,7 @@
       <canvas id="sims-canvas"></canvas>
       <div class="sims-canvas-vignette"></div>
       <div class="sims-canvas-overlay">
-        <p class="sims-overlay-index" id="sims-index">01 / 29</p>
+        <p class="sims-overlay-index" id="sims-index">01 / 37</p>
         <h2 class="sims-overlay-name" id="sims-name">Judy</h2>
         <p class="sims-overlay-desc" id="sims-desc">4D Hopf fibration, stereographically projected into particle space</p>
       </div>
@@ -559,7 +559,7 @@
     <div class="sim-trigger" data-sim="4"></div>
     <div class="sim-trigger" data-sim="5"></div>
     <div style="height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.2rem; text-align:center; padding:0 2rem;">
-      <p style="font-family:'Instrument Serif',serif; font-size:clamp(1.4rem,3vw,2.2rem); font-weight:400; color:var(--dim);">That was 6 of 29.</p>
+      <p style="font-family:'Instrument Serif',serif; font-size:clamp(1.4rem,3vw,2.2rem); font-weight:400; color:var(--dim);">That was 6 of 37.</p>
       <a href="/app" style="font-size:0.75rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.8rem 2rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.3s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">See them all</a>
     </div>
   </div>
@@ -579,7 +579,7 @@
 
   <section style="padding:5rem 2.5rem; text-align:center; border-top:1px solid rgba(255,255,255,0.04);">
     <h2 style="font-family:'Instrument Serif',serif; font-size:clamp(1.6rem,3vw,2.4rem); font-weight:400; margin-bottom:0.8rem;">Everything is free.</h2>
-    <p style="font-size:0.9rem; color:var(--dim); max-width:460px; margin:0 auto 2rem; line-height:1.6;">29 simulations, 5 visual styles, cinematic camera, auto-shuffle, full controls, and lyrics detection. No account. No login. No paywall.</p>
+    <p style="font-size:0.9rem; color:var(--dim); max-width:460px; margin:0 auto 2rem; line-height:1.6;">37 simulations, 5 visual styles, cinematic camera, auto-shuffle, full controls, and lyrics detection. No account. No login. No paywall.</p>
     <a href="/app" style="display:inline-block; font-size:0.78rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.9rem 2.4rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.4s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">Open the visualizer</a>
   </section>
 
@@ -1054,7 +1054,7 @@
         setTimeout(() => {
           nameEl.textContent = SIMS[index].name;
           descEl.textContent = SIMS[index].desc;
-          indexEl.textContent = String(index + 1).padStart(2, '0') + ' / 29';
+          indexEl.textContent = String(index + 1).padStart(2, '0') + ' / 37';
           nameEl.classList.add('visible');
           descEl.classList.add('visible');
           indexEl.classList.add('visible');
