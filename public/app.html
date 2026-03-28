@@ -4596,10 +4596,7 @@ function hideLyricsNotification() {
 }
 
 function showProPrompt() {
-  // Show upgrade notification for free users
-  lyricsNotifyText.textContent = 'Particle lyrics are a Pro feature';
-  lyricsNotifyBtn.textContent = 'Get Pro';
-  lyricsNotifyBtn.onclick = () => { window.location.href = '/#pricing'; };
+  // No longer gated, this is a no-op
   lyricsNotify.classList.add('visible');
 }
 
