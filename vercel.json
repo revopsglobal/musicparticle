@@ -1,0 +1,23 @@
+{
+  "outputDirectory": "public",
+  "buildCommand": "",
+  "functions": {
+    "api/detect.js": { "maxDuration": 25 }
+  },
+  "rewrites": [
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/auth/magic", "destination": "/api/auth/magic" },
+    { "source": "/auth/verify", "destination": "/api/auth/verify" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" }
+      ]
+    }
+  ]
+}

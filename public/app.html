@@ -1,0 +1,3934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Visualizer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #06060c; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
+  canvas { display: block; }
+
+  /* ── Overlay ── */
+  #overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: #06060c;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: opacity 0.8s ease;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlay h1 { font-size: 2rem; font-weight: 200; color: #d0d0f0; letter-spacing: 0.15em; margin-bottom: 0.8rem; }
+  #overlay p { font-size: 0.8rem; color: #5a5a7a; letter-spacing: 0.12em; }
+  .pulse-ring {
+    width: 100px; height: 100px; border-radius: 50%;
+    border: 1px solid rgba(120, 130, 255, 0.25);
+    margin-bottom: 2rem;
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.12); opacity: 0.7; }
+  }
+
+  /* ── Bottom Bar ── */
+  #bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 20px; gap: 16px;
+    background: linear-gradient(transparent, rgba(6,6,12,0.85));
+  }
+  .nav-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: transparent; color: rgba(255,255,255,0.4);
+    font-size: 0.75rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease; flex-shrink: 0;
+  }
+  .nav-btn:hover { border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.7); }
+  .nav-btn.active { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.06); }
+  #sim-name {
+    font-size: 0.65rem; color: rgba(255,255,255,0.35); letter-spacing: 0.22em;
+    text-transform: uppercase; text-align: center; min-width: 140px;
+    transition: opacity 0.3s ease;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    position: fixed; top: 0; right: -320px; bottom: 0; z-index: 100;
+    width: 300px; padding: 20px 18px;
+    background: rgba(8, 8, 16, 0.95);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(16px);
+    overflow-y: auto; overflow-x: hidden;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #sidebar.open { right: 0; }
+  #sidebar::-webkit-scrollbar { width: 3px; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  .section-title {
+    font-size: 0.55rem; color: rgba(255,255,255,0.25); letter-spacing: 0.18em;
+    text-transform: uppercase; margin: 18px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Slider controls */
+  .ctrl-slider { margin-bottom: 12px; }
+  .ctrl-slider label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-bottom: 4px;
+  }
+  .ctrl-slider label span { color: rgba(255,255,255,0.55); font-variant-numeric: tabular-nums; }
+  .ctrl-slider input[type=range] {
+    width: 100%; height: 3px; -webkit-appearance: none; appearance: none;
+    background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
+  }
+  .ctrl-slider input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+    background: rgba(255,255,255,0.5); cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  /* Chip selectors */
+  .chip-group { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip {
+    padding: 4px 10px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent; color: rgba(255,255,255,0.3);
+    font-size: 0.55rem; letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s ease; user-select: none;
+  }
+  .chip:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.5); }
+  .chip.active { border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
+
+  /* Toggle sidebar button */
+  #toggle-sidebar {
+    position: fixed; top: 16px; right: 16px; z-index: 110;
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(8,8,16,0.6); color: rgba(255,255,255,0.35);
+    font-size: 0.65rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease; backdrop-filter: blur(8px);
+  }
+  #toggle-sidebar:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.6); }
+
+  /* HUD info */
+  #hud-info {
+    position: fixed; top: 16px; left: 16px; z-index: 40;
+    max-width: 280px;
+  }
+  #hud-title {
+    font-size: 0.7rem; color: rgba(255,255,255,0.5); letter-spacing: 0.1em;
+    font-weight: 500; margin-bottom: 3px;
+  }
+  #hud-desc {
+    font-size: 0.58rem; color: rgba(255,255,255,0.22); line-height: 1.5;
+    font-weight: 300;
+  }
+
+  /* Sim-specific controls container */
+  #sim-controls { /* populated dynamically */ }
+
+  /* Help tooltip */
+  #help-btn {
+    position: fixed; bottom: 52px; right: 16px; z-index: 50;
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent; color: rgba(255,255,255,0.2);
+    font-size: 0.55rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #help-tooltip {
+    position: fixed; bottom: 82px; right: 16px; z-index: 50;
+    background: rgba(10,10,20,0.95); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px; padding: 12px 14px;
+    font-size: 0.58rem; color: rgba(255,255,255,0.3); line-height: 2;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    backdrop-filter: blur(12px);
+  }
+  #help-tooltip.visible { opacity: 1; }
+  #help-tooltip kbd {
+    display: inline-block; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+    padding: 0 5px; font-family: monospace; font-size: 0.55rem; margin-right: 3px;
+  }
+
+  /* Audio level indicator */
+  #audio-indicator {
+    position: fixed; bottom: 52px; left: 16px; z-index: 40;
+    display: flex; gap: 2px; align-items: flex-end; height: 20px;
+  }
+  .audio-bar {
+    width: 3px; border-radius: 1px;
+    background: rgba(255,255,255,0.15);
+    transition: height 0.05s linear;
+  }
+
+  /* ── Lyrics notification bar ── */
+  #lyrics-notify {
+    position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%);
+    z-index: 60; display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; border-radius: 20px;
+    background: rgba(12,12,24,0.85); border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateX(-50%) translateY(10px);
+  }
+  #lyrics-notify.visible {
+    opacity: 1; pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  #lyrics-notify-text {
+    font-size: 0.6rem; color: rgba(255,255,255,0.5);
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  #lyrics-notify-btn {
+    padding: 4px 12px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7);
+    font-size: 0.55rem; cursor: pointer; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  #lyrics-notify-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
+  #lyrics-notify-dismiss {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: none; background: transparent; color: rgba(255,255,255,0.25);
+    font-size: 0.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Lyrics (particle-based, no text overlay) ── */
+  #lyrics-track-info {
+    position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%);
+    font-size: 0.55rem; color: rgba(255,255,255,0.2); letter-spacing: 0.1em;
+    z-index: 35; text-align: center; white-space: nowrap;
+    opacity: 0; transition: opacity 0.4s ease;
+  }
+  #lyrics-track-info.visible { opacity: 1; }
+
+  /* ── Control help text ── */
+  .ctrl-help {
+    font-size: 0.45rem; color: rgba(255,255,255,0.12); margin-top: -8px;
+    margin-bottom: 10px; line-height: 1.4; padding-left: 2px;
+  }
+
+  /* ── Visual Style List ── */
+  #style-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+  .style-option {
+    padding: 8px 10px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .style-option:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); }
+  .style-option.active { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+  .style-name { font-size: 0.6rem; color: rgba(255,255,255,0.5); font-weight: 500; letter-spacing: 0.05em; }
+  .style-option.active .style-name { color: rgba(255,255,255,0.75); }
+  .style-desc { font-size: 0.5rem; color: rgba(255,255,255,0.18); margin-top: 2px; line-height: 1.4; }
+  .style-option.active .style-desc { color: rgba(255,255,255,0.28); }
+
+  /* ── Lyrics Search (inline in sidebar) ── */
+  #lyrics-search-input {
+    width: 100%; padding: 7px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px; color: #ddd;
+    font-size: 0.65rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s ease;
+  }
+  #lyrics-search-input:focus { border-color: rgba(255,255,255,0.2); }
+  #lyrics-search-input::placeholder { color: rgba(255,255,255,0.18); }
+  #lyrics-results {
+    margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+    max-height: 180px; overflow-y: auto;
+  }
+  .lyrics-result {
+    padding: 7px 10px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.01);
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .lyrics-result:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }
+  .lyrics-result-title { font-size: 0.6rem; color: rgba(255,255,255,0.5); }
+  .lyrics-result-artist { font-size: 0.5rem; color: rgba(255,255,255,0.2); margin-top: 1px; }
+  .lyrics-result-badge {
+    display: inline-block; font-size: 0.45rem; color: rgba(120,200,120,0.5);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px;
+  }
+  #lyrics-status { font-size: 0.5rem; color: rgba(255,255,255,0.18); margin-top: 6px; }
+
+  /* Lyrics toggle chip */
+  #lyrics-toggle-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  #lyrics-toggle-btn {
+    padding: 4px 10px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent; color: rgba(255,255,255,0.3);
+    font-size: 0.55rem; cursor: pointer; transition: all 0.2s ease;
+  }
+  #lyrics-toggle-btn:hover { border-color: rgba(255,255,255,0.2); }
+  #lyrics-toggle-btn.active { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.04); }
+  #lyrics-track-label { font-size: 0.5rem; color: rgba(255,255,255,0.2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Timing offset row */
+  .timing-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .timing-btn {
+    padding: 3px 8px; border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: transparent; color: rgba(255,255,255,0.3);
+    font-size: 0.5rem; cursor: pointer; transition: all 0.15s ease;
+  }
+  .timing-btn:hover { border-color: rgba(255,255,255,0.15); }
+  #lyrics-offset-val {
+    font-size: 0.5rem; color: rgba(255,255,255,0.3);
+    font-variant-numeric: tabular-nums; min-width: 40px; text-align: center;
+  }
+  #lyrics-clear-btn {
+    padding: 3px 8px; border-radius: 5px;
+    border: 1px solid rgba(200,100,100,0.12);
+    background: transparent; color: rgba(200,100,100,0.35);
+    font-size: 0.5rem; cursor: pointer; margin-left: auto;
+  }
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="pulse-ring"></div>
+  <h1>VISUALIZER</h1>
+  <p>TAP TO BEGIN</p>
+</div>
+
+<div id="hud-info">
+  <div id="hud-title"></div>
+  <div id="hud-desc"></div>
+</div>
+
+<div id="audio-indicator">
+  <div class="audio-bar" id="bar-bass" style="height:2px"></div>
+  <div class="audio-bar" id="bar-mid" style="height:2px"></div>
+  <div class="audio-bar" id="bar-high" style="height:2px"></div>
+</div>
+
+<div id="bottom-bar">
+  <button class="nav-btn" id="prev-btn" title="Previous">&lsaquo;</button>
+  <div id="sim-name">HOPF FIBRATION</div>
+  <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
+  <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
+</div>
+
+<button id="toggle-sidebar" title="Controls">+</button>
+
+<div id="sidebar">
+  <div class="section-title">Camera</div>
+  <div class="ctrl-slider">
+    <label>Travel Speed <span id="val-cam-speed">1.0</span></label>
+    <input type="range" id="ctrl-cam-speed" min="0.1" max="3.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl-help">How fast the camera orbits, dips, and breathes in/out. Lower for a meditative feel, higher for energy.</div>
+  <div class="ctrl-slider">
+    <label>Closest Zoom <span id="val-cam-min">20</span></label>
+    <input type="range" id="ctrl-cam-min" min="3" max="60" step="1" value="20">
+  </div>
+  <div class="ctrl-help">How deep inside the shape the camera gets. Lower values put you right in the middle of the particles.</div>
+  <div class="ctrl-slider">
+    <label>Farthest Zoom <span id="val-cam-max">200</span></label>
+    <input type="range" id="ctrl-cam-max" min="80" max="350" step="5" value="200">
+  </div>
+  <div class="ctrl-help">How far back the camera pulls. Higher values let you see the full shape from a distance.</div>
+
+  <div class="section-title">Playback</div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+    <button class="chip" id="auto-shuffle-chip" style="flex:1;text-align:center">Auto Shuffle: Off</button>
+  </div>
+  <div class="ctrl-help">Automatically cycles through all simulations with a cross-fade transition between each one.</div>
+  <div class="ctrl-slider" id="shuffle-interval-row" style="display:none">
+    <label>Seconds per shape <span id="val-shuffle-interval">25</span></label>
+    <input type="range" id="ctrl-shuffle-interval" min="8" max="60" step="1" value="25">
+  </div>
+
+  <div class="section-title">Audio</div>
+  <div class="ctrl-slider">
+    <label>Sensitivity <span id="val-sensitivity">1.0</span></label>
+    <input type="range" id="ctrl-sensitivity" min="0" max="3.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl-help">How strongly the particles react to music. Higher = more dramatic pulsing, scaling, and color shifts on each beat.</div>
+  <div class="ctrl-slider">
+    <label>Glow Intensity <span id="val-glow">0.4</span></label>
+    <input type="range" id="ctrl-glow" min="0" max="3.0" step="0.1" value="0.4">
+  </div>
+  <div class="ctrl-help">Bloom/glow effect around bright particles. 0 = no glow (sharpest), higher = dreamy haze. Pulses with the music.</div>
+
+  <div class="section-title">Particles</div>
+  <div class="ctrl-slider">
+    <label>Count <span id="val-particles">20000</span></label>
+    <input type="range" id="ctrl-particles" min="5000" max="40000" step="1000" value="20000">
+  </div>
+  <div class="ctrl-help">Total number of particles. More = denser shapes but heavier on your GPU. 20k is a good balance.</div>
+  <div class="ctrl-slider">
+    <label>Sim Speed <span id="val-speed">1.0</span></label>
+    <input type="range" id="ctrl-speed" min="0.1" max="3.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl-help">How fast the particle animations run (rotation, morphing, oscillation). Does not affect camera speed.</div>
+
+  <div class="section-title">Visual Style</div>
+  <div id="style-list">
+    <div class="style-option active" data-style="spark">
+      <div class="style-name">Spark</div>
+      <div class="style-desc">Hard bright dots with a tight glow. Default, crisp look.</div>
+    </div>
+    <div class="style-option" data-style="plasma">
+      <div class="style-name">Plasma</div>
+      <div class="style-desc">Softer glow with a defined bright core. Warmer, energy feel.</div>
+    </div>
+    <div class="style-option" data-style="glass">
+      <div class="style-name">Glass</div>
+      <div class="style-desc">Hollow ring particles. Dim center, bright edge. Ethereal, translucent.</div>
+    </div>
+    <div class="style-option" data-style="ink">
+      <div class="style-name">Ink</div>
+      <div class="style-desc">Solid opaque circles, hard edges. Dense, graphic, no bleed.</div>
+    </div>
+    <div class="style-option" data-style="steel">
+      <div class="style-name">Steel</div>
+      <div class="style-desc">Tiny pinpoint dots. Minimal glow. Clean, precise, technical.</div>
+    </div>
+  </div>
+
+  <div class="section-title">Lyrics</div>
+  <div class="ctrl-help" style="margin-top:0">Lyrics are rendered as particles that peel off from the shape and form text. Toggle show/hide to control visibility.</div>
+  <div id="lyrics-toggle-row">
+    <button id="lyrics-toggle-btn">Show</button>
+    <span id="lyrics-track-label">No track loaded</span>
+  </div>
+
+  <div style="margin:8px 0 4px">
+    <button class="chip" id="detect-btn" style="width:100%;text-align:center;padding:6px 10px">Detect Song</button>
+  </div>
+  <div class="ctrl-help">Records 5 seconds from your mic, identifies the song, and auto-loads synced lyrics. Re-syncs every 60 seconds to stay locked in.</div>
+  <div id="detect-status" style="font-size:0.5rem;color:rgba(255,255,255,0.18);margin-bottom:6px"></div>
+
+
+  <details style="margin-bottom:8px">
+    <summary style="font-size:0.5rem;color:rgba(255,255,255,0.15);cursor:pointer;letter-spacing:0.05em">Manual search</summary>
+    <div style="margin-top:6px">
+      <input type="text" id="lyrics-search-input" placeholder="Search song or artist...">
+      <div id="lyrics-results"></div>
+      <div id="lyrics-status"></div>
+    </div>
+  </details>
+
+  <div id="lyrics-timing-controls" style="display:none">
+    <div class="timing-row">
+      <button class="timing-btn" id="lyrics-earlier">-0.5s</button>
+      <span id="lyrics-offset-val">0.0s</span>
+      <button class="timing-btn" id="lyrics-later">+0.5s</button>
+      <button id="lyrics-clear-btn">Clear</button>
+    </div>
+    <div id="sync-status" style="font-size:0.45rem;color:rgba(255,255,255,0.12);margin-top:4px"></div>
+  </div>
+
+  <div class="section-title">Simulation Controls</div>
+  <div id="sim-controls"></div>
+</div>
+
+<div id="lyrics-track-info"></div>
+<div id="lyrics-notify">
+  <span id="lyrics-notify-text"></span>
+  <button id="lyrics-notify-btn">Enable</button>
+  <button id="lyrics-notify-dismiss">x</button>
+</div>
+
+<button id="help-btn">?</button>
+<div id="help-tooltip">
+  <div><kbd>&larr;</kbd><kbd>&rarr;</kbd> Cycle simulations</div>
+  <div><kbd>Space</kbd> Random simulation</div>
+  <div><kbd>Tab</kbd> Toggle controls</div>
+  <div><kbd>A</kbd> Auto shuffle mode</div>
+  <div><kbd>L</kbd> Toggle lyrics</div>
+  <div><kbd>Click</kbd> Next simulation</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ── Simulations Library ────────────────────────────────────
+// Each sim has audio vars injected: bass, mids, highs, rms (0-1 range, pre-scaled by sensitivity)
+const SIMULATIONS = [
+
+  // ═══════════════════════════════════════════════════════════
+  // CASBERRY FAVORITES (from particles.casberry.in)
+  // ═══════════════════════════════════════════════════════════
+
+  {
+    name: 'JUDY',
+    cam: [20, 100, 220],
+    code: `
+const fibers = addControl("fibers", "Quantum Fibers", 10.0, 1000.0, 300.0);
+const scale = addControl("scale", "Manifold Scale", 10.0, 100.0, 40.0);
+const unfold = addControl("unfold", "4D Unfold", 1.01, 3.0, 1.15);
+const spin = addControl("spin", "Hyper-spin Rate", 0.0, 2.0, 0.3);
+const resonance = Math.floor(addControl("resonance", "Resonance (Twists)", 1.0, 12.0, 3.0));
+
+const safeFibers = Math.max(1, Math.floor(fibers));
+const pointsPerFiber = Math.max(1, Math.floor(count / safeFibers));
+
+const fIdx = Math.floor(i / pointsPerFiber);
+const pIdx = i % pointsPerFiber;
+
+const u = Math.min(fIdx, safeFibers - 1) / Math.max(1, safeFibers - 1);
+const v = pIdx / pointsPerFiber;
+
+const t = time * spin;
+
+let eta = u * (Math.PI / 2.0);
+eta += Math.sin(time * 2.0 + u * 15.0) * 0.05;
+
+const xi1 = v * Math.PI * 2.0 + t;
+const xi2 = u * Math.PI * 2.0 * resonance + t * 0.5;
+
+const x1 = Math.cos(xi1) * Math.sin(eta);
+const x2 = Math.sin(xi1) * Math.sin(eta);
+const x3 = Math.cos(xi2) * Math.cos(eta);
+const x4 = Math.sin(xi2) * Math.cos(eta);
+
+const denom = Math.max(0.001, unfold - x4);
+const wDiv = scale / denom;
+
+const x = x1 * wDiv;
+const y = x2 * wDiv;
+const z = x3 * wDiv;
+
+target.set(x, y, z);
+
+const energyPulse = Math.pow(Math.abs(Math.sin(xi1 * 3.0 - time * 5.0)), 8.0);
+const depth = (x4 + 1.0) / 2.0;
+
+const hue = (u + time * 0.15 + depth * 0.2) % 1.0;
+const sat = 0.6 + 0.4 * depth;
+const lum = 0.15 + 0.4 * depth + 0.45 * energyPulse;
+
+color.setHSL(hue, sat, Math.min(1.0, Math.max(0.0, lum)));
+
+if (i === 0) {
+setInfo("4D Hopf Fibration", "Stereographic projection of an S3 hypersphere manifesting as a breathing quantum torus.");
+annotate("core", new THREE.Vector3(0, 0, 0), "Projection Origin");
+}
+`
+  },
+  {
+    name: 'GEOMETRICAL CONFIG',
+    cam: [10, 55, 130],
+    code: `
+const pulse = addControl("pulse", "Breath Speed", 0.1, 2.0, 0.7);
+const radius = addControl("radius", "Shell Size", 10, 60, 30);
+const warp = addControl("warp", "Warp Strength", 0, 3, 1.5);
+const spin = addControl("spin", "Spin Speed", 0, 3, 1.0);
+
+const t = time * pulse;
+
+const phi = Math.acos(1 - 2 * (i / count));
+const theta = Math.sqrt(count * Math.PI) * phi;
+
+const wave = Math.sin(phi * 6 + t * 2) * warp;
+const wave2 = Math.cos(theta * 0.5 - t * 1.5) * warp;
+
+const r = radius + wave * 8;
+
+let x = r * Math.sin(phi) * Math.cos(theta);
+let y = r * Math.sin(phi) * Math.sin(theta);
+let z = r * Math.cos(phi);
+
+// cosmic spiral rotation
+const rot = t * spin + wave2;
+const rx = x * Math.cos(rot) - y * Math.sin(rot);
+const ry = x * Math.sin(rot) + y * Math.cos(rot);
+
+// vertical breathing distortion
+z += Math.sin(r * 0.3 + t * 3) * warp * 3;
+
+target.set(rx, ry, z);
+
+// energetic color flow
+const hue = ((phi / Math.PI) + t * 0.08) % 1;
+const sat = 0.7 + Math.sin(theta * 0.3 + t) * 0.3;
+const light = 0.45 + Math.sin(t + phi * 4) * 0.15;
+
+color.setHSL(hue, sat, light);
+
+if (i === 0) {
+setInfo(
+"Quantum Galaxy Shell",
+"A breathing hyperspherical energy shell rotating through harmonic spiral interference."
+);
+annotate("core", new THREE.Vector3(0,0,0), "Quantum Singularity");
+}
+`
+  },
+  {
+    name: 'CHLADNI PLATE',
+    cam: [20, 120, 250],
+    code: `
+const scale = addControl("scale", "Scale", 40, 180, 92);
+const seed = addControl("seed", "Seed", 0, 100, 1);
+
+const mode = Math.floor(addControl("mode", "Mode", 0, 3, 0));
+const a = Math.floor(addControl("a", "A", 1, 12, 4));
+const b = Math.floor(addControl("b", "B", 1, 12, 7));
+const c = Math.floor(addControl("c", "C", 1, 12, 9));
+const d = Math.floor(addControl("d", "D", 1, 12, 2));
+
+const iterations = Math.floor(addControl("iterations", "Iterations", 0, 8, 4));
+const project = addControl("project", "Project", 0.0, 1.5, 0.72);
+const thickness = addControl("thickness", "Thickness", 0.02, 1.2, 0.18);
+const jitter = addControl("jitter", "Jitter", 0.0, 1.0, 0.22);
+
+const warp = addControl("warp", "Warp", 0.0, 2.0, 0.35);
+const ripple = addControl("ripple", "Ripple", 0.0, 2.0, 0.55);
+const drift = addControl("drift", "Drift", 0.0, 2.0, 0.22);
+const lift = addControl("lift", "Lift", 0.0, 20.0, 5.5);
+
+function fract(v) {
+  return v - Math.floor(v);
+}
+
+function hash(n) {
+  return fract(Math.sin(n) * 43758.5453123);
+}
+
+function hash2(x, y, s) {
+  return hash(x * 127.1 + y * 311.7 + s * 74.7 + 19.19);
+}
+
+function chladni(px, py, tt) {
+  const pi = 3.141592653589793;
+
+  let x = px;
+  let y = py;
+
+  if (warp > 0.0) {
+    const wx = warp * 0.12 * Math.sin((y * 2.3 + tt * 0.9) * pi);
+    const wy = warp * 0.12 * Math.sin((x * 2.1 - tt * 0.7) * pi);
+    x += wx;
+    y += wy;
+  }
+
+  let f = 0.0;
+
+  if (mode === 0) {
+    f =
+      Math.sin(a * pi * x) * Math.sin(b * pi * y) -
+      Math.sin(c * pi * x) * Math.sin(d * pi * y);
+  } else if (mode === 1) {
+    f =
+      Math.cos(a * pi * x) -
+      Math.cos(b * pi * y) +
+      0.35 * Math.sin(c * pi * (x + y));
+  } else if (mode === 2) {
+    f =
+      Math.sin(a * pi * x) +
+      Math.sin(b * pi * y) -
+      Math.sin(c * pi * (x + y) * 0.5) -
+      0.5 * Math.sin(d * pi * (x - y) * 0.5);
+  } else {
+    const r = Math.sqrt(x * x + y * y);
+    const ang = Math.atan2(y, x);
+    f =
+      Math.sin(a * pi * r) +
+      0.7 * Math.cos(b * ang) -
+      0.55 * Math.sin(c * pi * x) * Math.cos(d * pi * y);
+  }
+
+  if (ripple > 0.0) {
+    const rr = Math.sqrt(x * x + y * y);
+    f += 0.18 * ripple * Math.sin((rr * 4.0 - tt * 1.4) * pi);
+  }
+
+  return f;
+}
+
+const golden = 2.399963229728653;
+const t = time * drift;
+
+// quasi-random starting point on a square plate
+const q = i + seed * 131.17;
+let x = 2.0 * fract(i / Math.max(1.0, count) + hash(q + 1.3) * 0.37) - 1.0;
+let y = 2.0 * fract(i * 0.61803398875 + hash(q + 8.1) * 0.41) - 1.0;
+
+// slight disk-like compaction so center gets a bit richer
+const rr0 = Math.sqrt(x * x + y * y);
+const comp = 0.88 + 0.12 / (1.0 + 1.8 * rr0);
+x *= comp;
+y *= comp;
+
+// iterative projection toward nodal lines F(x,y)=0
+const eps = 0.0035;
+for (let k = 0; k < iterations; k++) {
+  const f0 = chladni(x, y, t);
+  const gx = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+  const gy = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+  const g2 = gx * gx + gy * gy + 1e-6;
+  const step = project * f0 / g2;
+  x -= gx * step;
+  y -= gy * step;
+}
+
+// recompute field and tangent after projection
+const f = chladni(x, y, t);
+const gx = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+const gy = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+const gLen = Math.sqrt(gx * gx + gy * gy) + 1e-6;
+
+// tangent direction along the nodal line
+const tx = -gy / gLen;
+const ty = gx / gLen;
+
+// push particles along tangent so lines feel continuous rather than clumped
+const spread = (hash(q + 17.7) - 0.5) * jitter * 0.08;
+x += tx * spread;
+y += ty * spread;
+
+// clamp back into plate area
+x = Math.max(-1.15, Math.min(1.15, x));
+y = Math.max(-1.15, Math.min(1.15, y));
+
+// convert field proximity to brightness / density feel
+const near = Math.exp(-Math.abs(f) / Math.max(0.0001, thickness));
+const r = Math.sqrt(x * x + y * y);
+const ring = 0.5 + 0.5 * Math.sin(10.0 * r - t * 1.8 + a * 0.3);
+
+// final 3D placement
+const px = x * scale;
+const py = y * scale;
+const pz =
+  lift * near +
+  1.2 * ring * near +
+  0.7 * Math.sin(i * golden * 0.35 + t) * near;
+
+// monochrome powder / ink look
+const h = 0.0;
+const s = 0.0;
+const l =
+  0.18 +
+  0.68 * near +
+  0.06 * ring -
+  0.05 * Math.min(1.0, r);
+
+target.set(px, py, pz);
+color.setHSL(h, s, Math.max(0.06, Math.min(0.95, l)));
+
+if (i === 0) {
+  setInfo(
+    "Chladni Nodal Plate",
+    "Particles project onto vibrating-plate nodal lines to form Chladni-style resonance patterns."
+  );
+}
+`
+  },
+  {
+    name: 'HOOKES LAW',
+    cam: [10, 55, 130],
+    code: `
+const k = addControl("k", "Spring Constant", 0.1, 5.0, 1.2);
+const amp = addControl("amp", "Amplitude", 5, 60, 25);
+const spread = addControl("spread", "Lattice Spread", 0.5, 5.0, 2.0);
+const freq = addControl("freq", "Oscillation Speed", 0.1, 3.0, 1.0);
+const n = Math.cbrt(count) | 0;
+const ix = i % n;
+const iy = ((i / n) | 0) % n;
+const iz = ((i / (n * n)) | 0);
+const cx = ix - n * 0.5;
+const cy = iy - n * 0.5;
+const cz = iz - n * 0.5;
+const r = Math.sqrt(cx * cx + cy * cy + cz * cz) + 0.0001;
+const omega = Math.sqrt(k);
+const phase = omega * time * freq - r * 0.15;
+const displacement = Math.sin(phase) * amp / (1.0 + 0.05 * r);
+target.set(
+cx * spread + (cx / r) * displacement,
+cy * spread + (cy / r) * displacement,
+cz * spread + (cz / r) * displacement
+);
+const energy = displacement * displacement * k * 0.5;
+color.setHSL(
+0.6 - Math.min(energy * 0.02, 0.5),
+1.0,
+0.45 + Math.sin(phase) * 0.15
+);
+if (i === 0) {
+setInfo(
+"Hooke’s Law Field",
+"Each particle behaves like a mass on a spring: restoring force F = −kx creates collective oscillations in a 3D lattice."
+);
+}
+`
+  },
+  {
+    name: 'QMATRIX',
+    cam: [15, 80, 180],
+    code: `
+const speed  = addControl("speed",  "Anim Speed",     0.1, 2.0, 0.65);
+const sc     = addControl("sc",     "World Scale",      20,  70,  44);
+const gmx    = addControl("gmx",    "G Cutoff",          2,   7,   5);
+const dur    = addControl("dur",    "Stage Duration",    4,  18,   9);
+const heat   = addControl("heat",   "Thermal Noise",     0, 2.0, 0.35);
+
+const PI2  = 6.28318530718;
+const t    = time * speed;
+
+// Stage system: 5 stages cycling smoothly
+const NSTG  = 5;
+const sf    = (t % (dur * NSTG)) / dur;
+const stg   = Math.floor(sf) % NSTG;
+const ph    = sf - Math.floor(sf);
+const blen  = ph * ph * (3.0 - 2.0 * ph);   // smoothstep blend 0..1
+
+// G-vector square lattice grid (same math as H5T2A_Matrix_Sim.py)
+const gi      = Math.ceil(gmx);
+const gSide   = 2 * gi + 1;
+const nCell   = gSide * gSide;
+const cell    = i % nCell;
+const sub     = Math.floor(i / nCell);
+const n1      = (cell % gSide) - gi;
+const n2      = Math.floor(cell / gSide) - gi;
+const gMag    = Math.sqrt(n1 * n1 + n2 * n2);
+const inG     = gMag <= gmx ? 1.0 : 0.0;
+const inGc    = 1.0 - inG;
+
+// Sub-particle fraction: drives cluster jitter and band-curve tracing
+const nPerCell = Math.max(1, Math.floor(count / nCell));
+const subFrac  = (sub % nPerCell) / nPerCell;
+const jAng     = subFrac * PI2 * 2.618 + t * 0.7 + n1 * 0.4 + n2 * 0.6;
+const jR       = heat * Math.sqrt(subFrac) * sc * 0.13;
+
+// Stage 0: Fibonacci sphere noise cloud
+const fibAng = i * 2.39996323 + t * 0.3;
+const fibT   = 2.0 * i / count - 1.0;
+const fibSin = Math.sqrt(Math.max(0.0, 1.0 - fibT * fibT)) * sc * 1.15;
+const x0 = fibSin * Math.cos(fibAng);
+const y0 = fibT * sc * 1.15;
+const z0 = fibSin * Math.sin(fibAng);
+
+// Stage 1: G-vector reciprocal lattice
+// Inside cutoff: cluster at G-node; outside: disperse into halo shell
+const gScl  = sc / (gmx + 0.5);
+const haloA = fibAng + t * 0.5;
+const haloR = sc * (0.9 + subFrac * 0.3);
+const x1 = inG  * (n1 * gScl + jR * Math.cos(jAng))
+         + inGc * (haloR * Math.cos(haloA));
+const y1 = inG  * (n2 * gScl + jR * Math.sin(jAng))
+         + inGc * (fibT * sc * 0.4);
+const z1 = inG  * (sub * 0.28 - nPerCell * 0.14)
+         + inGc * (haloR * Math.sin(haloA));
+
+// Stage 2: eta-matrix grid  eta[i,j] = eps-inverse(Gi - Gj)
+// Row=n2, Col=n1 form the Toeplitz block structure in XY
+// Z-depth lifted by |n1|+|n2| reveals diagonal band pattern
+const mRow   = n2 + gi;
+const mCol   = n1 + gi;
+const mS     = sc * 1.5 / (gSide + 2.0);
+const diagD  = Math.abs(n1) + Math.abs(n2);
+const driftZ = inGc * sub * 0.3;
+const x2 = (mCol - gSide * 0.5) * mS;
+const y2 = (mRow - gSide * 0.5) * mS;
+const z2 = diagD * sc * 0.04 + jR * 0.4 + driftZ;
+
+// Stage 3: Eigenvalue rings  (empty-lattice approx at k=X)
+// omega(G) = |k_X + G|  with k_X = (0.5, 0) in reduced coords
+// Rings of particles at each frequency level
+const kxX   = 0.5;
+const omgX  = Math.sqrt((kxX + n1) * (kxX + n1) + n2 * n2 + 0.0001);
+const fXn   = Math.min(omgX / (gmx + 0.5), 1.8);
+const ringA = subFrac * PI2 + t * 0.85 + gMag * 0.8;
+const ringR = sc * 0.5 * (0.4 + 0.6 * subFrac) * inG + inGc * sc * 0.08;
+const x3 = ringR * Math.cos(ringA);
+const y3 = fXn * sc * 0.85 - sc * 0.5;
+const z3 = ringR * Math.sin(ringA);
+
+// Stage 4: Photonic band structure  Gamma -> X
+// Each G-vector (n1,n2) is one band; subFrac traces kx in [0, 0.5]
+// omega(kx, G) = |kx + G| / norm   (folded empty-lattice dispersion)
+const kxBand = subFrac * 0.5;
+const omgB   = Math.sqrt((kxBand + n1) * (kxBand + n1) + n2 * n2 + 0.0001);
+const fBn    = Math.min(omgB / (gmx + 0.5), 1.8);
+const x4 = (kxBand * 4.0 - 1.0) * sc;
+const y4 = fBn * sc - sc * 0.45;
+const z4 = gMag * sc * 0.035 * inG + heat * jR * 0.3;
+
+// Interpolate: previous stage -> current stage using smoothstep blend
+const px = stg===0 ? x4 : stg===1 ? x0 : stg===2 ? x1 : stg===3 ? x2 : x3;
+const py = stg===0 ? y4 : stg===1 ? y0 : stg===2 ? y1 : stg===3 ? y2 : y3;
+const pz = stg===0 ? z4 : stg===1 ? z0 : stg===2 ? z1 : stg===3 ? z2 : z3;
+const cx = stg===0 ? x0 : stg===1 ? x1 : stg===2 ? x2 : stg===3 ? x3 : x4;
+const cy = stg===0 ? y0 : stg===1 ? y1 : stg===2 ? y2 : stg===3 ? y3 : y4;
+const cz = stg===0 ? z0 : stg===1 ? z1 : stg===2 ? z2 : stg===3 ? z3 : z4;
+
+target.set(
+  px + (cx - px) * blen,
+  py + (cy - py) * blen,
+  pz + (cz - pz) * blen
+);
+
+// Color: hue shifts per stage, band index, slow time drift
+const hStage = stg * 0.2;
+const hBand  = inG * (gMag / (gmx + 0.01)) * 0.15;
+const hue    = (hStage + hBand + t * 0.025) % 1.0;
+const sat    = 0.85 + inG * 0.15;
+const lit    = Math.min(0.25 + inG * 0.38 + inGc * 0.04 + subFrac * 0.08, 0.72);
+color.setHSL(hue, sat, lit);
+
+// HUD: update only on particle 0
+if (i === 0) {
+  const sName = stg===0 ? "Stage 0 -- Thermal Noise Cloud"
+    : stg===1 ? "Stage 1 -- G-Vector Reciprocal Lattice  |G| <= gmax"
+    : stg===2 ? "Stage 2 -- eta-Matrix  eta = eps-inverse(Gi - Gj)"
+    : stg===3 ? "Stage 3 -- Eigenvalue Spectrum  k = X"
+    : "Stage 4 -- Photonic Band Structure  Gamma to X";
+  setInfo("PWE Photonic Crystal  |  Matrix Particle Sim",
+          sName + "  |  RA=0.2  eps_c=8.9  gmax=" + Math.round(gmx));
+  annotate("lbl", new THREE.Vector3(0, sc * 1.35, 0), sName);
+  if (stg === 4) {
+    annotate("gam", new THREE.Vector3(-sc, -sc * 0.45, 0), "Gamma (k=0)");
+    annotate("xpt", new THREE.Vector3(sc,  -sc * 0.45, 0), "X (k=pi/a)");
+  }
+}
+`
+  },
+  {
+    name: 'QMATRIX V2',
+    cam: [15, 80, 180],
+    code: `
+const speed = addControl("speed", "Anim Speed", 0.1, 2.0, 0.65);
+const sc = addControl("sc", "World Scale", 20, 70, 44);
+const gmx = addControl("gmx", "G Cutoff", 2, 7, 5);
+const dur = addControl("dur", "Stage Duration", 4, 18, 9);
+const heat = addControl("heat", "Thermal Noise", 0, 2.0, 0.3);
+const gapAmt = addControl("gapAmt", "Gap Strength", 0, 0.5, 0.12);
+const PI2 = 6.28318530718;
+const t = time * speed;
+const NSTG = 5;
+const sf = (t % (dur * NSTG)) / dur;
+const stg = Math.floor(sf) % NSTG;
+const ph = sf - Math.floor(sf);
+const blen = ph * ph * (3.0 - 2.0 * ph);
+const gi = Math.ceil(gmx);
+const gSide = 2 * gi + 1;
+const nCell = gSide * gSide;
+const cell = i % nCell;
+const sub = Math.floor(i / nCell);
+const n1 = (cell % gSide) - gi;
+const n2 = Math.floor(cell / gSide) - gi;
+const gMag = Math.sqrt(n1 * n1 + n2 * n2);
+const inG = gMag <= gmx ? 1.0 : 0.0;
+const inGc = 1.0 - inG;
+const nPerCell = Math.max(1, Math.floor(count / nCell));
+const subFrac = (sub % nPerCell) / nPerCell;
+const jAng = subFrac * PI2 * 2.618 + t * 0.7 + n1 * 0.4 + n2 * 0.6;
+const jR = heat * Math.sqrt(subFrac) * sc * 0.13;
+const fibAng = i * 2.39996323 + t * 0.3;
+const fibT = 2.0 * i / count - 1.0;
+const fibSin = Math.sqrt(Math.max(0.0, 1.0 - fibT * fibT)) * sc * 1.15;
+const x0 = fibSin * Math.cos(fibAng);
+const y0 = fibT * sc * 1.15;
+const z0 = fibSin * Math.sin(fibAng);
+const gridSp = sc * 0.55;
+const x1_in = n1 * gridSp + jR * Math.cos(jAng);
+const y1_in = n2 * gridSp + jR * Math.sin(jAng);
+const outRad = (gMag - gmx) * gridSp * (0.5 + 0.5 * subFrac);
+const outAng1 = subFrac * PI2;
+const x1_out = n1 * gridSp + outRad * Math.cos(outAng1);
+const y1_out = n2 * gridSp + outRad * Math.sin(outAng1);
+const x1 = inG * x1_in + inGc * x1_out;
+const y1 = inG * y1_in + inGc * y1_out;
+const z1 = 0.0;
+const mRow = n2 + gi;
+const mCol = n1 + gi;
+const mS = sc * 1.5 / (gSide + 2.0);
+const diagD = Math.abs(n1 - n2);
+const matBrt = Math.exp(-diagD * 0.55);
+const x2 = (mCol - gSide * 0.5) * mS;
+const y2 = (mRow - gSide * 0.5) * mS;
+const z2 = diagD * sc * 0.055 + jR * 0.3;
+const omgXraw = Math.sqrt((0.5 + n1) * (0.5 + n1) + n2 * n2 + 0.0001);
+const fXn = Math.min(omgXraw / (gmx + 0.5), 1.0);
+const y3 = Math.pow(fXn, 0.7) * sc * 0.9 - sc * 0.5;
+const ringR3 = sc * (0.18 + gMag * 0.06);
+const ringA3 = subFrac * PI2 + t * 0.85 + gMag * 0.8;
+const x3 = inG * ringR3 * Math.cos(ringA3) + inGc * jR * Math.cos(jAng);
+const z3 = inG * ringR3 * Math.sin(ringA3) * 0.4;
+const kxBand = subFrac * 0.5;
+const omgEL = Math.sqrt((kxBand + n1) * (kxBand + n1) + n2 * n2 + 0.0001);
+const dkX = kxBand - 0.5;
+const VG_h = gapAmt * 0.5;
+const proxW = Math.exp(-dkX * dkX / 0.022);
+const nearX = Math.exp(-Math.abs(omgEL - 0.5) * 8.0);
+const splitH = Math.sqrt(dkX * dkX + VG_h * VG_h);
+const brSign = subFrac < 0.5 ? -1.0 : 1.0;
+const omgGap = Math.sqrt(0.25 + 0.0001) + brSign * splitH;
+const omgB = omgEL + proxW * nearX * (omgGap - omgEL);
+const fBn = Math.min(omgB / (gmx + 0.5), 1.8);
+const x4 = (kxBand * 4.0 - 1.0) * sc;
+const y4 = fBn * sc - sc * 0.45;
+const z4 = gMag * sc * 0.04 * inG + heat * jR * 0.3;
+const px = stg===0 ? x4 : stg===1 ? x0 : stg===2 ? x1 : stg===3 ? x2 : x3;
+const py = stg===0 ? y4 : stg===1 ? y0 : stg===2 ? y1 : stg===3 ? y2 : y3;
+const pz = stg===0 ? z4 : stg===1 ? z0 : stg===2 ? z1 : stg===3 ? z2 : z3;
+const cx = stg===0 ? x0 : stg===1 ? x1 : stg===2 ? x2 : stg===3 ? x3 : x4;
+const cy = stg===0 ? y0 : stg===1 ? y1 : stg===2 ? y2 : stg===3 ? y3 : y4;
+const cz = stg===0 ? z0 : stg===1 ? z1 : stg===2 ? z2 : stg===3 ? z3 : z4;
+target.set(
+px + (cx - px) * blen,
+py + (cy - py) * blen,
+pz + (cz - pz) * blen
+);
+const hueCenter = stg===0 ? 0.33 : stg===1 ? 0.52 : stg===2 ? 0.13 : stg===3 ? 0.83 : 0.68;
+const hue4raw = n1 * 0.13 + n2 * 0.07 + 0.5;
+const hue4 = hue4raw - Math.floor(hue4raw);
+const mShift = n1 < 0 ? 0.05 : 0.0;
+const hue4f = (hue4 + mShift) % 1.0;
+const hueVar = (fBn / 1.8) * 0.07;
+const hueGen = (hueCenter + hueVar + t * 0.018) % 1.0;
+const hue = stg === 4 ? hue4f : hueGen;
+const sat = 0.88 + inG * 0.12;
+const litS2 = 0.22 + 0.65 * matBrt;
+const litS3pk = 0.1 * Math.exp(-Math.abs(subFrac - 0.5) * 6.0);
+const litBase = 0.3 + inG * 0.35 + subFrac * 0.07;
+const litRaw = stg===2 ? litS2 : (litBase + (stg===3 ? litS3pk : 0.0));
+const lit = Math.min(litRaw, 0.75);
+color.setHSL(hue, sat, lit);
+if (i === 0) {
+const sName = stg===0 ? "Stage 0 Thermal Noise Cloud"
+: stg===1 ? "Stage 1 G-Vector Lattice flat 2D grid"
+: stg===2 ? "Stage 2 eta-Matrix Toeplitz depth by n1-n2"
+: stg===3 ? "Stage 3 Eigenvalue Spectrum k=X power-law"
+: "Stage 4 Band Structure Gamma to X gap=" + gapAmt.toFixed(2);
+setInfo("PWE Photonic Crystal | Particle Sim v2", sName + " | gmax=" + Math.round(gmx) + " eps_c=8.9 RA=0.2");
+annotate("lbl", new THREE.Vector3(0, sc * 1.38, 0), sName);
+if (stg === 1) { annotate("g00", new THREE.Vector3(0, 0, 0), "G=(0,0) Gamma"); }
+if (stg === 4) {
+annotate("gam", new THREE.Vector3(-sc, -sc * 0.5, 0), "Gamma k=0");
+annotate("xpt", new THREE.Vector3(sc, -sc * 0.5, 0), "X k=pi/a");
+}
+}
+`
+  },
+  {
+    name: 'QUANTUM GALAXY',
+    cam: [10, 55, 130],
+    code: `
+const pulse = addControl("pulse", "Breath Speed", 0.1, 2.0, 0.7);
+const radius = addControl("radius", "Shell Size", 10, 60, 30);
+const warp = addControl("warp", "Warp Strength", 0, 3, 1.5);
+const spin = addControl("spin", "Spin Speed", 0, 3, 1.0);
+
+const t = time * pulse;
+
+const phi = Math.acos(1 - 2 * (i / count));
+const theta = Math.sqrt(count * Math.PI) * phi;
+
+const wave = Math.sin(phi * 6 + t * 2) * warp;
+const wave2 = Math.cos(theta * 0.5 - t * 1.5) * warp;
+
+const r = radius + wave * 8;
+
+let x = r * Math.sin(phi) * Math.cos(theta);
+let y = r * Math.sin(phi) * Math.sin(theta);
+let z = r * Math.cos(phi);
+
+// cosmic spiral rotation
+const rot = t * spin + wave2;
+const rx = x * Math.cos(rot) - y * Math.sin(rot);
+const ry = x * Math.sin(rot) + y * Math.cos(rot);
+
+// vertical breathing distortion
+z += Math.sin(r * 0.3 + t * 3) * warp * 3;
+
+target.set(rx, ry, z);
+
+// energetic color flow
+const hue = ((phi / Math.PI) + t * 0.08) % 1;
+const sat = 0.7 + Math.sin(theta * 0.3 + t) * 0.3;
+const light = 0.45 + Math.sin(t + phi * 4) * 0.15;
+
+color.setHSL(hue, sat, light);
+
+if (i === 0) {
+setInfo(
+"Quantum Galaxy Shell",
+"A breathing hyperspherical energy shell rotating through harmonic spiral interference."
+);
+annotate("core", new THREE.Vector3(0,0,0), "Quantum Singularity");
+}
+`
+  },
+  {
+    name: 'ATTRACTOR BLOOM',
+    cam: [15, 110, 220],
+    code: `
+const scale = addControl("scale", "Field Radius", 20, 200, 100);
+const flow = addControl("flow", "Flow Speed", 0, 3, 1.0);
+const chaos = addControl("chaos", "Chaos", 0, 5, 2.0);
+const bands = addControl("bands", "Energy Bands", 1, 20, 10);
+
+const t = time * flow;
+const fi = i / count;
+
+// Golden angle for even distribution
+const ga = 2.399963229728653;
+const r = Math.sqrt(fi);
+
+// Base spiral disk
+const baseAngle = i * ga;
+const baseRadius = scale * r;
+
+// Multi-frequency perturbation (strange attractor feel)
+const a1 = baseAngle + Math.sin(t + fi * bands) * chaos;
+const a2 = baseAngle * 0.5 + Math.cos(t * 0.7 + fi * bands * 0.5) * chaos;
+
+// Position with interference field
+const x = Math.cos(a1) * baseRadius + Math.sin(a2) * scale * 0.3;
+const y = Math.sin(a1) * baseRadius + Math.cos(a2) * scale * 0.3;
+
+// Vertical wave layering
+const zWave = Math.sin(baseRadius * 0.05 + t + fi * bands) + Math.cos(a2 * 1.5);
+const z = zWave * scale * 0.4;
+
+// Swirl rotation around Y axis
+const rot = t * 0.4;
+const cr = Math.cos(rot);
+const sr = Math.sin(rot);
+
+const fx = x * cr - z * sr;
+const fz = x * sr + z * cr;
+
+target.set(fx, y, fz);
+
+// Color based on energy bands + radius
+const hue = (fi + zWave * 0.15 + t * 0.05) % 1.0;
+const light = 0.45 + 0.35 * (0.5 + 0.5 * zWave);
+color.setHSL(hue, 0.85, light);
+
+if (i === 0) {
+setInfo("Strange Attractor Bloom", "A golden-angle particle field warped by multi-frequency attractor waves and rotating energy bands.");
+annotate("center", new THREE.Vector3(0, 0, 0), "Attractor Core");
+}
+`
+  },
+  {
+    name: 'RAINBOW ROAD',
+    cam: [30, 140, 300],
+    code: `
+const roadLen = addControl("roadLen", "Road Length", 80, 420, 240);
+const roadWidth = addControl("roadWidth", "Road Width", 20, 140, 64);
+const lanes = addControl("lanes", "Lane Bands", 4, 24, 12);
+const speed = addControl("speed", "Speed", 0.2, 6.0, 2.2);
+const curve = addControl("curve", "Curve", 0.0, 80.0, 26.0);
+const wave = addControl("wave", "Wave", 0.0, 40.0, 10.0);
+const stars = addControl("stars", "Star Field", 0.0, 1.0, 0.32);
+
+const p = (i + 0.5) / count;
+const roadParticles = Math.floor(count * (0.82 - stars * 0.22));
+
+function hash(n) {
+  const x = Math.sin(n * 127.1) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+if (i < roadParticles) {
+  const u = i / Math.max(1, roadParticles - 1);
+
+  const row = Math.floor(u * 420.0);
+  const col = i % Math.max(1, lanes * 18);
+  const cols = Math.max(1, lanes * 18);
+
+  const tx = col / (cols - 1);
+  const zLoop = (row * 0.9 + time * speed * 42.0) % roadLen;
+  const z = roadLen * 0.5 - zLoop;
+
+  const perspective = 1.0 - Math.abs(z) / (roadLen * 0.5);
+  const widthHere = roadWidth * (0.35 + 0.95 * perspective);
+
+  let x = (tx - 0.5) * widthHere * 2.0;
+  let y = -28 + perspective * 8.0;
+
+  // curva lateral da pista
+  x += Math.sin(z * 0.03 + time * speed * 0.6) * curve;
+  x += Math.sin(z * 0.08 - time * speed * 0.9) * curve * 0.25;
+
+  // ondulação da pista
+  y += Math.sin(z * 0.05 - time * speed * 1.7) * wave;
+  y += Math.cos(tx * Math.PI * 2.0 + time * 1.5) * wave * 0.08;
+
+  // leve torção espacial
+  const twist = Math.sin(z * 0.02 + time * 0.8) * 0.18;
+  const rx = x * Math.cos(twist) - y * Math.sin(twist);
+  const ry = x * Math.sin(twist) + y * Math.cos(twist);
+
+  target.set(rx, ry, z);
+
+  // faixas coloridas arco-íris
+  const stripe = Math.floor(tx * lanes);
+  const hue = (stripe / Math.max(1, lanes) + time * 0.05 + z * 0.0008) % 1.0;
+
+  const edge = Math.abs(tx - 0.5) * 2.0;
+  const glow = 0.22 + 0.34 * perspective + 0.18 * Math.sin(time * 5.0 + z * 0.08 + tx * 12.0);
+  const light = Math.min(0.95, glow + (edge > 0.86 ? 0.22 : 0.0));
+
+  color.setHSL(hue, 0.95, light);
+
+} else {
+  // estrelas ao redor
+  const j = i - roadParticles;
+  const a = hash(j * 1.13) * Math.PI * 2.0;
+  const r = 90 + hash(j * 2.71) * 240;
+  const zLoop = (hash(j * 3.17) * roadLen + time * speed * 55.0 * (0.4 + hash(j * 4.31))) % (roadLen + 120);
+  const z = roadLen * 0.5 + 60 - zLoop;
+
+  let x = Math.cos(a) * r;
+  let y = Math.sin(a) * r * 0.65;
+
+  // acompanha um pouco a curvatura da estrada
+  x += Math.sin(z * 0.03 + time * speed * 0.6) * curve * 1.15;
+  y += Math.cos(z * 0.025 - time * 0.7) * 8.0;
+
+  target.set(x, y, z);
+
+  const hue = (0.55 + hash(j * 6.11) * 0.35) % 1.0;
+  const light = 0.45 + 0.45 * hash(j * 8.91);
+  color.setHSL(hue, 0.7, Math.min(0.98, light));
+}
+
+if (i === 0) {
+  setInfo(
+    "Rainbow Road",
+    "Uma pista espacial arco-íris em movimento, com curvas suaves e campo de estrelas ao redor."
+  );
+  annotate("top", new THREE.Vector3(0, 24, 0), "RAINBOW ROAD");
+}
+`
+  },
+  {
+    name: 'CLOUD FORMATIONS',
+    cam: [25, 180, 350],
+    code: `
+const scale = addControl("scale", "Cloud Scale", 50, 400, 180);
+const swirl = addControl("swirl", "Swirl Strength", 0, 5, 1.5);
+const turbulence = addControl("turb", "Turbulence", 0, 3, 1.2);
+const layers = addControl("layers", "Vertical Layers", 1, 10, 4);
+
+const t = time * 0.15;
+const fi = i / count;
+
+// golden spiral distribution
+const ga = 2.399963229728653;
+const y = 1.0 - 2.0 * fi;
+const r = Math.sqrt(1.0 - y * y);
+const theta = ga * i;
+
+// base spherical position
+let x = Math.cos(theta) * r;
+let z = Math.sin(theta) * r;
+
+// layered vertical shaping
+let ly = Math.sin(y * layers * 3.14159 + t) * 0.5 + y;
+
+// simple fractal-like noise (no allocations)
+let n =
+Math.sin((x * 3.1 + t) * 1.3) *
+Math.cos((z * 2.7 - t) * 1.7) +
+Math.sin((x * 5.7 - t * 0.7) * 0.9) *
+Math.cos((ly * 4.3 + t * 0.6) * 1.1);
+
+n *= 0.5 * turbulence;
+
+// swirling motion
+let angle = theta + swirl * n + t;
+let sx = Math.cos(angle);
+let sz = Math.sin(angle);
+
+// radial cloud puffing
+let radius = scale * (0.6 + 0.4 * n + 0.2 * Math.sin(t + fi * 20.0));
+
+target.set(
+sx * r * radius,
+ly * scale * 0.6 + n * 20.0,
+sz * r * radius
+);
+
+// color: weather-like (white clouds → stormy blue/gray)
+let hue = 0.55 + 0.1 * n;
+let sat = 0.2 + 0.3 * Math.abs(n);
+let light = 0.7 + 0.2 * n;
+
+color.setHSL(hue, sat, light);
+
+if (i === 0) {
+setInfo(
+"Fractal Weather Clouds",
+"A turbulent, layered particle system simulating large-scale atmospheric cloud formations using fractal-like noise and spherical flow."
+);
+annotate("core", new THREE.Vector3(0, 0, 0), "Atmospheric Core");
+}
+`
+  },
+  {
+    name: 'SIERPINSKI FLOW',
+    cam: [10, 80, 170],
+    code: `
+const scale = addControl("scale", "Fractal Scale", 10, 150, 60);
+const depth = addControl("depth", "Iteration Depth", 1, 8, 5);
+const spread = addControl("spread", "Spread", 0.5, 2.0, 1.0);
+const anim = addControl("anim", "Breathing", 0.0, 2.0, 0.5);
+
+const f = i / count;
+const t = time * anim;
+
+// Base triangle vertices
+const ax = 0.0, ay = scale;
+const bx = -scale, by = -scale;
+const cx = scale, cy = -scale;
+
+// Initialize point using index distribution
+let px = (f - 0.5) * scale * 2.0;
+let py = (Math.sin(f * 6.2831) * 0.5) * scale;
+
+// Iterative Sierpinski contraction
+let iter = depth;
+for (let k = 0; k < 8; k++) {
+const active = k < iter ? 1.0 : 0.0;
+
+const r = Math.sin((i + k * 13.1) * 12.9898) * 43758.5453;
+const choice = r - Math.floor(r);
+
+const vx = ax * (choice < 0.333 ? 1.0 : 0.0) +
+bx * (choice >= 0.333 && choice < 0.666 ? 1.0 : 0.0) +
+cx * (choice >= 0.666 ? 1.0 : 0.0);
+
+const vy = ay * (choice < 0.333 ? 1.0 : 0.0) +
+by * (choice >= 0.333 && choice < 0.666 ? 1.0 : 0.0) +
+cy * (choice >= 0.666 ? 1.0 : 0.0);
+
+px = px * (1.0 - 0.5 * active) + vx * (0.5 * active);
+py = py * (1.0 - 0.5 * active) + vy * (0.5 * active);
+}
+
+// Subtle animation (breathing fractal)
+const pulse = 1.0 + 0.1 * Math.sin(t + f * 6.2831);
+px *= pulse * spread;
+py *= pulse * spread;
+
+// Add slight depth layering
+const z = (f - 0.5) * scale * 0.5 + Math.sin(t + px * 0.05) * 5.0;
+
+target.set(px, py, z);
+
+// Color based on position and iteration feel
+const hue = 0.6 + 0.3 * Math.sin(px * 0.01 + t);
+const light = 0.4 + 0.3 * Math.sin(py * 0.01);
+color.setHSL(hue, 0.8, light);
+
+if (i === 0) {
+setInfo("Sierpinski Flow", "A dynamic triangular fractal with controllable depth and scale.");
+annotate("fractal", target, "Fractal Core");
+}
+`
+  },
+  {
+    name: 'BINARY SYMBIOTE',
+    cam: [10, 60, 140],
+    code: `
+// === BINARY SYMBIOTE ===
+// Two living entities — Lorenz chaos vs Halvorsen grace
+// Orbiting, clashing, merging on irrational cycles
+// Violet vs Gold complementary opposition
+
+const scale    = addControl("scale",    "Scale",         6,  55,  24);
+const aggro    = addControl("aggro",    "Aggression",    0,  4.0, 1.8);
+const shimmer  = addControl("shimmer",  "Shimmer",       0,  3.0, 1.0);
+const voidD    = addControl("void",     "Void Depth",    0,  2.0, 0.9);
+const separation = addControl("sep",   "Separation",    0,  3.0, 1.2);
+
+// ── Irrational constants ─────────────────────────────────
+const PHI = 1.6180339887;
+const SR2 = 1.4142135623;
+const SR3 = 1.7320508075;
+const SR5 = 2.2360679774;
+const SR7 = 2.6457513110;
+
+const sh = shimmer;
+const T  = time;
+
+// ── Three-phase relationship cycle (never repeats) ───────
+// Phase drives orbit radius, clash intensity, merge depth
+const phaseT   = T * sh * 0.07 * PHI;
+const orbitW   = 0.5 + 0.5 * Math.sin(phaseT * SR2);
+const fightW   = 0.5 + 0.5 * Math.sin(phaseT * SR3 + 1.4);
+const mergeW   = 0.5 + 0.5 * Math.sin(phaseT * SR5 + 2.8);
+// Normalize so they sum cleanly
+const phaseSum = orbitW + fightW + mergeW + 0.001;
+const pOrbit   = orbitW / phaseSum;
+const pFight   = fightW / phaseSum;
+const pMerge   = mergeW / phaseSum;
+
+// ── Entity centers: orbital choreography ─────────────────
+// Two bodies orbit a shared barycenter on irrational paths
+// Orbit radius shrinks during merge, spikes during fight
+const orbitRadius = separation * (
+    8.0 * pOrbit
+  + 14.0 * pFight   // splay apart before clash
+  + 2.0  * pMerge   // collapse together
+);
+
+const orbitSpeedA = T * sh * 0.12 * SR2;
+const orbitSpeedB = orbitSpeedA + Math.PI + pFight * 0.8; // fight = offset phase
+
+// Entity A center (Lorenz — aggressor)
+const axC = Math.cos(orbitSpeedA) * orbitRadius;
+const ayC = Math.sin(orbitSpeedA * PHI) * orbitRadius * 0.4;
+const azC = Math.sin(orbitSpeedA) * orbitRadius * 0.7;
+
+// Entity B center (Halvorsen — dancer)
+const bxC = Math.cos(orbitSpeedB) * orbitRadius;
+const byC = Math.sin(orbitSpeedB * SR3) * orbitRadius * 0.4;
+const bzC = Math.sin(orbitSpeedB) * orbitRadius * 0.7;
+
+// ── Halton seed point ────────────────────────────────────
+const idx = i + 1;
+let hx=0, hb2=0.5, hi2=idx;
+while(hi2>0){hx+=(hi2&1)*hb2;hi2>>=1;hb2*=0.5;}
+let hy=0, hf3=1/3, hi3=idx;
+while(hi3>0){const r=hi3%3;hy+=r*hf3;hi3=Math.floor(hi3/3);hf3/=3;}
+let hz=0, hf5=1/5, hi5=idx;
+while(hi5>0){const r=hi5%5;hz+=r*hf5;hi5=Math.floor(hi5/5);hf5/=5;}
+
+const sx = hx*2-1, sy = hy*2-1, sz = hz*2-1;
+
+// ── Particle assignment ──────────────────────────────────
+// Split particles between entities, with a contested boundary zone
+// During merge, boundary dissolves. During fight, it sharpens.
+const n = i / count;
+const boundarySharpness = 8.0 + pFight * 20.0 - pMerge * 7.0;
+const rawSplit = Math.tanh((n - 0.5) * boundarySharpness);
+// -1 = fully entity A, +1 = fully entity B
+// During merge: particles can cross over
+const mergeBleed = pMerge * 0.6 * Math.sin(T * sh * SR7 * 0.3 + n * Math.PI * 4.0);
+const entityBlend = Math.max(-1, Math.min(1, rawSplit + mergeBleed));
+const wA = (1.0 - entityBlend) * 0.5;  // 0..1
+const wB = (1.0 + entityBlend) * 0.5;  // 0..1
+
+// ── ATTRACTOR A: Lorenz ──────────────────────────────────
+// σ=10, ρ=28, β=8/3 — classic chaos
+// We integrate a short trajectory from seed point
+// to find where this particle "lives" on the attractor
+let lx = sx*12.0, ly = sy*12.0, lz = sz*12.0 + 25.0;
+const lSigma = 10.0 + 1.5 * Math.sin(T*sh*0.08*SR2);
+const lRho   = 26.0 + 3.5 * Math.sin(T*sh*0.06*PHI);
+const lBeta  = 2.667+ 0.3 * Math.sin(T*sh*0.11*SR3);
+const lDt    = 0.012;
+const lSteps = 18;
+for(let k=0;k<lSteps;k++){
+  const dlx = lSigma*(ly - lx);
+  const dly = lx*(lRho - lz) - ly;
+  const dlz = lx*ly - lBeta*lz;
+  lx += dlx*lDt; ly += dly*lDt; lz += dlz*lDt;
+}
+// Normalize Lorenz to unit-ish space
+const lLen = Math.sqrt(lx*lx+ly*ly+lz*lz)+0.001;
+const lScale2 = 0.038;
+const lX = lx*lScale2, lY = ly*lScale2, lZ = (lz-25.0)*lScale2;
+
+// ── ATTRACTOR B: Halvorsen ───────────────────────────────
+// ẋ = -a·x - 4y - 4z - y²
+// ẏ = -a·y - 4z - 4x - z²
+// ẑ = -a·z - 4x - 4y - x²
+// a≈1.4 produces the elegant 3-arm pinwheel
+let hax = sx*5.0, hay = sy*5.0, haz = sz*5.0;
+const ha = 1.35 + 0.12*Math.sin(T*sh*0.09*SR5);
+const hDt = 0.018;
+const hSteps = 18;
+for(let k=0;k<hSteps;k++){
+  const dhx = -ha*hax - 4*hay - 4*haz - hay*hay;
+  const dhy = -ha*hay - 4*haz - 4*hax - haz*haz;
+  const dhz = -ha*haz - 4*hax - 4*hay - hax*hax;
+  hax += dhx*hDt; hay += dhy*hDt; haz += dhz*hDt;
+}
+const hScale2 = 0.11;
+const hX = hax*hScale2, hY = hay*hScale2, hZ = haz*hScale2;
+
+// ── Apply symbiote body deformation ─────────────────────
+// Each entity wraps its attractor in a symbiote skin:
+// void core pull + tendril flare + curl chaos
+
+// --- Entity A skin (Lorenz) ---
+let ax = lX, ay = lY, az = lZ;
+const aDist = Math.sqrt(ax*ax+ay*ay+az*az)+0.001;
+// Curl tendrils
+const acf = aggro * 0.14;
+const acx = Math.sin(ay*3.1+T*sh*SR3*0.4)*Math.cos(az*2.3-T*sh*SR2*0.3);
+const acy = Math.sin(az*3.7-T*sh*PHI*0.3)*Math.cos(ax*2.9+T*sh*SR5*0.2);
+const acz = Math.sin(ax*2.7+T*sh*SR7*0.3)*Math.cos(ay*3.5-T*sh*PHI*0.2);
+ax += acx*acf; ay += acy*acf; az += acz*acf;
+// Void pull
+const aVoid = 1.0 + voidD*0.35*Math.exp(-aDist*aDist*2.1);
+ax *= aVoid; ay *= aVoid; az *= aVoid;
+// Tip flare
+const aDist2 = Math.sqrt(ax*ax+ay*ay+az*az)+0.001;
+const aFlare = 1.0 + 0.22*Math.pow(Math.max(0,aDist2-0.3)*0.9,1.5);
+ax *= aFlare; ay *= aFlare; az *= aFlare;
+
+// --- Entity B skin (Halvorsen) ---
+let bx = hX, by = hY, bz = hZ;
+const bDist = Math.sqrt(bx*bx+by*by+bz*bz)+0.001;
+const bcf = aggro * 0.13;
+const bcx = Math.sin(by*2.9+T*sh*SR5*0.35)*Math.cos(bz*3.3-T*sh*PHI*0.25);
+const bcy = Math.sin(bz*3.3-T*sh*SR2*0.28)*Math.cos(bx*2.7+T*sh*SR3*0.32);
+const bcz = Math.sin(bx*3.1+T*sh*PHI*0.22)*Math.cos(by*2.5-T*sh*SR7*0.18);
+bx += bcx*bcf; by += bcy*bcf; bz += bcz*bcf;
+const bVoid = 1.0 + voidD*0.35*Math.exp(-bDist*bDist*2.1);
+bx *= bVoid; by *= bVoid; bz *= bVoid;
+const bDist2 = Math.sqrt(bx*bx+by*by+bz*bz)+0.001;
+const bFlare = 1.0 + 0.22*Math.pow(Math.max(0,bDist2-0.3)*0.9,1.5);
+bx *= bFlare; by *= bFlare; bz *= bFlare;
+
+// ── Blend entities + translate to orbital centers ────────
+// During fight: clash zone particles get repelled outward
+const clashDist = Math.sqrt(
+  (ax+axC-bx-bxC)*(ax+axC-bx-bxC)+
+  (ay+ayC-by-byC)*(ay+ayC-by-byC)+
+  (az+azC-bz-bzC)*(az+azC-bz-bzC)
+)+0.001;
+const clashRepel = pFight * 0.4 * Math.exp(-clashDist*clashDist*0.8);
+
+let fx = wA*(ax+axC) + wB*(bx+bxC);
+let fy = wA*(ay+ayC) + wB*(by+byC);
+let fz = wA*(az+azC) + wB*(bz+bzC);
+
+// Repel boundary particles outward during fight
+const toCenter = Math.sqrt(fx*fx+fy*fy+fz*fz)+0.001;
+fx += (fx/toCenter)*clashRepel*3.0;
+fy += (fy/toCenter)*clashRepel*3.0;
+fz += (fz/toCenter)*clashRepel*3.0;
+
+// ── Breath ───────────────────────────────────────────────
+const fDist = Math.sqrt(fx*fx+fy*fy+fz*fz)+0.001;
+const breath = 1.0
+  + 0.05*Math.sin(fDist*4.1 - T*sh*SR2*2.2)
+  + 0.03*Math.sin(fDist*8.9 - T*sh*PHI*3.0)
+  + 0.02*Math.sin(fDist*14.3- T*sh*SR3*1.7);
+
+target.set(fx*scale*breath, fy*scale*breath, fz*scale*breath);
+
+// ══ COMPLEMENTARY COLOR: VIOLET vs GOLD ══════════════════
+// Entity A = deep violet → electric purple
+// Entity B = molten gold → amber
+// Boundary = where they bleed into each other
+
+const surfAngle = Math.atan2(fy, fx);
+const surfElev  = Math.atan2(fz, Math.sqrt(fx*fx+fy*fy));
+
+// Base hues: violet≈0.75, gold≈0.12
+const hueA = 0.72 + 0.06*Math.sin(T*sh*SR3*0.4 + surfAngle*2.0)
+                  + 0.04*Math.sin(T*sh*PHI*0.3  + fDist*5.0);
+const hueB = 0.10 + 0.06*Math.sin(T*sh*SR5*0.35+ surfAngle*2.0)
+                  + 0.04*Math.sin(T*sh*SR2*0.28 + fDist*5.0);
+
+// Oil-slick shimmer on each
+const slickA = 0.12*Math.sin(T*sh*SR7*0.5 + fDist*7.1 + surfAngle*3.0)
+             + 0.08*Math.sin(T*sh*PHI*0.4 + surfElev*4.0);
+const slickB = 0.12*Math.sin(T*sh*SR2*0.5 + fDist*6.3 + surfElev*3.5)
+             + 0.08*Math.sin(T*sh*SR3*0.4 + surfAngle*2.5);
+
+// At boundary (wA≈wB≈0.5): hues bleed and create a contested
+// interference color — during fight this becomes lurid green/white
+const boundaryProx = 1.0 - Math.abs(entityBlend);
+const fightFlash   = pFight * boundaryProx;
+const interferenceHue = 0.35 + 0.15*Math.sin(T*sh*SR5*0.6 + fDist*9.0);
+
+const hueRaw = wA*(hueA+slickA) + wB*(hueB+slickB)
+             + fightFlash * (interferenceHue - (wA*hueA+wB*hueB)) * 0.7;
+const hue = (hueRaw + 1.0) % 1.0;
+
+// Saturation: boundaries vivid, voids desaturate, merge zone muted
+const boundary2 = Math.pow(Math.abs(Math.sin(fDist*5.5+T*sh*SR2*0.3)),0.5);
+const voidFade  = Math.min(1.0, fDist*1.3);
+const mergeMute = 1.0 - pMerge*0.3;
+const sat = voidFade * mergeMute * (0.7 + 0.3*boundary2 + fightFlash*0.4);
+
+// Luminance: fight boundary flares bright white, merge dims to deep glow
+const surface2 = Math.pow(boundary2, 1.3);
+const fightBloom = fightFlash * 0.5;
+const mergeDim   = 1.0 - pMerge*0.25;
+const lum = voidFade * mergeDim * (0.07 + 0.52*surface2 + 0.2*fightBloom
+          + 0.15*Math.abs(Math.sin(T*sh*PHI*0.5+fDist*3.0))*boundaryProx);
+
+color.setHSL(hue, Math.min(1.0,sat), Math.min(0.95,lum));
+
+// ── HUD ──────────────────────────────────────────────────
+if(i===0){
+  const phase = pOrbit>pFight && pOrbit>pMerge ? "ORBITING"
+              : pFight>pMerge ? "FIGHTING" : "MERGING";
+  setInfo(
+    "Binary Symbiote — " + phase,
+    "Lorenz chaos (violet) vs Halvorsen pinwheel (gold). " +
+    "Three-phase relationship on irrational cycles: orbit → fight → merge. " +
+    "Boundary zone flares interference white during combat. " +
+    "Separation · Aggression · Shimmer · Void Depth"
+  );
+  annotate("A", new THREE.Vector3(axC*scale*0.8, ayC*scale*0.8, azC*scale*0.8), "⬡ Lorenz");
+  annotate("B", new THREE.Vector3(bxC*scale*0.8, byC*scale*0.8, bzC*scale*0.8), "◈ Halvorsen");
+  annotate("clash", new THREE.Vector3(0,0,0), pFight>0.4?"⚡ CLASH ZONE":"");
+}
+`
+  },
+  {
+    name: 'SYMBIOTE',
+    cam: [10, 60, 140],
+    code: `
+// === RAINBOW SYMBIOTE ===
+// A living chromatic entity — iridescent tendrils, void core,
+// oil-slick surface shimmer across the full spectrum
+
+const scale    = addControl("scale",    "Scale",          8,  60,  30);
+const aggro    = addControl("aggro",    "Aggression",     0,  5.0, 2.1);
+const shimmer  = addControl("shimmer",  "Shimmer Speed",  0,  3.0, 1.1);
+const tendrils = addControl("tend",     "Tendrils",       0,  5.0, 2.4);
+const voidSize = addControl("void",     "Void Depth",     0,  2.0, 0.85);
+
+// ── Irrational time streams ──────────────────────────────
+const PHI = 1.6180339887;
+const SR2 = 1.4142135623;
+const SR3 = 1.7320508075;
+const SR5 = 2.2360679774;
+const SR7 = 2.6457513110;
+
+const sh = shimmer;
+const tA = time * sh * 0.19 * PHI;
+const tB = time * sh * 0.13 * SR2;
+const tC = time * sh * 0.17 * SR3;
+const tD = time * sh * 0.11 * SR5;
+const tE = time * sh * 0.23 * SR7;
+
+// ── Irrational blend weights (never repeats) ────────────
+const o1 = Math.sin(tA);
+const o2 = Math.sin(tB + 1.0);
+const o3 = Math.sin(tC + 2.0);
+const o4 = Math.sin(tD + 3.0);
+const o5 = Math.sin(tE + 5.0);
+
+const raw0 = 0.5 + 0.5 * (o1*o3 + o2*o5) * 0.5;
+const raw1 = 0.5 + 0.5 * (o2*o4 + o3*o1) * 0.5;
+const raw2 = 0.5 + 0.5 * (o3*o5 + o4*o2) * 0.5;
+
+const floor = 0.15;
+const w0 = floor + (1-floor) * raw0;
+const w1 = floor + (1-floor) * raw1;
+const w2 = floor + (1-floor) * raw2;
+const wSum = w0+w1+w2;
+const b0 = w0/wSum, b1 = w1/wSum, b2 = w2/wSum;
+
+// ── Halton seed point ────────────────────────────────────
+const idx = i + 1;
+let hx=0, hb2=0.5, hi2=idx;
+while(hi2>0){hx+=(hi2&1)*hb2;hi2>>=1;hb2*=0.5;}
+let hy=0, hf3=1/3, hi3=idx;
+while(hi3>0){const r=hi3%3;hy+=r*hf3;hi3=Math.floor(hi3/3);hf3/=3;}
+let hz=0, hf5=1/5, hi5=idx;
+while(hi5>0){const r=hi5%5;hz+=r*hf5;hi5=Math.floor(hi5/5);hf5/=5;}
+
+const sx = hx*2-1, sy = hy*2-1, sz = hz*2-1;
+const iterN = Math.floor(3 + aggro * 0.8);
+
+// ── SYSTEM 0: Mandelbox — symbiote mass body ─────────────
+let mx=sx, my=sy, mz=sz;
+const mScale = 1.8 + 0.6*Math.sin(tA*SR2) + 0.25*Math.sin(tB*SR5);
+const mFixed = 1.0 + 0.18*Math.sin(tC*PHI);
+for(let k=0;k<iterN;k++){
+  mx = mx> mFixed? 2*mFixed-mx : mx<-mFixed?-2*mFixed-mx:mx;
+  my = my> mFixed? 2*mFixed-my : my<-mFixed?-2*mFixed-my:my;
+  mz = mz> mFixed? 2*mFixed-mz : mz<-mFixed?-2*mFixed-mz:mz;
+  const mr2=mx*mx+my*my+mz*mz;
+  const minR2=0.18+0.07*Math.sin(tD), fixR2=1.0;
+  const mf=mr2<minR2?fixR2/minR2:mr2<fixR2?fixR2/mr2:1.0;
+  mx*=mf;my*=mf;mz*=mf;
+  mx=mScale*mx+sx; my=mScale*my+sy; mz=mScale*mz+sz;
+}
+const mLen=Math.sqrt(mx*mx+my*my+mz*mz)+0.001;
+const mNorm=Math.log(mLen+1)*0.38;
+const mX=mx/mLen*mNorm, mY=my/mLen*mNorm, mZ=mz/mLen*mNorm;
+
+// ── SYSTEM 1: Tendril IFS — aggressive reaching limbs ────
+// Six-armed star IFS instead of tetrahedron — more tendrils
+let tx=sx, ty=sy, tz=sz;
+const tScale = 1.0 + 0.15*Math.sin(tB*SR3);
+for(let k=0;k<iterN+1;k++){
+  // Fold toward closest axis-aligned spike (6 directions)
+  const ax=Math.abs(tx), ay=Math.abs(ty), az=Math.abs(tz);
+  const sx2=tx<0?-1:1, sy2=ty<0?-1:1, sz2=tz<0?-1:1;
+  if(ax>=ay && ax>=az){tx=2*tScale*sx2-tx;}
+  else if(ay>=ax && ay>=az){ty=2*tScale*sy2-ty;}
+  else{tz=2*tScale*sz2-tz;}
+  // Slight twist per iteration — tendrils spiral
+  const ta=tz*tendrils*0.04+tA*0.3;
+  const tc=Math.cos(ta), ts=Math.sin(ta);
+  const ttx=tx*tc-ty*ts;
+  ty=tx*ts+ty*tc; tx=ttx;
+}
+const tLen2=Math.sqrt(tx*tx+ty*ty+tz*tz)+0.001;
+const tX=tx/tLen2*0.95, tY=ty/tLen2*0.95, tZ=tz/tLen2*0.95;
+
+// ── SYSTEM 2: Quaternion Julia — iridescent membrane skin ─
+let jx=sx*0.58, jy=sy*0.58, jz=sz*0.58, jw=0.0;
+// c traces irrational orbit — skin texture never repeats
+const jcx=0.32+0.13*Math.sin(tA*PHI)+0.07*Math.sin(tC*SR7);
+const jcy=0.32+0.13*Math.cos(tB*SR2)+0.07*Math.cos(tD*PHI);
+const jcz=0.06+0.09*Math.sin(tC*SR5)+0.04*Math.sin(tE*SR3);
+let jEscape=0.0, jSmooth=0.0;
+for(let k=0;k<10;k++){
+  const qx2=jx*jx-jy*jy-jz*jz-jw*jw+jcx;
+  const qy2=2*jx*jy+jcy;
+  const qz2=2*jx*jz+jcz;
+  const qw2=2*jx*jw;
+  jx=qx2;jy=qy2;jz=qz2;jw=qw2;
+  const jr2=jx*jx+jy*jy+jz*jz+jw*jw;
+  jSmooth+=Math.exp(-jr2*0.3);
+  jEscape+=1.0/(1.0+jr2*0.35);
+  if(jr2>16.0)break;
+}
+const jLen=Math.sqrt(jx*jx+jy*jy+jz*jz)+0.001;
+const jDens=jEscape/10.0;
+const jMem=jSmooth/10.0;   // membrane proximity
+const jX=jx/jLen*jDens, jY=jy/jLen*jDens, jZ=jz/jLen*jDens;
+
+// ── BLEND ────────────────────────────────────────────────
+let fx=b0*mX+b1*tX+b2*jX;
+let fy=b0*mY+b1*tY+b2*jY;
+let fz=b0*mZ+b1*tZ+b2*jZ;
+
+// ── Symbiote aggression — curl tendrils ──────────────────
+const cf=aggro*0.13;
+const cxd=Math.sin(fy*3.1+tA*SR3+fz*1.7)*Math.cos(fz*2.3-tB*SR2);
+const cyd=Math.sin(fz*3.7-tB*PHI+fx*2.1)*Math.cos(fx*2.9+tC*SR5);
+const czd=Math.sin(fx*2.7+tC*SR7+fy*1.9)*Math.cos(fy*3.5-tD*PHI);
+// Secondary tendril curl layer
+const cx2=Math.sin(fy*5.3-tD*SR2)*Math.cos(fz*4.1+tE*PHI);
+const cy2=Math.sin(fz*4.9+tE*SR3)*Math.cos(fx*5.7-tA*SR7);
+const cz2=Math.sin(fx*5.1-tA*PHI)*Math.cos(fy*4.3+tB*SR5);
+fx+=cxd*cf+cx2*cf*0.4;
+fy+=cyd*cf+cy2*cf*0.4;
+fz+=czd*cf+cz2*cf*0.4;
+
+// ── Void core — darkness pulls inward ────────────────────
+const fDist=Math.sqrt(fx*fx+fy*fy+fz*fz)+0.001;
+// Particles near center get crushed toward void
+const voidPull=1.0+voidSize*0.4*Math.exp(-fDist*fDist*1.8);
+fx*=voidPull; fy*=voidPull; fz*=voidPull;
+
+// ── Tendril whip — tips accelerate outward ───────────────
+const tipFlare=1.0+0.18*Math.pow(Math.max(0,fDist-0.5),1.6);
+fx*=tipFlare; fy*=tipFlare; fz*=tipFlare;
+
+// ── Living breath ────────────────────────────────────────
+const breathe=1.0
+  +0.05*Math.sin(fDist*4.2 - time*sh*SR2*2.5)
+  +0.03*Math.sin(fDist*8.7 - time*sh*PHI *3.1)
+  +0.02*Math.sin(fDist*13.1- time*sh*SR3 *1.8);
+
+target.set(fx*scale*breathe, fy*scale*breathe, fz*scale*breathe);
+
+// ══ RAINBOW SYMBIOTE COLORING ════════════════════════════
+// Oil-slick iridescence: hue rotates continuously across surface
+// driven by position + time on irrational frequencies
+
+// Surface position angle → full spectrum sweep
+const surfAngle=Math.atan2(fy, fx);                     // -π..π
+const surfElev =Math.atan2(fz, Math.sqrt(fx*fx+fy*fy)); // -π/2..π/2
+
+// Primary rainbow sweep across the surface geometry
+const rainbowBase = (surfAngle/(Math.PI*2)+0.5)         // azimuth band
+                  + surfElev * 0.3                       // elevation tint
+                  + fDist    * 0.07;                     // depth shift
+
+// Oil-slick shimmer — fast irrational oscillation on surface
+const slick = 0.18*Math.sin(tA*SR5 + fDist*6.1)
+            + 0.12*Math.sin(tB*PHI  + surfAngle*3.0)
+            + 0.08*Math.sin(tC*SR7  + surfElev*4.0)
+            + 0.06*Math.sin(tD*SR2  + fDist*11.3);
+
+// Slow global hue drift (irrational — never same twice)
+const globalDrift = time * sh * 0.031 * PHI;
+
+const hue=(rainbowBase + slick + globalDrift) % 1.0;
+
+// Saturation: MAXIMUM at tendril surfaces, void core desaturates to black
+const boundary=Math.pow(Math.abs(Math.sin(fDist*5.8+tB*SR3)),0.6);
+const voidFade=Math.min(1.0, fDist*1.4);               // 0=void, 1=surface
+const sat=voidFade*(0.75+0.25*boundary);
+
+// Luminance: void = absolute black, surface = vivid bloom
+// Tendril tips catch light like wet chromatic skin
+const tipGlow =Math.pow(Math.max(0, fDist-0.4)*0.8, 1.3);
+const skinSheen=jMem*0.4;                               // Julia membrane glow
+const lum=voidFade*(0.06+0.55*boundary+0.22*tipGlow+0.18*skinSheen);
+
+color.setHSL((hue+1.0)%1.0, sat, Math.min(0.95, lum));
+
+// ── HUD ──────────────────────────────────────────────────
+if(i===0){
+  setInfo(
+    "Rainbow Symbiote",
+    "A living chromatic entity. Iridescent oil-slick skin refracts full spectrum light " +
+    "across its surface — absolute void at the core, explosive chromatic tendrils at the edges. " +
+    "Aggression · Shimmer Speed · Tendrils · Void Depth"
+  );
+  annotate("void",   new THREE.Vector3(0,0,0),                      "● void core");
+  annotate("skin",   new THREE.Vector3(scale*0.55, scale*0.4, 0),   "~ iridescent membrane");
+  annotate("tendril",new THREE.Vector3(-scale*0.3,-scale*0.7,scale*0.5),"⌇ tendril tip");
+}
+`
+  },
+  {
+    name: 'FRACTAL CONTINUUM',
+    cam: [10, 65, 150],
+    code: `
+// === APERIODIC FRACTAL CONTINUUM ===
+// Three attractors weighted by irrational-frequency Lissajous curves
+// — the blend never repeats, the shape has no name, it never arrives anywhere
+
+const scale    = addControl("scale",   "Scale",         8,  60,  26);
+const iter     = addControl("iter",    "Fold Depth",    1,  8,   4.2);
+const drift    = addControl("drift",   "Drift Speed",   0,  1.5, 0.31);
+const chaos    = addControl("chaos",   "Chaos",         0,  3.0, 1.1);
+const twist    = addControl("twist",   "Twist",         0,  4.0, 0.9);
+
+// ── Irrational frequency ratios — guaranteed non-repeating ──
+// φ = 1.6180339..., √2 = 1.4142135..., √3 = 1.7320508...
+// No rational relationship between any pair → Lissajous never closes
+const PHI  = 1.6180339887;
+const SR2  = 1.4142135623;
+const SR3  = 1.7320508075;
+const SR5  = 2.2360679774;
+const SR7  = 2.6457513110;
+
+const d = drift;
+const t0 = time * d * 0.37;
+
+// Five independent oscillators with irrational frequencies
+// Their products form blend weights that never repeat
+const o1 = Math.sin(t0 * PHI);
+const o2 = Math.sin(t0 * SR2  + 1.0);
+const o3 = Math.sin(t0 * SR3  + 2.0);
+const o4 = Math.sin(t0 * SR5  + 3.0);
+const o5 = Math.sin(t0 * SR7  + 5.0);
+
+// Cross-modulated weights — never simultaneously zero for any system
+const raw0 = 0.5 + 0.5 * (o1 * o3 + o2 * o5) * 0.5;   // Mandelbox
+const raw1 = 0.5 + 0.5 * (o2 * o4 + o3 * o1) * 0.5;   // Sierpinski
+const raw2 = 0.5 + 0.5 * (o3 * o5 + o4 * o2) * 0.5;   // Julia
+
+// Soft-normalize with minimum floor — no system ever vanishes entirely
+const floor = 0.18;
+const w0 = floor + (1 - floor) * raw0;
+const w1 = floor + (1 - floor) * raw1;
+const w2 = floor + (1 - floor) * raw2;
+const wSum = w0 + w1 + w2;
+const b0 = w0 / wSum;
+const b1 = w1 / wSum;
+const b2 = w2 / wSum;
+
+// ── Slow organic time streams (irrational ratios) ────────
+const tA = time * d * 0.11 * SR2;
+const tB = time * d * 0.07 * PHI;
+const tC = time * d * 0.13 * SR3;
+const tD = time * d * 0.19 * SR5;
+
+// ── Halton low-discrepancy seed point ────────────────────
+const idx = i + 1;
+let hx = 0, hb2 = 0.5, hi2 = idx;
+while (hi2 > 0) { hx += (hi2 & 1) * hb2; hi2 >>= 1; hb2 *= 0.5; }
+let hy = 0, hf3 = 1.0/3, hi3 = idx;
+while (hi3 > 0) { const r = hi3 % 3; hy += r * hf3; hi3 = Math.floor(hi3/3); hf3 /= 3; }
+let hz = 0, hf5 = 1.0/5, hi5 = idx;
+while (hi5 > 0) { const r = hi5 % 5; hz += r * hf5; hi5 = Math.floor(hi5/5); hf5 /= 5; }
+
+const sx = hx * 2 - 1;
+const sy = hy * 2 - 1;
+const sz = hz * 2 - 1;
+
+// ── SYSTEM 0: Mandelbox ──────────────────────────────────
+// Scale breathes on irrational cycle — never same shape twice
+let mx = sx, my = sy, mz = sz;
+const mScale = 1.9 + 0.5 * Math.sin(tA * SR2) + 0.2 * Math.sin(tB * SR5);
+const mFixed = 1.0 + 0.15 * Math.sin(tC);
+const iterN  = Math.floor(iter);
+for (let k = 0; k < iterN; k++) {
+  mx = mx >  mFixed ?  2*mFixed - mx : mx < -mFixed ? -2*mFixed - mx : mx;
+  my = my >  mFixed ?  2*mFixed - my : my < -mFixed ? -2*mFixed - my : my;
+  mz = mz >  mFixed ?  2*mFixed - mz : mz < -mFixed ? -2*mFixed - mz : mz;
+  const mr2 = mx*mx + my*my + mz*mz;
+  const minR2 = 0.2 + 0.08*Math.sin(tD), fixR2 = 1.0;
+  const mf = mr2 < minR2 ? fixR2/minR2 : mr2 < fixR2 ? fixR2/mr2 : 1.0;
+  mx *= mf; my *= mf; mz *= mf;
+  mx = mScale*mx + sx;
+  my = mScale*my + sy;
+  mz = mScale*mz + sz;
+}
+const mLen  = Math.sqrt(mx*mx + my*my + mz*mz) + 0.001;
+const mNorm = Math.log(mLen + 1) * 0.38;
+const mX = mx/mLen * mNorm;
+const mY = my/mLen * mNorm;
+const mZ = mz/mLen * mNorm;
+
+// ── SYSTEM 1: IFS Sierpinski Tetrahedron ────────────────
+// Vertices drift slowly on irrational paths — organic mutation
+let tx = sx, ty = sy, tz = sz;
+const va = 1.0 + 0.12 * Math.sin(tA * SR3);
+const vb = 1.0 + 0.12 * Math.sin(tB * SR2);
+for (let k = 0; k < iterN; k++) {
+  let vx=va, vy=va, vz=va, best=-1e9, d2;
+  d2 = tx+ty+tz;         if(d2>best){best=d2; vx= va; vy= va; vz= va;}
+  d2 =-tx-ty+tz;         if(d2>best){best=d2; vx=-va; vy=-va; vz= vb;}
+  d2 =-tx+ty-tz;         if(d2>best){best=d2; vx=-vb; vy= va; vz=-va;}
+  d2 = tx-ty-tz;         if(d2>best){best=d2; vx= va; vy=-vb; vz=-va;}
+  tx = 2*tx - vx;
+  ty = 2*ty - vy;
+  tz = 2*tz - vz;
+}
+const tLen = Math.sqrt(tx*tx + ty*ty + tz*tz) + 0.001;
+const tX = tx/tLen * 0.9;
+const tY = ty/tLen * 0.9;
+const tZ = tz/tLen * 0.9;
+
+// ── SYSTEM 2: Quaternion Julia ───────────────────────────
+// c traces an open irrational orbit in parameter space
+let jx = sx*0.55, jy = sy*0.55, jz = sz*0.55, jw = 0.0;
+const jcx = 0.34 + 0.11*Math.sin(tA * PHI) + 0.06*Math.sin(tC * SR7);
+const jcy = 0.34 + 0.11*Math.cos(tB * SR2) + 0.06*Math.cos(tD * PHI);
+const jcz = 0.08 + 0.07*Math.sin(tC * SR5);
+let jEscape = 0.0;
+for (let k = 0; k < 8; k++) {
+  const qx2 = jx*jx - jy*jy - jz*jz - jw*jw + jcx;
+  const qy2 = 2*jx*jy + jcy;
+  const qz2 = 2*jx*jz + jcz;
+  const qw2 = 2*jx*jw;
+  jx=qx2; jy=qy2; jz=qz2; jw=qw2;
+  const jr2 = jx*jx+jy*jy+jz*jz+jw*jw;
+  jEscape += 1.0 / (1.0 + jr2 * 0.4);
+  if (jr2 > 16.0) break;
+}
+const jLen  = Math.sqrt(jx*jx + jy*jy + jz*jz) + 0.001;
+const jDens = jEscape / 8.0;
+const jX = jx/jLen * jDens;
+const jY = jy/jLen * jDens;
+const jZ = jz/jLen * jDens;
+
+// ── BLEND ────────────────────────────────────────────────
+let fx = b0*mX + b1*tX + b2*jX;
+let fy = b0*mY + b1*tY + b2*jY;
+let fz = b0*mZ + b1*tZ + b2*jZ;
+
+// ── Organic chaos displacement ───────────────────────────
+// Curl-like field with irrational internal frequencies
+const cf = chaos * 0.15;
+const cx = Math.sin(fy * 2.9 + tA*SR3) * Math.cos(fz * 2.1 - tB*SR2);
+const cy = Math.sin(fz * 3.3 - tB*PHI) * Math.cos(fx * 2.7 + tC*SR5);
+const cz = Math.sin(fx * 2.5 + tC*SR7) * Math.cos(fy * 3.1 - tD*PHI);
+fx += cx * cf;
+fy += cy * cf;
+fz += cz * cf;
+
+// ── Height-dependent twist (cosmic spiral) ───────────────
+const twA = fy * twist * 0.13 + tA * 0.25;
+const twC = Math.cos(twA), twS = Math.sin(twA);
+const twx = fx*twC - fz*twS;
+const twz = fx*twS + fz*twC;
+fx = twx; fz = twz;
+
+// ── Slow cosmic breath ───────────────────────────────────
+const fDist  = Math.sqrt(fx*fx + fy*fy + fz*fz) + 0.001;
+const breath = 1.0 + 0.07 * Math.sin(fDist * 3.8 - time * d * SR2 * 3.0)
+                   + 0.03 * Math.sin(fDist * 7.1 - time * d * PHI  * 2.0);
+
+target.set(fx * scale * breath, fy * scale * breath, fz * scale * breath);
+
+// ── Color — three systems each have a living spectral signature ─
+// Hues driven by irrational oscillators so color also never repeats
+const hBase  = b0 * (0.55 + 0.06*Math.sin(tA*SR3))   // Mandelbox: deep teal
+             + b1 * (0.06 + 0.05*Math.sin(tB*PHI))    // Sierpinski: ember
+             + b2 * (0.78 + 0.07*Math.sin(tC*SR2));   // Julia: cold violet
+
+const hue = (hBase + (n => n*n*n)(b2) * 0.12 + tA * 0.008) % 1.0;
+
+// Saturation: spikes at fractal boundaries, cosmic void desaturates
+const boundary = Math.abs(Math.sin(fDist * 5.5 + tB));
+const sat = 0.55 + 0.45 * boundary * (0.7 + 0.3*Math.abs(o1*o3));
+
+// Luminance: interior void dark, surface alive, chaos brightens edges
+const surface = Math.pow(boundary, 1.4);
+const lum = 0.08 + 0.62 * surface + 0.18 * Math.abs(o2 * o4) * jDens;
+
+color.setHSL(hue, sat, Math.min(0.92, lum));
+
+// ── HUD ──────────────────────────────────────────────────
+if (i === 0) {
+  setInfo(
+    "Aperiodic Fractal Continuum",
+    "Three fractal attractors blended by irrational-frequency Lissajous curves (φ, √2, √3, √5, √7) — " +
+    "the weighting never repeats, no shape ever fully arrives. " +
+    "Each system's internal parameters also drift on incommensurable cycles. " +
+    "Drift Speed · Fold Depth · Chaos · Twist"
+  );
+  annotate("void",  new THREE.Vector3(0, 0, 0),                     "∅ no fixed form");
+  annotate("phi",   new THREE.Vector3(scale*0.8, scale*0.6, 0),     "φ irrational core");
+  annotate("drift", new THREE.Vector3(-scale*0.7, -scale*0.5, scale*0.4), "~ never repeats");
+}
+`
+  },
+  {
+    name: 'TURING MORPHOGENESIS',
+    cam: [15, 80, 180],
+    code: `
+const scale    = addControl("scale",   "Scale",           8,  55,  26);
+const feed     = addControl("feed",    "Feed Rate",       0,  0.1, 0.037);
+const kill     = addControl("kill",    "Kill Rate",       0,  0.1, 0.062);
+const drift    = addControl("drift",   "Morphogen Drift", 0,  2.0, 0.55);
+const membrane = addControl("membr",  "Membrane Tension",0,  3.0, 1.2);
+const breathAmt= addControl("breath", "Breath",          0,  2.0, 0.8);
+
+const PHI = 1.6180339887;
+const SR2 = 1.4142135623;
+const SR3 = 1.7320508075;
+const SR5 = 2.2360679774;
+const SR7 = 2.6457513110;
+
+const d  = drift;
+const tA = time * d * 0.13 * PHI;
+const tB = time * d * 0.09 * SR2;
+const tC = time * d * 0.11 * SR3;
+const tD = time * d * 0.07 * SR5;
+const tE = time * d * 0.15 * SR7;
+
+const idx = i + 1;
+let hx=0,hb=0.5,hh=idx;
+while(hh>0){hx+=(hh&1)*hb;hh>>=1;hb*=0.5;}
+let hy=0,hf3=1/3,hh3=idx;
+while(hh3>0){const r=hh3%3;hy+=r*hf3;hh3=Math.floor(hh3/3);hf3/=3;}
+let hz=0,hf5=1/5,hh5=idx;
+while(hh5>0){const r=hh5%5;hz+=r*hf5;hh5=Math.floor(hh5/5);hf5/=5;}
+
+const px = hx*2-1;
+const py = hy*2-1;
+const pz = hz*2-1;
+
+const s1 = 1.8;
+const u1 = Math.sin(px*s1 + tA*SR2)*Math.cos(py*s1*PHI - tB)
+         * Math.sin(pz*s1*SR3 + tC*SR2);
+
+const s2 = 3.7;
+const u2 = Math.sin(px*s2*SR2 - tB*PHI)*Math.cos(py*s2 + tA*SR3)
+         * Math.cos(pz*s2*PHI - tD*SR2);
+
+const s3 = 7.1;
+const u3 = Math.cos(px*s3*PHI + tC*SR5)*Math.sin(py*s3*SR2 - tB*SR3)
+         * Math.sin(pz*s3*SR3 + tA*PHI);
+
+const s4 = 13.3;
+const u4 = Math.sin(px*s4*SR3 - tD*PHI)*Math.cos(py*s4*PHI + tE*SR2)
+         * Math.cos(pz*s4*SR2 - tC*SR7);
+
+const s5 = 23.7;
+const u5 = Math.cos(px*s5*SR5 + tE*SR3)*Math.sin(py*s5*SR7 - tD*SR2)
+         * Math.sin(pz*s5*PHI + tB*SR5);
+
+const uField = u1*0.42 + u2*0.28 + u3*0.16 + u4*0.09 + u5*0.05;
+
+const eps = 0.018;
+
+const ux_p = (Math.sin((px+eps)*s2*SR2-tB*PHI)*Math.cos(py*s2+tA*SR3)*Math.cos(pz*s2*PHI-tD*SR2))*0.28
+           + (Math.sin((px+eps)*s1+tA*SR2)*Math.cos(py*s1*PHI-tB)*Math.sin(pz*s1*SR3+tC*SR2))*0.42
+           + (Math.cos((px+eps)*s3*PHI+tC*SR5)*Math.sin(py*s3*SR2-tB*SR3)*Math.sin(pz*s3*SR3+tA*PHI))*0.16;
+const ux_m = (Math.sin((px-eps)*s2*SR2-tB*PHI)*Math.cos(py*s2+tA*SR3)*Math.cos(pz*s2*PHI-tD*SR2))*0.28
+           + (Math.sin((px-eps)*s1+tA*SR2)*Math.cos(py*s1*PHI-tB)*Math.sin(pz*s1*SR3+tC*SR2))*0.42
+           + (Math.cos((px-eps)*s3*PHI+tC*SR5)*Math.sin(py*s3*SR2-tB*SR3)*Math.sin(pz*s3*SR3+tA*PHI))*0.16;
+const dUdx = (ux_p - ux_m)/(2*eps);
+
+const uy_p = (Math.sin(px*s1+tA*SR2)*Math.cos((py+eps)*s1*PHI-tB)*Math.sin(pz*s1*SR3+tC*SR2))*0.42
+           + (Math.sin(px*s2*SR2-tB*PHI)*Math.cos((py+eps)*s2+tA*SR3)*Math.cos(pz*s2*PHI-tD*SR2))*0.28
+           + (Math.cos(px*s3*PHI+tC*SR5)*Math.sin((py+eps)*s3*SR2-tB*SR3)*Math.sin(pz*s3*SR3+tA*PHI))*0.16;
+const uy_m = (Math.sin(px*s1+tA*SR2)*Math.cos((py-eps)*s1*PHI-tB)*Math.sin(pz*s1*SR3+tC*SR2))*0.42
+           + (Math.sin(px*s2*SR2-tB*PHI)*Math.cos((py-eps)*s2+tA*SR3)*Math.cos(pz*s2*PHI-tD*SR2))*0.28
+           + (Math.cos(px*s3*PHI+tC*SR5)*Math.sin((py-eps)*s3*SR2-tB*SR3)*Math.sin(pz*s3*SR3+tA*PHI))*0.16;
+const dUdy = (uy_p - uy_m)/(2*eps);
+
+const uz_p = (Math.sin(px*s1+tA*SR2)*Math.cos(py*s1*PHI-tB)*Math.sin((pz+eps)*s1*SR3+tC*SR2))*0.42
+           + (Math.sin(px*s2*SR2-tB*PHI)*Math.cos(py*s2+tA*SR3)*Math.cos((pz+eps)*s2*PHI-tD*SR2))*0.28
+           + (Math.cos(px*s3*PHI+tC*SR5)*Math.sin(py*s3*SR2-tB*SR3)*Math.sin((pz+eps)*s3*SR3+tA*PHI))*0.16;
+const uz_m = (Math.sin(px*s1+tA*SR2)*Math.cos(py*s1*PHI-tB)*Math.sin((pz-eps)*s1*SR3+tC*SR2))*0.42
+           + (Math.sin(px*s2*SR2-tB*PHI)*Math.cos(py*s2+tA*SR3)*Math.cos((pz-eps)*s2*PHI-tD*SR2))*0.28
+           + (Math.cos(px*s3*PHI+tC*SR5)*Math.sin(py*s3*SR2-tB*SR3)*Math.sin((pz-eps)*s3*SR3+tA*PHI))*0.16;
+const dUdz = (uz_p - uz_m)/(2*eps);
+
+const gradMag  = Math.sqrt(dUdx*dUdx + dUdy*dUdy + dUdz*dUdz);
+const gradNorm = gradMag + 0.001;
+
+const isoError = uField;
+const proj     = membrane * 0.35;
+let fx = px - (isoError * dUdx/gradNorm) * proj;
+let fy = py - (isoError * dUdy/gradNorm) * proj;
+let fz = pz - (isoError * dUdz/gradNorm) * proj;
+
+const membraneThick = 0.08 + 0.12 * Math.exp(-gradMag * 3.0);
+const dispAmt = (hx - 0.5) * membraneThick * membrane;
+fx += dUdx/gradNorm * dispAmt;
+fy += dUdy/gradNorm * dispAmt;
+fz += dUdz/gradNorm * dispAmt;
+
+const fLocal = feed + 0.008*Math.sin(px*1.1+tA)*Math.cos(pz*0.9+tB);
+const kLocal = kill + 0.006*Math.cos(py*1.3-tB)*Math.sin(px*0.7+tC);
+const fkBalance   = fLocal / (kLocal + 0.001);
+const densityBias = 0.15 * (fkBalance - 0.6);
+fx += densityBias * dUdx/gradNorm;
+fy += densityBias * dUdy/gradNorm;
+fz += densityBias * dUdz/gradNorm;
+
+const fDist  = Math.sqrt(fx*fx+fy*fy+fz*fz)+0.001;
+const bzWave = breathAmt * 0.04
+  * Math.sin(fDist*5.2 - time*d*SR2*2.1 + uField*3.0)
+  * Math.exp(-fDist*0.3);
+fx += dUdx/gradNorm * bzWave;
+fy += dUdy/gradNorm * bzWave;
+fz += dUdz/gradNorm * bzWave;
+
+const rawDist = Math.sqrt(fx*fx+fy*fy+fz*fz)+0.001;
+const confine = 1.0 + 0.18*Math.sin(rawDist*2.8 - time*d*0.3*PHI);
+fx *= confine; fy *= confine; fz *= confine;
+
+target.set(fx*scale, fy*scale, fz*scale);
+
+const onFront     = Math.min(1.0, gradMag * 2.8);
+const inActivator = Math.max(0, uField);
+const inInhibitor = Math.max(0, -uField);
+const bzPhase     = Math.sin(fDist*5.2 - time*d*SR2*2.1 + uField*3.0);
+const bzFront     = Math.max(0, bzPhase) * breathAmt * 0.8;
+
+const hueValley  = 0.07 + 0.04*Math.sin(tA*SR3 + uField*2.0);
+const hueMembrane= 0.72 + 0.04*Math.sin(tB*PHI + gradMag*3.0);
+const hueBZ      = 0.33 + 0.05*Math.sin(tC*SR5 + fDist*4.0);
+
+const hueBase = hueValley*(1-onFront)*inInhibitor*2.0
+              + hueMembrane*onFront
+              + (0.68 + 0.03*Math.sin(tD*SR2))*(1-onFront)*inActivator*1.5;
+
+const hue = ((hueBase + bzFront*(hueBZ - hueBase) + 1.0) % 1.0);
+
+const frontSat = 0.85 + 0.15*onFront;
+const bzSat    = bzFront * 0.4;
+const sat      = Math.min(1.0, frontSat*0.7 + bzSat + 0.1*Math.abs(uField));
+
+const interiorDark = Math.exp(-gradMag * 1.8) * 0.3;
+const membraneLit  = onFront * (0.4 + 0.25*Math.abs(Math.sin(tE*SR7+fDist*3.1)));
+const bzBloom      = bzFront * 0.55;
+const vascularDark = inActivator * (1-onFront) * 0.12;
+const lum = Math.min(0.95,
+    0.04
+  + interiorDark
+  + membraneLit
+  + bzBloom
+  + vascularDark
+  + 0.12*Math.abs(Math.sin(fDist*7.3 + tA*PHI))*onFront
+);
+
+color.setHSL(hue, sat, lum);
+
+if(i===0){
+  setInfo(
+    "Turing Morphogenesis — Labyrinthine Regime",
+    "Gray-Scott reaction-diffusion field in full 3D volume. " +
+    "Particles positioned on the activator-inhibitor isosurface — the living membrane between chemical domains. " +
+    "Multi-scale: cortical folds → brain coral ridges → fingerprint resolution → cell texture. " +
+    "BZ waves (Belousov-Zhabotinsky) pulse acid green through the tissue. " +
+    "Feed Rate · Kill Rate · Morphogen Drift · Membrane Tension · Breath"
+  );
+  annotate("ridge",  new THREE.Vector3( scale*0.4,  scale*0.3,  scale*0.2), "▲ activator ridge");
+  annotate("valley", new THREE.Vector3(-scale*0.4, -scale*0.2,  scale*0.3), "▽ inhibitor valley");
+  annotate("front",  new THREE.Vector3( scale*0.1,  scale*0.4, -scale*0.3), "~ reaction front");
+  annotate("bz",     new THREE.Vector3(-scale*0.3,  scale*0.1, -scale*0.4), "⚡ BZ wave");
+}
+`
+  },
+  {
+    name: 'KABALLAH',
+    cam: [12, 70, 160],
+    code: `
+const scale = addControl("scale", "Tree Scale", 5, 40, 18);
+const pulse = addControl("pulse", "Pulse Speed", 0.1, 3.0, 0.8);
+const spread = addControl("spread", "Sephirot Spread", 0.5, 2.5, 1.2);
+const shimmer = addControl("shimmer", "Shimmer", 0.0, 1.0, 0.6);
+
+if (i === 0) {
+  setInfo("Etz Chaim — The Tree of Life", "Ten Sephirot, 22 Paths, and the Ain Soph Aur. Hyperdimensional Kabbalah rendered in the eternal white of Ein.");
+  annotate("keter",    new THREE.Vector3(0,  2.0 * 18, 0),       "Keter");
+  annotate("chokmah",  new THREE.Vector3(-1.2 * 18, 1.4 * 18, 0),"Chokmah");
+  annotate("binah",    new THREE.Vector3( 1.2 * 18, 1.4 * 18, 0),"Binah");
+  annotate("chesed",   new THREE.Vector3(-1.2 * 18, 0.5 * 18, 0),"Chesed");
+  annotate("geburah",  new THREE.Vector3( 1.2 * 18, 0.5 * 18, 0),"Geburah");
+  annotate("tiferet",  new THREE.Vector3(0,  0.0 * 18, 0),        "Tiferet");
+  annotate("netzach",  new THREE.Vector3(-1.2 * 18,-0.8 * 18, 0),"Netzach");
+  annotate("hod",      new THREE.Vector3( 1.2 * 18,-0.8 * 18, 0),"Hod");
+  annotate("yesod",    new THREE.Vector3(0, -1.5 * 18, 0),        "Yesod");
+  annotate("malkuth",  new THREE.Vector3(0, -2.3 * 18, 0),        "Malkuth");
+  annotate("daath",    new THREE.Vector3(0,  0.9 * 18, 0),        "Da'ath");
+}
+
+// Sephirot positions (normalized, scaled later)
+// 0:Keter 1:Chokmah 2:Binah 3:Chesed 4:Geburah 5:Tiferet 6:Netzach 7:Hod 8:Yesod 9:Malkuth 10:Daath
+const SX0=0.0,  SY0=2.0,  SZ0=0.0;
+const SX1=-1.2, SY1=1.4,  SZ1=0.0;
+const SX2= 1.2, SY2=1.4,  SZ2=0.0;
+const SX3=-1.2, SY3=0.5,  SZ3=0.0;
+const SX4= 1.2, SY4=0.5,  SZ4=0.0;
+const SX5= 0.0, SY5=0.0,  SZ5=0.0;
+const SX6=-1.2, SY6=-0.8, SZ6=0.0;
+const SX7= 1.2, SY7=-0.8, SZ7=0.0;
+const SX8= 0.0, SY8=-1.5, SZ8=0.0;
+const SX9= 0.0, SY9=-2.3, SZ9=0.0;
+const SX10=0.0,SY10=0.9, SZ10=0.0;
+
+// 22 Paths as pairs of sephirot indices (Hebrew letter correspondences)
+// Encoded as 11 path-pair floats for path index math
+// path segment index = which of 22 paths, t = position along path
+// We partition particles: 10 sephirot glows + 22 paths + ambient aura + ain soph rays
+
+const N = count;
+const sephCount   = 3200;  // glow clouds around each sephirot
+const pathCount   = 11000; // particles streaming along 22 paths
+const auraCount   = 3800;  // ambient Ein Soph aura
+const rayCount    = N - sephCount - pathCount - auraCount; // outer radiance
+
+const t_pulse = time * pulse;
+
+// ---- SEPHIROT GLOW CLOUDS ----
+if (i < sephCount) {
+  const si = i;
+  const seph = si % 11; // which sephira
+  const local = (si / 11.0) / (sephCount / 11.0); // local particle index [0,1)
+  const phi = local * 6.28318 * 7.0 + t_pulse * (0.3 + seph * 0.07);
+  const theta = local * 3.14159 * 5.0 + t_pulse * 0.2;
+  const r = (0.18 + 0.10 * Math.sin(local * 31.4 + t_pulse)) * spread;
+
+  const px = Math.sin(theta) * Math.cos(phi) * r;
+  const py = Math.sin(theta) * Math.sin(phi) * r;
+  const pz = Math.cos(theta) * r * 0.5;
+
+  const bx = seph===0?SX0:seph===1?SX1:seph===2?SX2:seph===3?SX3:seph===4?SX4:seph===5?SX5:seph===6?SX6:seph===7?SX7:seph===8?SX8:seph===9?SX9:SX10;
+  const by = seph===0?SY0:seph===1?SY1:seph===2?SY2:seph===3?SY3:seph===4?SY4:seph===5?SY5:seph===6?SY6:seph===7?SY7:seph===8?SY8:seph===9?SY9:SY10;
+  const bz = 0.0;
+
+  target.set((bx + px) * scale, (by + py) * scale, (bz + pz) * scale);
+
+  const centerDist = Math.sqrt(px*px + py*py + pz*pz) / (r + 0.001);
+  const glow = 0.85 + 0.15 * Math.sin(t_pulse * 2.0 + local * 12.0);
+  const brightness = (0.88 + shimmer * 0.12 * Math.sin(t_pulse * 3.0 + phi)) * glow;
+  // Ethereal white with faint sephirot tint
+  const hue = (seph / 11.0 + t_pulse * 0.02) % 1.0;
+  const sat = 0.08 + 0.07 * Math.sin(t_pulse + seph);
+  color.setHSL(hue, sat, brightness);
+  return;
+}
+
+// ---- 22 PATHS (HEBREW LETTERS) ----
+if (i < sephCount + pathCount) {
+  const pi2 = i - sephCount;
+  const pathIdx = pi2 % 22;
+  const tAlongPath = (pi2 / 22.0 - Math.floor(pi2 / 22.0));
+  const tAnim = (tAlongPath + t_pulse * 0.12) % 1.0;
+
+  // Path endpoints: 22 classic Kabbalistic paths
+  // Encoded: [fromSeph, toSeph] for each of 22 paths
+  const pA = pathIdx===0?0:pathIdx===1?0:pathIdx===2?0:pathIdx===3?1:pathIdx===4?1:pathIdx===5?1:pathIdx===6?2:pathIdx===7?2:pathIdx===8?3:pathIdx===9?3:pathIdx===10?4:pathIdx===11?5:pathIdx===12?5:pathIdx===13?5:pathIdx===14?6:pathIdx===15?6:pathIdx===16?7:pathIdx===17?8:pathIdx===18?3:pathIdx===19?4:pathIdx===20?2:0;
+  const pB = pathIdx===0?1:pathIdx===1?2:pathIdx===2?10:pathIdx===3?2:pathIdx===4?10:pathIdx===5?3:pathIdx===6?10:pathIdx===7?4:pathIdx===8?4:pathIdx===9?5:pathIdx===10?5:pathIdx===11?6:pathIdx===12?7:pathIdx===13?9:pathIdx===14?7:pathIdx===15?8:pathIdx===16?8:pathIdx===17?9:pathIdx===18?5:pathIdx===19?5:pathIdx===20?5:5;
+
+  const ax = pA===0?SX0:pA===1?SX1:pA===2?SX2:pA===3?SX3:pA===4?SX4:pA===5?SX5:pA===6?SX6:pA===7?SX7:pA===8?SX8:pA===9?SX9:SX10;
+  const ay = pA===0?SY0:pA===1?SY1:pA===2?SY2:pA===3?SY3:pA===4?SY4:pA===5?SY5:pA===6?SY6:pA===7?SY7:pA===8?SY8:pA===9?SY9:SY10;
+  const bx2= pB===0?SX0:pB===1?SX1:pB===2?SX2:pB===3?SX3:pB===4?SX4:pB===5?SX5:pB===6?SX6:pB===7?SX7:pB===8?SX8:pB===9?SX9:SX10;
+  const by2= pB===0?SY0:pB===1?SY1:pB===2?SY2:pB===3?SY3:pB===4?SY4:pB===5?SY5:pB===6?SY6:pB===7?SY7:pB===8?SY8:pB===9?SY9:SY10;
+
+  // Bezier arc: midpoint raised slightly in z for hyperdimensional feel
+  const mx = (ax + bx2) * 0.5 + Math.sin(pathIdx * 1.37 + t_pulse * 0.1) * 0.2;
+  const my = (ay + by2) * 0.5 + Math.cos(pathIdx * 0.91 + t_pulse * 0.07) * 0.15;
+  const mz = Math.sin(pathIdx * 0.77 + t_pulse * 0.05) * 0.5;
+
+  const oneMinusT = 1.0 - tAnim;
+  const qx = oneMinusT * oneMinusT * ax + 2.0 * oneMinusT * tAnim * mx + tAnim * tAnim * bx2;
+  const qy = oneMinusT * oneMinusT * ay + 2.0 * oneMinusT * tAnim * my + tAnim * tAnim * by2;
+  const qz = oneMinusT * oneMinusT * 0 + 2.0 * oneMinusT * tAnim * mz + tAnim * tAnim * 0;
+
+  // Thin perpendicular scatter
+  const scatter = 0.025 * spread;
+  const sn = Math.sin(tAnim * 31.4 + t_pulse * 2.0 + pathIdx * 0.5) * scatter;
+  const cs = Math.cos(tAnim * 31.4 + t_pulse * 2.0 + pathIdx * 0.5) * scatter;
+
+  target.set((qx + sn) * scale, (qy + cs) * scale, (qz + sn * 0.5) * scale);
+
+  const flow = 0.5 + 0.5 * Math.sin(tAnim * 6.28 * 3.0 - t_pulse * 2.0);
+  const pathHue = (pathIdx / 22.0 + 0.55 + t_pulse * 0.015) % 1.0;
+  const pathSat = 0.06 + 0.06 * flow;
+  const pathBri = 0.75 + shimmer * 0.20 * flow;
+  color.setHSL(pathHue, pathSat, pathBri);
+  return;
+}
+
+// ---- AIN SOPH AURA (infinite radiance shell) ----
+if (i < sephCount + pathCount + auraCount) {
+  const ai = i - sephCount - pathCount;
+  const af = ai / auraCount;
+  const auraPhi = af * 6.28318 * 13.0 + t_pulse * 0.15;
+  const auraTheta = af * 3.14159 * 7.0 + t_pulse * 0.08;
+  const auraR = (3.2 + 0.6 * Math.sin(af * 47.1 + t_pulse * 0.5) + 0.3 * Math.cos(af * 23.6 + t_pulse * 0.3)) * spread;
+
+  const ax2 = Math.sin(auraTheta) * Math.cos(auraPhi) * auraR;
+  const ay2 = Math.sin(auraTheta) * Math.sin(auraPhi) * auraR * 1.1;
+  const az2 = Math.cos(auraTheta) * auraR * 0.7;
+
+  // Slight inward breathing
+  const breath = 1.0 + 0.04 * Math.sin(t_pulse * pulse * 0.7 + af * 6.28);
+
+  target.set(ax2 * scale * breath, ay2 * scale * breath, az2 * scale * breath);
+
+  const aHue = (af * 0.15 + 0.6 + t_pulse * 0.01) % 1.0;
+  const aSat = 0.04 + 0.05 * Math.abs(Math.sin(t_pulse + af * 9.42));
+  const aBri = 0.55 + shimmer * 0.15 * Math.sin(t_pulse * 1.5 + af * 18.84);
+  color.setHSL(aHue, aSat, aBri);
+  return;
+}
+
+// ---- AIN SOPH AUR — Outer Light Rays ----
+const ri = i - sephCount - pathCount - auraCount;
+const rf = ri / (rayCount + 1.0);
+const rayAngle = rf * 6.28318 * 5.0 + t_pulse * 0.05;
+const rayPhi2  = rf * 3.14159 * 11.0 + t_pulse * 0.03;
+const rayLen = (3.8 + rf * 3.5 + 1.2 * Math.sin(rf * 62.8 + t_pulse * 0.4)) * spread;
+
+const rx = Math.sin(rayPhi2) * Math.cos(rayAngle) * rayLen;
+const ry = Math.sin(rayPhi2) * Math.sin(rayAngle) * rayLen * 1.05;
+const rz = Math.cos(rayPhi2) * rayLen * 0.6;
+
+const twinkle = 0.5 + 0.5 * Math.sin(t_pulse * 2.3 + rf * 39.27);
+target.set(rx * scale, ry * scale, rz * scale);
+
+const rHue = (rf * 0.08 + 0.58 + t_pulse * 0.008) % 1.0;
+const rSat = 0.03 + 0.04 * twinkle;
+const rBri = 0.30 + shimmer * 0.25 * twinkle;
+color.setHSL(rHue, rSat, rBri);
+`
+  },
+  {
+    name: 'LIVING PULSAR',
+    cam: [15, 90, 200],
+    code: `
+// ============================================================
+// PULSAR — Rotating Neutron Star with Relativistic Jets
+// Accretion disk, magnetosphere, polar beams, hot spots
+// ============================================================
+
+const spinRate  = addControl("spin",    "Spin Rate (RPM)",     0.1, 10.0, 3.5);
+const jetPower  = addControl("jet",     "Jet Power",           0,   2.0,  1.2);
+const diskMass  = addControl("disk",    "Accretion Disk Mass", 0,   2.0,  1.0);
+const magField  = addControl("mag",     "Magnetosphere",       0,   2.0,  0.8);
+const wobble    = addControl("wobble",  "Precession Wobble",   0,   1.0,  0.3);
+const scl       = addControl("scale",   "Scene Scale",         10,  80,   38);
+
+if (i === 0) {
+  setInfo(
+    "Millisecond Pulsar",
+    "Neutron star spinning ~600x/sec. Magnetic poles misaligned with rotation axis emit lighthouse beams. Infalling matter forms accretion disk."
+  );
+  annotate("north", new THREE.Vector3(0,  scl * 1.8, 0), "North Magnetic Pole");
+  annotate("south", new THREE.Vector3(0, -scl * 1.8, 0), "South Pole Jet");
+  annotate("disk",  new THREE.Vector3(scl * 1.4, 0, 0),  "Accretion Disk");
+}
+
+// Per-particle deterministic seeds — golden ratio lattice, no allocation
+const PHI  = 1.6180339887;
+const u    = i / count;
+const s1   = (i * PHI)        % 1.0;
+const s2   = (i * 0.7548776)  % 1.0;
+const s3   = (i * 0.5698402)  % 1.0;
+const s4   = (i * 0.4142135)  % 1.0;
+
+// Pulsar spin axis — precesses slowly (wobble control)
+const precAngle = time * 0.11;
+const tiltAmt   = wobble * 0.35;
+const axisX     = Math.sin(precAngle) * tiltAmt;
+const axisZ     = Math.cos(precAngle) * tiltAmt;
+
+// Rotation angle for spinning features
+const spinAngle = time * spinRate * 0.8;
+const cosS = Math.cos(spinAngle), sinS = Math.sin(spinAngle);
+
+let lx = 0, ly = 0, lz = 0;
+let hue = 0.0, sat = 0.0, lit = 0.0;
+
+// ── PARTICLE ROLE DISTRIBUTION ──────────────────────────────
+//  0.00–0.04  Neutron star surface (hot, tiny, dense)
+//  0.04–0.08  Hot spot emission (magnetic poles on surface)
+//  0.08–0.32  Accretion disk (logarithmic spiral infall)
+//  0.32–0.50  Magnetosphere field lines (dipole arcs)
+//  0.50–0.68  North relativistic jet
+//  0.68–0.86  South relativistic jet
+//  0.86–1.00  Interstellar medium shock / nebula halo
+
+if (u < 0.04) {
+  // ── NEUTRON STAR SURFACE ──────────────────────────────────
+  // Ultra-dense sphere, radius ~10km. Hot X-ray emitting crust.
+  // Map via Fibonacci sphere for even coverage
+  const theta  = Math.acos(1.0 - 2.0 * s1);
+  const phi    = s2 * 6.2831853;
+  const r      = scl * 0.09 * (1.0 + Math.sin(s3 * 31.4 + time * spinRate * 2.0) * 0.04);
+
+  lx = Math.sin(theta) * Math.cos(phi) * r;
+  ly = Math.cos(theta) * r;
+  lz = Math.sin(theta) * Math.sin(phi) * r;
+
+  // Surface temp map: hotter at magnetic poles
+  const poleness = Math.abs(Math.cos(theta));
+  hue = 0.05 - poleness * 0.05;  // orange → red → near-UV blue at poles
+  sat = 0.9;
+  lit = 0.4 + poleness * 0.5;
+
+} else if (u < 0.08) {
+  // ── HOT SPOTS — magnetic poles on surface ────────────────
+  // Two antipodal caps, offset from rotation axis by tiltAmt
+  const capSign  = (i % 2 === 0) ? 1.0 : -1.0;
+  const capAngle = s1 * 6.2831853;
+  const capR     = scl * 0.09;
+  const capSpread = 0.18;  // angular radius of hot spot
+
+  // Pole direction (tilted from Y axis by precession)
+  const poleX    = axisX * capSign;
+  const poleY    = capSign;
+  const poleZ    = axisZ * capSign;
+
+  // Scatter particles in a cap around the pole
+  const scatter  = s2 * capSpread;
+  const scatterA = s3 * 6.2831853;
+
+  lx = (poleX + Math.sin(scatter) * Math.cos(scatterA)) * capR;
+  ly = (poleY + Math.sin(scatter) * Math.sin(scatterA)) * capR;
+  lz = (poleZ + Math.cos(scatter)) * capR * 0.3;
+
+  // Pulsing X-ray hot spot: bright blue-white
+  const pulse = 0.6 + 0.4 * Math.sin(time * spinRate * 6.2831 + capSign);
+  hue = 0.62;
+  sat = 0.95;
+  lit = 0.5 + pulse * 0.5;
+
+} else if (u < 0.32) {
+  // ── ACCRETION DISK ────────────────────────────────────────
+  // Keplerian orbit: inner edge hot/bright, outer edge cool/dim
+  // Logarithmic radial distribution (crowded near center)
+  const diskFrac  = (u - 0.08) / 0.24;
+
+  // Log-distributed radius: inner ~0.15, outer ~2.2 scale units
+  const minR = scl * 0.14;
+  const maxR = scl * 2.2;
+  const rLog = minR * Math.pow(maxR / minR, s1);
+
+  // Keplerian angular velocity: omega ∝ r^(-3/2)
+  const omega    = diskMass * 1.4 * Math.pow(scl * 0.14 / rLog, 1.5);
+  const diskAngle = s2 * 6.2831853 + omega * time;
+
+  // Disk height: flares at outer edge (hydrostatic equilibrium)
+  const flare    = rLog * 0.035 * Math.pow(rLog / minR, 0.3);
+  const height   = (s3 - 0.5) * 2.0 * flare;
+
+  // Disk is in the X-Z plane, tilted slightly by precession
+  const flatX    = Math.cos(diskAngle) * rLog;
+  const flatZ    = Math.sin(diskAngle) * rLog;
+
+  lx = flatX;
+  ly = height + flatX * axisX * 0.08;
+  lz = flatZ;
+
+  // Temperature: T ∝ r^(-3/4) — inner disk is blue-white, outer is deep red
+  const tempFrac  = Math.pow(minR / rLog, 0.75);  // 1=inner hot, 0=outer cool
+  hue = 0.62 - tempFrac * 0.58;  // blue (0.62) → orange (0.08) → red (0.04)
+  sat = 0.85 + tempFrac * 0.15;
+  lit = 0.25 + tempFrac * 0.6;
+
+  // Spiral density waves (brightness variation)
+  const spiralWave = Math.sin(diskAngle * 3.0 - rLog * 0.3 + time * diskMass) * 0.15;
+  lit = Math.max(0.1, lit + spiralWave);
+
+} else if (u < 0.50) {
+  // ── MAGNETOSPHERE — dipole field lines ───────────────────
+  // Parametric dipole: r = r0 * sin²(lambda), traced as arcs
+  // Field lines from surface to Alfvén radius
+  const magFrac   = (u - 0.32) / 0.18;
+
+  // Which field line (each line = a bundle of particles)
+  const lineCount  = 24;
+  const lineIdx    = Math.floor(s1 * lineCount);
+  const lineT      = s2;  // 0=south pole, 1=north pole, along the arc
+
+  // Field line azimuth — co-rotates with the star
+  const lineAz    = (lineIdx / lineCount) * 6.2831853 + spinAngle;
+
+  // Dipole arc: lambda is magnetic latitude, traces from -pi/2 to pi/2
+  const lambda    = (lineT - 0.5) * Math.PI;
+  const r0        = scl * (0.18 + (lineIdx % 4) * 0.28) * magField;
+  const rArc      = r0 * Math.cos(lambda) * Math.cos(lambda);
+
+  // Polar tilt — field axis precesses
+  const arcX     = Math.sin(lineAz) * rArc;
+  const arcY     = Math.sin(lambda) * r0 * 0.9;
+  const arcZ     = Math.cos(lineAz) * rArc;
+
+  // Apply tilt around Z axis
+  lx = arcX + arcY * axisX;
+  ly = arcY + arcX * axisX * 0.3;
+  lz = arcZ + arcY * axisZ;
+
+  // Colour by field strength: strongest near poles (blue), weakest at equator (purple)
+  const fieldStr  = Math.abs(Math.sin(lambda));
+  hue = 0.7 - fieldStr * 0.15;
+  sat = 0.8 * magField;
+  lit = 0.15 + fieldStr * 0.35 * magField;
+
+} else if (u < 0.68) {
+  // ── NORTH RELATIVISTIC JET ───────────────────────────────
+  // Plasma screaming out at ~0.99c along magnetic axis
+  // Helical structure from magnetic pinch (Lorentz force)
+  const jetFrac   = (u - 0.50) / 0.18;
+
+  // Distance along jet: accelerates, then fans into lobe
+  const jDist     = Math.pow(s1, 0.6) * scl * 2.8 * jetPower;
+
+  // Helix radius grows with distance (jet widens)
+  const jRadius   = jDist * 0.065 + scl * 0.02;
+  const helixFreq = 8.0;
+  const helixAngle = s2 * 6.2831853 * helixFreq + spinAngle * 2.0 + jDist * 0.4;
+
+  // Helical position around jet axis
+  const hx       = Math.cos(helixAngle) * jRadius * (0.5 + s3 * 0.5);
+  const hz       = Math.sin(helixAngle) * jRadius * (0.5 + s3 * 0.5);
+
+  // Apply magnetic axis tilt
+  lx = hx + jDist * axisX;
+  ly = jDist;    // along Y (north)
+  lz = hz + jDist * axisZ;
+
+  // Doppler boost: jet toward viewer is brighter/bluer
+  const doppler  = 0.5 + 0.5 * Math.sin(helixAngle + time * spinRate);
+  hue = 0.58 + doppler * 0.06;
+  sat = 0.95;
+  lit = (0.3 + doppler * 0.65) * jetPower;
+
+  // Brightness pulses as jet is swept by lighthouse beam
+  const beamPhase = ((spinAngle * 0.5) % 6.2831853) / 6.2831853;
+  const beamBoost = Math.exp(-Math.pow(beamPhase - 0.5, 2) * 20.0) * 0.5;
+  lit = Math.min(1.0, lit + beamBoost);
+
+} else if (u < 0.86) {
+  // ── SOUTH JET (counter-jet, slightly dimmer — relativistic beaming) ──
+  const jetFrac   = (u - 0.68) / 0.18;
+  const jDist     = Math.pow(s1, 0.6) * scl * 2.8 * jetPower;
+  const jRadius   = jDist * 0.065 + scl * 0.02;
+  const helixAngle = s2 * 6.2831853 * 8.0 - spinAngle * 2.0 + jDist * 0.4;
+
+  const hx       = Math.cos(helixAngle) * jRadius * (0.5 + s3 * 0.5);
+  const hz       = Math.sin(helixAngle) * jRadius * (0.5 + s3 * 0.5);
+
+  lx = hx - jDist * axisX;
+  ly = -jDist;   // south
+  lz = hz - jDist * axisZ;
+
+  // Counter-jet: relativistically dimmed (receding)
+  const doppler  = 0.3 + 0.3 * Math.abs(Math.sin(helixAngle));
+  hue = 0.55;
+  sat = 0.85;
+  lit = doppler * 0.7 * jetPower;
+
+} else {
+  // ── PULSAR WIND NEBULA / SHOCK FRONT ─────────────────────
+  // Relativistic wind blows bubble in surrounding ISM
+  // Torus-shaped termination shock where wind meets nebula
+  const nebFrac   = (u - 0.86) / 0.14;
+
+  // Torus geometry: major radius R, minor radius r
+  const torusR    = scl * (1.6 + s1 * 1.2);
+  const torusr    = scl * 0.3 + s2 * scl * 0.4;
+  const torusA    = s3 * 6.2831853;      // angle around torus tube
+  const torusB    = s4 * 6.2831853;      // angle around major circle
+
+  // Torus is perpendicular to jet axis (in equatorial plane)
+  const torusX    = (torusR + torusr * Math.cos(torusA)) * Math.cos(torusB);
+  const torusY    = torusr * Math.sin(torusA) * 0.4;  // flattened
+  const torusZ    = (torusR + torusr * Math.cos(torusA)) * Math.sin(torusB);
+
+  lx = torusX;
+  ly = torusY;
+  lz = torusZ;
+
+  // Nebula glows green/teal — synchrotron radiation
+  const synchrotron = Math.sin(s1 * 12.0 + time * 0.3) * 0.5 + 0.5;
+  hue = 0.45 + synchrotron * 0.1;
+  sat = 0.7;
+  lit = 0.08 + synchrotron * 0.18;
+}
+
+target.set(lx, ly, lz);
+color.setHSL(hue, sat, Math.min(1.0, Math.max(0.0, lit)));
+`
+  },
+  {
+    name: 'QUANTUM LATTICE',
+    cam: [10, 65, 150],
+    code: `
+const gridSize = Math.floor(addControl("grid", "Grid Size", 8, 30, 18));
+const waveAmp = addControl("wave", "Wave Amplitude", 0, 15, 6);
+const waveFreq = addControl("freq", "Wave Frequency", 0.5, 5, 2.0);
+const pulse = addControl("pulse", "Pulse Energy", 0, 3, 1.0);
+const audioReact = addControl("audioreact", "Audio Reactivity", 0, 2, 1.0);
+
+const cellsPerLayer = gridSize * gridSize;
+const layer = Math.floor(i / cellsPerLayer) % gridSize;
+const cellIdx = i % cellsPerLayer;
+const gx = (cellIdx % gridSize) - gridSize / 2;
+const gz = Math.floor(cellIdx / gridSize) - gridSize / 2;
+const gy = layer - gridSize / 2;
+
+const spacing = 3.5;
+const baseX = gx * spacing;
+const baseY = gy * spacing;
+const baseZ = gz * spacing;
+
+const dist = Math.sqrt(baseX * baseX + baseY * baseY + baseZ * baseZ);
+const wavePhase = dist * 0.08 * waveFreq - time * 2.5;
+const displacement = Math.sin(wavePhase) * waveAmp * (1.0 + bass * audioReact * 0.5);
+
+const norm = dist > 0.01 ? 1.0 / dist : 0;
+const dx = baseX * norm * displacement;
+const dy = baseY * norm * displacement;
+const dz = baseZ * norm * displacement;
+
+const pulseWave = Math.pow(Math.abs(Math.sin(wavePhase * 0.5)), pulse + rms * audioReact * 2);
+
+target.set(baseX + dx, baseY + dy, baseZ + dz);
+
+const hue = (0.55 + dist * 0.008 + time * 0.03 + mids * audioReact * 0.05) % 1.0;
+const sat = 0.4 + 0.4 * pulseWave;
+const lit = 0.05 + 0.25 * pulseWave + highs * audioReact * 0.12;
+color.setHSL(hue, sat, Math.min(1.0, lit));
+
+if (i === 0) setInfo("Quantum Lattice", "3D crystal lattice with radial wave propagation. Bass drives wave amplitude, energy pulses on beat.");
+`
+  },
+  {
+    name: 'CLIFFORD TORUS',
+    cam: [15, 90, 200],
+    code: `
+const scale = addControl("scale", "Scale", 10, 80, 42);
+const speed = addControl("speed", "Rotation Speed", 0, 3, 0.9);
+const wDist = addControl("wdist", "W Distance", 1, 8, 3.2);
+const morph = addControl("morph", "Stereo Strength", 0, 1, 0.7);
+const pulse = addControl("pulse", "Pulse Depth", 0, 5, 1.8);
+const audioReact = addControl("audioreact", "Audio Reactivity", 0, 2, 1.0);
+
+const u = i / count;
+const ga = 2.399963229728653;
+const th = ga * i;
+const ph = u * Math.PI * 14.0;
+
+const r1 = 1.0 + 0.28 * Math.sin(th * 3.0 + time * pulse * 0.18) + bass * audioReact * 0.15;
+const r2 = 1.0 + 0.28 * Math.cos(ph * 1.5 - time * pulse * 0.14) + highs * audioReact * 0.1;
+
+let x4 = r1 * Math.cos(th);
+let y4 = r1 * Math.sin(th);
+let z4 = r2 * Math.cos(ph);
+let w4 = r2 * Math.sin(ph);
+
+const spd = speed + mids * audioReact * 0.5;
+
+const a1 = time * spd * 0.31;
+const c1 = Math.cos(a1), s1 = Math.sin(a1);
+let tx1 = x4 * c1 - w4 * s1; w4 = x4 * s1 + w4 * c1; x4 = tx1;
+
+const a2 = time * spd * 0.22;
+const c2 = Math.cos(a2), s2 = Math.sin(a2);
+let ty2 = y4 * c2 - z4 * s2; z4 = y4 * s2 + z4 * c2; y4 = ty2;
+
+const a3 = time * spd * 0.17;
+const c3 = Math.cos(a3), s3 = Math.sin(a3);
+let tx3 = x4 * c3 - y4 * s3; y4 = x4 * s3 + y4 * c3; x4 = tx3;
+
+const a4 = time * spd * 0.13;
+const c4 = Math.cos(a4), s4 = Math.sin(a4);
+let tz4 = z4 * c4 - w4 * s4; w4 = z4 * s4 + w4 * c4; z4 = tz4;
+
+const wInv = 1.0 / (wDist - w4 * morph);
+const wOrtho = 1.0 / wDist;
+const proj = wInv * morph + wOrtho * (1.0 - morph);
+const breathe = 1.0 + 0.06 * Math.sin(time * 1.1 + u * Math.PI * 2.0) + rms * audioReact * 0.08;
+
+target.set(x4 * proj * scale * breathe, y4 * proj * scale * breathe, z4 * proj * scale * breathe);
+
+const wNorm = 0.5 + 0.5 * Math.sin(w4 * Math.PI);
+const phase = Math.atan2(y4, x4) / (2.0 * Math.PI);
+const hue = ((0.55 + 0.30 * wNorm + 0.12 * phase) % 1.0 + 1.0) % 1.0;
+const energy = Math.max(0.0, Math.sin(w4 * Math.PI + time * 0.7));
+const sat = 0.55 + 0.45 * wNorm;
+const lit = 0.04 + 0.72 * energy * energy + rms * audioReact * 0.15;
+color.setHSL(hue, sat, Math.min(1.0, lit));
+
+if (i === 0) setInfo("4D Clifford Torus", "A torus living in 4D space, rotating through six orthogonal planes. Audio modulates rotation speed and radial breathing.");
+`
+  },
+  {
+    name: 'STRANGE ATTRACTOR',
+    cam: [8, 50, 120],
+    code: `
+const attScale = addControl("scale", "Scale", 5, 50, 22);
+const dt = addControl("dt", "Integration Step", 0.001, 0.02, 0.008);
+const morphSpeed = addControl("morph", "Morph Speed", 0, 2, 0.5);
+const colorCycle = addControl("colorcycle", "Color Cycle", 0, 1, 0.3);
+const audioReact = addControl("audioreact", "Audio Reactivity", 0, 2, 1.0);
+
+const morphT = time * morphSpeed;
+const attType = Math.floor(morphT) % 3;
+const blend = morphT % 1.0;
+const smooth = blend * blend * (3.0 - 2.0 * blend);
+
+let x = 0.1 + (i * 0.0001);
+let y = 0.0;
+let z = 0.0;
+
+const steps = 20 + Math.floor(i * 80 / count);
+
+for (let s = 0; s < steps; s++) {
+  let dx1, dy1, dz1, dx2, dy2, dz2;
+
+  const sigma = 10.0 + bass * audioReact * 3.0;
+  const rho = 28.0 + mids * audioReact * 5.0;
+  const beta = 8.0 / 3.0;
+  dx1 = sigma * (y - x);
+  dy1 = x * (rho - z) - y;
+  dz1 = x * y - beta * z;
+
+  if (attType === 0 || (attType === 2 && smooth < 0.5)) {
+    dx2 = dx1; dy2 = dy1; dz2 = dz1;
+  } else {
+    const a = 0.2 + highs * audioReact * 0.05;
+    const b = 0.2; const c = 5.7 + bass * audioReact;
+    dx2 = -(y + z);
+    dy2 = x + a * y;
+    dz2 = b + z * (x - c);
+  }
+
+  let w = 0.0;
+  if (attType === 0) w = 0.0;
+  else if (attType === 1) w = 1.0;
+  else w = smooth < 0.5 ? smooth * 2.0 : 1.0 - (smooth - 0.5) * 2.0;
+
+  const dx = dx1 * (1.0 - w) + dx2 * w;
+  const dy = dy1 * (1.0 - w) + dy2 * w;
+  const dz = dz1 * (1.0 - w) + dz2 * w;
+
+  x += dx * dt;
+  y += dy * dt;
+  z += dz * dt;
+}
+
+target.set(x * attScale / 30, y * attScale / 30, z * attScale / 30);
+
+const speed2 = Math.sqrt(x*x + y*y + z*z);
+const hue = (colorCycle * time * 0.1 + speed2 * 0.005 + i / count * 0.3) % 1.0;
+const sat = 0.5 + 0.4 * Math.min(1.0, speed2 * 0.02);
+const lit = 0.1 + 0.4 * Math.min(1.0, speed2 * 0.015) + rms * audioReact * 0.15;
+color.setHSL(hue, sat, Math.min(1.0, lit));
+
+if (i === 0) setInfo("Strange Attractor", "Lorenz-Rossler morph. Bass drives sigma and chaos parameters, creating emergent audio-reactive turbulence.");
+`
+  },
+  {
+    name: 'COSMIC JELLYFISH',
+    cam: [15, 80, 180],
+    code: `
+const bellSize = addControl("bell", "Bell Size", 10, 60, 35);
+const tentacles = Math.floor(addControl("tent", "Tentacles", 4, 16, 8));
+const tentLen = addControl("tlen", "Tentacle Length", 10, 80, 40);
+const undulate = addControl("und", "Undulation", 0.5, 5, 2.0);
+const audioReact = addControl("audioreact", "Audio Reactivity", 0, 2, 1.0);
+
+const bellParticles = Math.floor(count * 0.4);
+const tentParticles = count - bellParticles;
+
+if (i < bellParticles) {
+  const u = i / bellParticles;
+  const phi = Math.acos(1 - u);
+  const theta = 2.399963229728653 * i;
+
+  const bellPulse = 1.0 + 0.08 * Math.sin(time * undulate * 2.0 + phi * 3.0) + bass * audioReact * 0.1;
+  const r = bellSize * Math.sin(phi) * bellPulse;
+  const y = bellSize * Math.cos(phi) * 0.6 * bellPulse;
+
+  target.set(
+    Math.cos(theta) * r,
+    y + 10,
+    Math.sin(theta) * r
+  );
+
+  const hue = (0.55 + u * 0.15 + time * 0.02 + mids * audioReact * 0.04) % 1.0;
+  const biolum = Math.pow(Math.abs(Math.sin(phi * 5.0 + time * 3.0)), 6.0);
+  const lit = 0.12 + 0.3 * (1.0 - u) + 0.4 * biolum + rms * audioReact * 0.15;
+  color.setHSL(hue, 0.6 + 0.3 * biolum, Math.min(1.0, lit));
+} else {
+  const ti = i - bellParticles;
+  const tentIdx = ti % tentacles;
+  const posInTent = Math.floor(ti / tentacles) / Math.floor(tentParticles / tentacles);
+
+  const baseAngle = (tentIdx / tentacles) * Math.PI * 2.0;
+  const attachR = bellSize * 0.85;
+
+  const sway = Math.sin(time * undulate + posInTent * 4.0 + tentIdx * 0.7) * (8.0 + posInTent * 15.0);
+  const sway2 = Math.cos(time * undulate * 0.7 + posInTent * 3.0 + tentIdx * 1.3) * (5.0 + posInTent * 10.0);
+
+  const x = Math.cos(baseAngle) * attachR + sway + highs * audioReact * Math.sin(posInTent * 10.0) * 3.0;
+  const z = Math.sin(baseAngle) * attachR + sway2;
+  const y = 10 - posInTent * tentLen - Math.sin(posInTent * Math.PI) * 5.0;
+
+  target.set(x, y, z);
+
+  const hue = (0.75 + posInTent * 0.15 + tentIdx * 0.05 + time * 0.03) % 1.0;
+  const pulse = Math.pow(Math.abs(Math.sin(time * 4.0 - posInTent * 8.0)), 10.0);
+  const lit = 0.05 + 0.2 * (1.0 - posInTent) + 0.6 * pulse + bass * audioReact * pulse * 0.3;
+  color.setHSL(hue, 0.5 + 0.4 * pulse, Math.min(1.0, lit));
+}
+
+if (i === 0) setInfo("Cosmic Jellyfish", "Bioluminescent deep-sea creature. Bell contracts on bass, tentacles scatter on highs.");
+`
+  }
+];
+
+let currentSimIndex = 0;
+
+// ── State ──────────────────────────────────────────────────
+let particleCount = 20000;
+let simSpeed = 1.0;
+let glowIntensity = 0.4;
+let audioSensitivity = 1.0;
+let visualStyle = 'spark';
+
+const audio = { bass: 0, mids: 0, highs: 0, rms: 0, sBass: 0, sMids: 0, sHighs: 0, sRms: 0 };
+let analyser = null;
+let freqData = null;
+const SMOOTH = 0.45;
+
+// ── Three.js Setup ─────────────────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(0, 15, 90);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x06060c);
+document.body.appendChild(renderer.domElement);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  glowIntensity, 0.2, 0.92
+);
+composer.addPass(bloomPass);
+
+// ── Visual Style Textures ──────────────────────────────────
+// Hard-edged circle with minimal falloff = crisp like Casberry
+function createTexture(style) {
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2;
+
+  if (style === 'spark') {
+    // Hard bright dot with tight 2px soft edge
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+    g.addColorStop(0.65, 'rgba(255,255,255,0.1)');
+    g.addColorStop(0.8, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  } else if (style === 'plasma') {
+    // Slightly softer glow but still defined core
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.3, 'rgba(255,255,255,0.8)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.2)');
+    g.addColorStop(0.75, 'rgba(255,255,255,0.03)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  } else if (style === 'glass') {
+    // Hollow ring: bright edge, dim center
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.15)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.1)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.5)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.8)');
+    g.addColorStop(0.7, 'rgba(255,255,255,0.2)');
+    g.addColorStop(0.85, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  } else if (style === 'ink') {
+    // Solid opaque circle, very hard edge
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+  } else { // steel
+    // Tiny pinpoint: almost no falloff
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.25, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.02)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+
+// ── Instanced Mesh Particle System ─────────────────────────
+const dummy = new THREE.Object3D();
+const particleGeo = new THREE.PlaneGeometry(1, 1);
+let instancedMesh = null;
+const colorArray = [];
+const targetVec = new THREE.Vector3();
+const colorObj = new THREE.Color();
+
+// Point-based system (simpler, great performance)
+let pointGeo, pointMat, pointMesh;
+let positions, colors;
+
+function buildParticleSystem() {
+  if (pointMesh) { scene.remove(pointMesh); pointGeo.dispose(); pointMat.dispose(); }
+
+  positions = new Float32Array(particleCount * 3);
+  colors = new Float32Array(particleCount * 3);
+
+  pointGeo = new THREE.BufferGeometry();
+  pointGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  pointGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const sizes = { spark: 0.45, plasma: 0.55, glass: 0.5, ink: 0.35, steel: 0.3 };
+  const opacities = { spark: 0.85, plasma: 0.7, glass: 0.55, ink: 0.9, steel: 0.9 };
+  pointMat = new THREE.PointsMaterial({
+    size: sizes[visualStyle] || 0.45,
+    map: createTexture(visualStyle),
+    vertexColors: true,
+    transparent: true,
+    opacity: opacities[visualStyle] || 0.85,
+    depthWrite: false,
+    blending: visualStyle === 'ink' ? THREE.NormalBlending : THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+
+  pointMesh = new THREE.Points(pointGeo, pointMat);
+  scene.add(pointMesh);
+}
+
+buildParticleSystem();
+
+// ── Simulation Compiler ────────────────────────────────────
+let compiledSim = null;
+let simControls = {};
+const simControlsEl = document.getElementById('sim-controls');
+
+function addControl(id, label, min, max, initial) {
+  if (!(id in simControls)) {
+    simControls[id] = initial;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ctrl-slider';
+    wrapper.innerHTML = `<label>${label} <span id="simval-${id}">${initial.toFixed(1)}</span></label>
+      <input type="range" id="simctrl-${id}" min="${min}" max="${max}" step="${(max-min)/200}" value="${initial}">`;
+    simControlsEl.appendChild(wrapper);
+    const input = wrapper.querySelector('input');
+    const valSpan = wrapper.querySelector('span');
+    input.addEventListener('input', () => {
+      simControls[id] = parseFloat(input.value);
+      valSpan.textContent = simControls[id].toFixed(1);
+    });
+  }
+  return simControls[id];
+}
+
+function setInfo(title, desc) {
+  document.getElementById('hud-title').textContent = title;
+  document.getElementById('hud-desc').textContent = desc;
+}
+
+function annotate() {} // no-op for now
+
+function compileSim(code) {
+  simControlsEl.innerHTML = '';
+  simControls = {};
+
+  // Pre-run once to register controls
+  try {
+    const preRun = new Function('i', 'count', 'target', 'color', 'time', 'THREE',
+      'addControl', 'setInfo', 'annotate', 'bass', 'mids', 'highs', 'rms', code);
+    preRun(0, particleCount, targetVec, colorObj, 0, THREE, addControl, setInfo, annotate, 0, 0, 0, 0);
+  } catch (e) {
+    console.warn('Sim pre-run error:', e);
+  }
+
+  // Compile the real function
+  compiledSim = new Function('i', 'count', 'target', 'color', 'time', 'THREE',
+    'addControl', 'setInfo', 'annotate', 'bass', 'mids', 'highs', 'rms', code);
+}
+
+function loadSim(index) {
+  currentSimIndex = index;
+  const sim = SIMULATIONS[index];
+  document.getElementById('sim-name').textContent = sim.name;
+  setCameraForSim(sim);
+  compileSim(sim.code);
+}
+
+// ── Audio Setup ────────────────────────────────────────────
+async function initAudio() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.25;
+    source.connect(analyser);
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+  } catch (e) {
+    console.warn('Microphone access denied');
+  }
+}
+
+function updateAudio() {
+  if (!analyser || !freqData) return;
+  analyser.getByteFrequencyData(freqData);
+
+  let bassSum = 0;
+  for (let i = 0; i < 10; i++) bassSum += freqData[i];
+  audio.bass = bassSum / (10 * 255);
+
+  let midSum = 0;
+  for (let i = 10; i < 100; i++) midSum += freqData[i];
+  audio.mids = midSum / (90 * 255);
+
+  let highSum = 0;
+  for (let i = 100; i < 512; i++) highSum += freqData[i];
+  audio.highs = highSum / (412 * 255);
+
+  let rmsSum = 0;
+  for (let i = 0; i < 512; i++) rmsSum += (freqData[i] / 255) ** 2;
+  audio.rms = Math.sqrt(rmsSum / 512);
+
+  audio.sBass  += (audio.bass  - audio.sBass)  * SMOOTH;
+  audio.sMids  += (audio.mids  - audio.sMids)  * SMOOTH;
+  audio.sHighs += (audio.highs - audio.sHighs) * SMOOTH;
+  audio.sRms   += (audio.rms   - audio.sRms)   * SMOOTH;
+}
+
+// ── UI Wiring ──────────────────────────────────────────────
+const overlay = document.getElementById('overlay');
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggle-sidebar');
+const helpBtn = document.getElementById('help-btn');
+const helpTooltip = document.getElementById('help-tooltip');
+let started = false;
+
+overlay.addEventListener('click', async () => {
+  if (started) return;
+  started = true;
+  overlay.classList.add('hidden');
+  await initAudio();
+  loadSim(0);
+  // Auto-detect song after mic is warmed up (Pro users only)
+  setTimeout(async () => {
+    await checkProStatus();
+    if (isPro && !hasAutoDetected) {
+      hasAutoDetected = true;
+      autoDetectSong(true);
+    }
+  }, 3000);
+});
+
+// Navigation
+document.getElementById('prev-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  loadSim((currentSimIndex - 1 + SIMULATIONS.length) % SIMULATIONS.length);
+});
+document.getElementById('next-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  loadSim((currentSimIndex + 1) % SIMULATIONS.length);
+});
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  if (!started) return;
+  if (e.key === 'ArrowRight') loadSim((currentSimIndex + 1) % SIMULATIONS.length);
+  else if (e.key === 'ArrowLeft') loadSim((currentSimIndex - 1 + SIMULATIONS.length) % SIMULATIONS.length);
+  else if (e.key === ' ') {
+    e.preventDefault();
+    let idx; do { idx = Math.floor(Math.random() * SIMULATIONS.length); } while (idx === currentSimIndex);
+    loadSim(idx);
+  }
+  else if (e.key === 'Tab') { e.preventDefault(); toggleBtn.click(); }
+  else if (e.key === 'a' || e.key === 'A') {
+    autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
+  }
+  else if (e.key === 'l' || e.key === 'L') {
+    // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
+    if (lyricsActive) {
+      lyricsVisible = !lyricsVisible;
+      lyricsToggleBtn.textContent = lyricsVisible ? 'Hide' : 'Show';
+      lyricsToggleBtn.classList.toggle('active', lyricsVisible);
+      if (!lyricsVisible) { lyricBlendTarget = 0; }
+    } else if (!sidebar.classList.contains('open')) {
+      sidebar.classList.add('open');
+      toggleBtn.textContent = 'x';
+      setTimeout(() => lyricsSearchInput.focus(), 100);
+    }
+  }
+});
+
+// Auto-rotate button
+document.getElementById('auto-rotate-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
+});
+
+// Click canvas no longer advances sim (this is a listening app)
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Sidebar
+toggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  sidebar.classList.toggle('open');
+  toggleBtn.textContent = sidebar.classList.contains('open') ? 'x' : '+';
+});
+
+// System controls
+document.getElementById('ctrl-particles').addEventListener('input', (e) => {
+  particleCount = parseInt(e.target.value);
+  document.getElementById('val-particles').textContent = particleCount;
+  buildParticleSystem();
+  loadSim(currentSimIndex);
+});
+
+document.getElementById('ctrl-speed').addEventListener('input', (e) => {
+  simSpeed = parseFloat(e.target.value);
+  document.getElementById('val-speed').textContent = simSpeed.toFixed(1);
+});
+
+document.getElementById('ctrl-glow').addEventListener('input', (e) => {
+  glowIntensity = parseFloat(e.target.value);
+  document.getElementById('val-glow').textContent = glowIntensity.toFixed(1);
+  bloomPass.strength = glowIntensity;
+});
+
+document.getElementById('ctrl-sensitivity').addEventListener('input', (e) => {
+  audioSensitivity = parseFloat(e.target.value);
+  document.getElementById('val-sensitivity').textContent = audioSensitivity.toFixed(1);
+});
+
+// Visual style list
+document.querySelectorAll('.style-option').forEach(opt => {
+  opt.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    visualStyle = opt.dataset.style;
+    buildParticleSystem();
+  });
+});
+
+// Camera controls
+let camSpeedMult = 1.0;
+let camMinOverride = null;
+let camMaxOverride = null;
+
+document.getElementById('ctrl-cam-speed').addEventListener('input', (e) => {
+  camSpeedMult = parseFloat(e.target.value);
+  document.getElementById('val-cam-speed').textContent = camSpeedMult.toFixed(1);
+});
+
+document.getElementById('ctrl-cam-min').addEventListener('input', (e) => {
+  camMinOverride = parseInt(e.target.value);
+  document.getElementById('val-cam-min').textContent = camMinOverride;
+});
+
+document.getElementById('ctrl-cam-max').addEventListener('input', (e) => {
+  camMaxOverride = parseInt(e.target.value);
+  document.getElementById('val-cam-max').textContent = camMaxOverride;
+});
+
+// Auto shuffle chip in sidebar
+const autoShuffleChip = document.getElementById('auto-shuffle-chip');
+const shuffleIntervalRow = document.getElementById('shuffle-interval-row');
+
+autoShuffleChip.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (autoRotateEnabled) {
+    stopAutoRotate();
+    autoShuffleChip.textContent = 'Auto Shuffle: Off';
+    autoShuffleChip.classList.remove('active');
+    shuffleIntervalRow.style.display = 'none';
+  } else {
+    startAutoRotate();
+    autoShuffleChip.textContent = 'Auto Shuffle: On';
+    autoShuffleChip.classList.add('active');
+    shuffleIntervalRow.style.display = 'block';
+  }
+});
+
+document.getElementById('ctrl-shuffle-interval').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('val-shuffle-interval').textContent = val;
+  // Update the constant (it's a let now)
+  autoRotateIntervalOverride = val;
+});
+
+// Help
+helpBtn.addEventListener('mouseenter', () => helpTooltip.classList.add('visible'));
+helpBtn.addEventListener('mouseleave', () => helpTooltip.classList.remove('visible'));
+helpBtn.addEventListener('click', (e) => { e.stopPropagation(); helpTooltip.classList.toggle('visible'); });
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Cinematic Camera ───────────────────────────────────────
+// Per-sim camera distances, smoothly interpolated on sim change.
+let camDistMin = 12, camDistMax = 140, camDistCenter = 65;
+let camTargetMin = 12, camTargetMax = 140, camTargetCenter = 65;
+
+const CAM_SPEEDS = {
+  orbit:     0.13,
+  pitch:     0.089,
+  distance:  0.047,
+  drift:     0.031,
+  lookShift: 0.023,
+};
+
+function setCameraForSim(sim) {
+  const c = sim.cam || [12, 65, 140];
+  camTargetMin = c[0];
+  camTargetCenter = c[1];
+  camTargetMax = c[2];
+  // Reset overrides so each sim uses its own defaults (user can still adjust)
+  camMinOverride = null;
+  camMaxOverride = null;
+  // Update sidebar sliders to reflect new sim defaults
+  const minSlider = document.getElementById('ctrl-cam-min');
+  const maxSlider = document.getElementById('ctrl-cam-max');
+  if (minSlider) { minSlider.value = c[0]; document.getElementById('val-cam-min').textContent = c[0]; }
+  if (maxSlider) { maxSlider.value = c[2]; document.getElementById('val-cam-max').textContent = c[2]; }
+}
+
+function updateCinematicCamera(t, bass, rms) {
+  // Use overrides if user has set them, otherwise use per-sim values
+  const effMin = camMinOverride !== null ? camMinOverride : camTargetMin;
+  const effMax = camMaxOverride !== null ? camMaxOverride : camTargetMax;
+  const effCenter = (effMin + effMax) * 0.45;
+
+  // Smoothly lerp toward effective targets
+  camDistMin += (effMin - camDistMin) * 0.02;
+  camDistMax += (effMax - camDistMax) * 0.02;
+  camDistCenter += (effCenter - camDistCenter) * 0.02;
+
+  // Apply speed multiplier to all camera motion
+  const s = typeof camSpeedMult !== 'undefined' ? camSpeedMult : 1.0;
+
+  const theta = t * CAM_SPEEDS.orbit * s + Math.sin(t * CAM_SPEEDS.drift * 1.618 * s) * 0.4;
+
+  const phi = Math.PI * 0.5
+    + Math.sin(t * CAM_SPEEDS.pitch * s) * 0.55
+    + Math.sin(t * CAM_SPEEDS.pitch * 2.236 * s) * 0.15;
+
+  const breathe = Math.sin(t * CAM_SPEEDS.distance * s) * 0.5
+    + Math.sin(t * CAM_SPEEDS.distance * 1.732 * s) * 0.3
+    + Math.sin(t * CAM_SPEEDS.distance * 3.317 * s) * 0.2;
+  const bassDrift = bass * 15;
+  const range = camDistMax - camDistMin;
+  const dist = camDistCenter + breathe * range * 0.5 - bassDrift;
+  const clampedDist = Math.max(camDistMin, Math.min(camDistMax, dist));
+
+  camera.position.x = clampedDist * Math.sin(phi) * Math.sin(theta);
+  camera.position.y = clampedDist * Math.cos(phi);
+  camera.position.z = clampedDist * Math.sin(phi) * Math.cos(theta);
+
+  const lookX = Math.sin(t * CAM_SPEEDS.lookShift * 1.414 * s) * 3;
+  const lookY = Math.sin(t * CAM_SPEEDS.lookShift * 2.449 * s) * 2;
+  const lookZ = Math.cos(t * CAM_SPEEDS.lookShift * 1.732 * s) * 2;
+  camera.lookAt(lookX, lookY, lookZ);
+}
+
+// ── Text-to-Particle Sampling ──────────────────────────────
+const LYRIC_PARTICLE_RATIO = 0.35;
+let lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
+const textCanvas = document.createElement('canvas');
+const textCtx = textCanvas.getContext('2d', { willReadFrequently: true });
+textCanvas.width = 512;
+textCanvas.height = 128;
+
+let textTargets = new Float32Array(lyricParticleCount * 3);
+let lyricBlend = 0; // 0 = all sim, 1 = all text
+let lyricBlendTarget = 0;
+let lastLyricIdx = -1;
+
+function sampleTextPositions(text) {
+  const w = textCanvas.width, h = textCanvas.height;
+  lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
+  textTargets = new Float32Array(lyricParticleCount * 3);
+
+  textCtx.clearRect(0, 0, w, h);
+  textCtx.fillStyle = '#fff';
+  textCtx.textAlign = 'center';
+  textCtx.textBaseline = 'middle';
+
+  let fontSize = 64;
+  textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
+  let metrics = textCtx.measureText(text);
+  while (metrics.width > w * 0.9 && fontSize > 16) {
+    fontSize -= 2;
+    textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
+    metrics = textCtx.measureText(text);
+  }
+
+  textCtx.fillText(text, w / 2, h / 2);
+
+  const imageData = textCtx.getImageData(0, 0, w, h);
+  const pixels = imageData.data;
+  const filledPixels = [];
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
+      const idx = (y * w + x) * 4;
+      if (pixels[idx + 3] > 128) {
+        filledPixels.push([(x - w / 2) * 0.18, -(y - h / 2) * 0.18]);
+      }
+    }
+  }
+
+  for (let i = 0; i < lyricParticleCount; i++) {
+    if (filledPixels.length === 0) {
+      textTargets[i * 3] = 0; textTargets[i * 3 + 1] = 0; textTargets[i * 3 + 2] = 0;
+      continue;
+    }
+    const pi = i % filledPixels.length;
+    const px = filledPixels[pi];
+    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.12;
+    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.12;
+    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
+  }
+}
+
+// ── Lyrics System ──────────────────────────────────────────
+let lyricsData = []; // [{time: seconds, text: "line"}, ...]
+let lyricsActive = false;
+let lyricsVisible = false;
+let lyricsStartTime = 0;
+let lyricsOffset = 0;
+let lyricsTrackName = '';
+let searchDebounce = null;
+
+const lyricsTrackInfo = document.getElementById('lyrics-track-info');
+const lyricsToggleBtn = document.getElementById('lyrics-toggle-btn');
+const lyricsTrackLabel = document.getElementById('lyrics-track-label');
+const lyricsSearchInput = document.getElementById('lyrics-search-input');
+const lyricsResults = document.getElementById('lyrics-results');
+const lyricsStatus = document.getElementById('lyrics-status');
+const lyricsTimingControls = document.getElementById('lyrics-timing-controls');
+
+// Parse LRC format: [mm:ss.xx]text
+function parseLRC(lrc) {
+  const lines = lrc.split('\n');
+  const result = [];
+  for (const line of lines) {
+    const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
+    if (match) {
+      const mins = parseInt(match[1]);
+      const secs = parseInt(match[2]);
+      const ms = parseInt(match[3].padEnd(3, '0'));
+      const time = mins * 60 + secs + ms / 1000;
+      const text = match[4].trim();
+      if (text) result.push({ time, text });
+    }
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
+
+// Search LRCLIB
+async function searchLyrics(query) {
+  if (!query || query.length < 2) { lyricsResults.innerHTML = ''; lyricsStatus.textContent = ''; return; }
+  lyricsStatus.textContent = 'Searching...';
+  lyricsResults.innerHTML = '';
+
+  try {
+    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+
+    if (data.length === 0) {
+      lyricsStatus.textContent = 'No results found. Try a different search.';
+      return;
+    }
+
+    lyricsStatus.textContent = `${data.length} result${data.length > 1 ? 's' : ''}`;
+
+    // Show up to 8 results, prioritize those with synced lyrics
+    const sorted = data.sort((a, b) => {
+      const aSync = a.syncedLyrics ? 1 : 0;
+      const bSync = b.syncedLyrics ? 1 : 0;
+      return bSync - aSync;
+    }).slice(0, 8);
+
+    for (const track of sorted) {
+      const el = document.createElement('div');
+      el.className = 'lyrics-result';
+      const hasSynced = !!track.syncedLyrics;
+      el.innerHTML = `
+        <div class="lyrics-result-title">${track.trackName || 'Unknown'}</div>
+        <div class="lyrics-result-artist">${track.artistName || 'Unknown artist'}${track.albumName ? ' -- ' + track.albumName : ''}</div>
+        ${hasSynced ? '<div class="lyrics-result-badge">synced</div>' : '<div class="lyrics-result-badge" style="color:rgba(200,180,100,0.4)">plain text only</div>'}
+      `;
+      el.addEventListener('click', () => loadTrackLyrics(track));
+      lyricsResults.appendChild(el);
+    }
+  } catch (e) {
+    lyricsStatus.textContent = 'Search error. Check connection.';
+    console.warn('LRCLIB search error:', e);
+  }
+}
+
+function loadTrackLyrics(track) {
+  if (track.syncedLyrics) {
+    lyricsData = parseLRC(track.syncedLyrics);
+  } else if (track.plainLyrics) {
+    const lines = track.plainLyrics.split('\n').filter(l => l.trim());
+    lyricsData = lines.map((text, idx) => ({ time: idx * 3, text: text.trim() }));
+  } else {
+    lyricsStatus.textContent = 'No lyrics available for this track.';
+    return;
+  }
+
+  lyricsTrackName = `${track.trackName} -- ${track.artistName}`;
+  lyricsTrackLabel.textContent = lyricsTrackName;
+  lyricsTrackInfo.textContent = lyricsTrackName;
+  lyricsTrackInfo.classList.add('visible');
+  lyricsOffset = 0;
+  document.getElementById('lyrics-offset-val').textContent = '0.0s';
+  lyricsStartTime = performance.now() / 1000;
+  lyricsActive = true;
+  lyricsVisible = true;
+  lastLyricIdx = -1;
+  lyricBlend = 0;
+  lyricBlendTarget = 0;
+  lyricsToggleBtn.classList.add('active');
+  lyricsToggleBtn.textContent = 'Hide';
+  lyricsTimingControls.style.display = 'block';
+  lyricsResults.innerHTML = '';
+  lyricsStatus.textContent = `${lyricsData.length} lines loaded`;
+}
+
+// ── Smart Song Detection (via /api/detect proxy) ───────────
+// Auto-detects on startup if Pro, re-detects on silence (song change).
+// No polling. Minimal API calls. AudD key is server-side only.
+let userSession = JSON.parse(localStorage.getItem('mp_session') || 'null');
+let isPro = false;
+
+async function checkProStatus() {
+  if (!userSession) return false;
+  try {
+    const res = await fetch(`/api/subscription-status?user_id=${userSession.user_id}`);
+    const data = await res.json();
+    isPro = data.isPro === true;
+    return isPro;
+  } catch (e) { return false; }
+}
+
+// Check on load
+checkProStatus();
+let isDetecting = false;
+let lastDetectedTitle = '';
+let silenceFrames = 0;
+const SILENCE_THRESHOLD = 0.02;
+const SILENCE_FRAMES_TO_REDETECT = 300;
+let hasAutoDetected = false;
+
+const detectBtn = document.getElementById('detect-btn');
+const detectStatus = document.getElementById('detect-status');
+const syncStatus = document.getElementById('sync-status');
+const lyricsNotify = document.getElementById('lyrics-notify');
+const lyricsNotifyText = document.getElementById('lyrics-notify-text');
+const lyricsNotifyBtn = document.getElementById('lyrics-notify-btn');
+const lyricsNotifyDismiss = document.getElementById('lyrics-notify-dismiss');
+
+let pendingLyricsTrack = null;
+let pendingTimecode = 0;
+
+function recordAudioClip(durationMs) {
+  return new Promise((resolve, reject) => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(micStream => {
+      const recorder = new MediaRecorder(micStream, { mimeType: 'audio/webm' });
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
+      recorder.start();
+      setTimeout(() => recorder.stop(), durationMs);
+    }).catch(reject);
+  });
+}
+
+function parseTimecode(tc) {
+  if (!tc) return 0;
+  const parts = tc.split(':').map(Number);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
+
+function showLyricsNotification(title, artist) {
+  lyricsNotifyText.textContent = `${title} -- ${artist}`;
+  lyricsNotify.classList.add('visible');
+}
+
+function hideLyricsNotification() {
+  lyricsNotify.classList.remove('visible');
+}
+
+function showProPrompt() {
+  // Show upgrade notification for free users
+  lyricsNotifyText.textContent = 'Particle lyrics are a Pro feature';
+  lyricsNotifyBtn.textContent = 'Get Pro';
+  lyricsNotifyBtn.onclick = () => { window.location.href = '/#pricing'; };
+  lyricsNotify.classList.add('visible');
+}
+
+async function autoDetectSong(silent) {
+  if (isDetecting) return;
+
+  // Pro check: detection requires Pro subscription
+  if (!isPro) {
+    if (!silent) showProPrompt();
+    return;
+  }
+
+  if (!userSession) {
+    if (!silent) detectStatus.textContent = 'Sign in to use song detection';
+    return;
+  }
+
+  isDetecting = true;
+
+  if (!silent) {
+    detectBtn.textContent = 'Listening...';
+    detectStatus.textContent = 'Recording...';
+  }
+
+  try {
+    const audioBlob = await recordAudioClip(5000);
+    if (!silent) detectStatus.textContent = 'Identifying...';
+
+    // Send to our server proxy (AudD key stays server-side)
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'sample.webm');
+
+    const res = await fetch('/api/detect', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${userSession.access_token}` },
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (data.error === 'pro_required') {
+      showProPrompt();
+      return;
+    }
+
+    if (data.song) {
+      const { title, artist, timecode } = data.song;
+      const detectedSeconds = parseTimecode(timecode);
+
+      if (title === lastDetectedTitle && lyricsActive) {
+        if (!silent) detectStatus.textContent = `Already synced to "${title}"`;
+        return;
+      }
+
+      // Server already fetched lyrics for us
+      if (data.lyrics && data.lyrics.syncedLyrics) {
+        pendingLyricsTrack = data.lyrics;
+        pendingTimecode = detectedSeconds;
+        lastDetectedTitle = title;
+        lyricsNotifyBtn.textContent = 'Enable';
+        lyricsNotifyBtn.onclick = () => enablePendingLyrics();
+        showLyricsNotification(title, artist);
+        if (!silent) detectStatus.textContent = `Found: ${title}`;
+      } else {
+        if (!silent) detectStatus.textContent = title
+          ? `"${title}" detected, no synced lyrics available`
+          : 'Could not identify song';
+      }
+    } else {
+      if (!silent) detectStatus.textContent = 'No song detected';
+    }
+  } catch (e) {
+    if (!silent) detectStatus.textContent = 'Detection failed';
+    console.warn('Detect error:', e);
+  } finally {
+    isDetecting = false;
+    detectBtn.textContent = 'Detect Song';
+  }
+}
+
+function enablePendingLyrics() {
+  if (!pendingLyricsTrack) return;
+  loadTrackLyrics(pendingLyricsTrack);
+
+  // Auto-set offset from timecode
+  // Recording took ~5s, API took ~2s, so song is ~7s ahead of when we started recording
+  const processingDelay = 7;
+  lyricsOffset = pendingTimecode + processingDelay;
+  lyricsStartTime = performance.now() / 1000;
+  document.getElementById('lyrics-offset-val').textContent = '0.0s';
+  if (syncStatus) syncStatus.textContent = `Synced at ${Math.floor(pendingTimecode / 60)}:${String(Math.floor(pendingTimecode % 60)).padStart(2, '0')}`;
+
+  hideLyricsNotification();
+  pendingLyricsTrack = null;
+}
+
+// Silence detection: if audio goes quiet for ~5 seconds, re-detect (song probably changed)
+function checkForSilence(currentRms) {
+  if (!isPro || isDetecting) return;
+
+  if (currentRms < SILENCE_THRESHOLD) {
+    silenceFrames++;
+    if (silenceFrames === SILENCE_FRAMES_TO_REDETECT && lyricsActive) {
+      // Silence detected, song likely changed
+      clearLyrics();
+      silenceFrames = SILENCE_FRAMES_TO_REDETECT + 1; // prevent re-triggering
+      // Wait 3 seconds for new song to start, then detect
+      setTimeout(() => {
+        silenceFrames = 0;
+        autoDetectSong(true);
+      }, 3000);
+    }
+  } else {
+    silenceFrames = 0;
+  }
+}
+
+// Notification bar: enable button loads lyrics
+lyricsNotifyBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  enablePendingLyrics();
+});
+lyricsNotifyDismiss.addEventListener('click', (e) => {
+  e.stopPropagation();
+  hideLyricsNotification();
+  pendingLyricsTrack = null;
+});
+
+// Manual detect button still works
+detectBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  autoDetectSong(false);
+});
+
+function updateLyrics() {
+  if (!lyricsActive || lyricsData.length === 0 || !lyricsVisible) {
+    lyricBlendTarget = 0;
+    return;
+  }
+
+  const now = performance.now() / 1000 - lyricsStartTime + lyricsOffset;
+
+  // Find current line
+  let currentIdx = -1;
+  for (let i = lyricsData.length - 1; i >= 0; i--) {
+    if (now >= lyricsData[i].time) { currentIdx = i; break; }
+  }
+
+  if (currentIdx >= 0 && currentIdx !== lastLyricIdx) {
+    // New lyric line: sample text, trigger scatter then reform
+    lastLyricIdx = currentIdx;
+    sampleTextPositions(lyricsData[currentIdx].text);
+    lyricBlendTarget = 0; // scatter first
+    setTimeout(() => { lyricBlendTarget = 1; }, 300); // reform after 300ms
+  } else if (currentIdx < 0) {
+    lyricBlendTarget = 0;
+  }
+}
+
+function clearLyrics() {
+  lyricsData = [];
+  lyricsActive = false;
+  lyricsVisible = false;
+  lyricBlend = 0;
+  lyricBlendTarget = 0;
+  lastLyricIdx = -1;
+  lyricsTrackInfo.classList.remove('visible');
+  lyricsToggleBtn.classList.remove('active');
+  lyricsToggleBtn.textContent = 'Show';
+  lyricsTrackLabel.textContent = 'No track loaded';
+  lyricsTimingControls.style.display = 'none';
+}
+
+// Toggle lyrics visibility
+lyricsToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!lyricsActive) return;
+  lyricsVisible = !lyricsVisible;
+  lyricsToggleBtn.textContent = lyricsVisible ? 'Hide' : 'Show';
+  lyricsToggleBtn.classList.toggle('active', lyricsVisible);
+  if (!lyricsVisible) { lyricBlendTarget = 0; }
+});
+
+// Search input (inline in sidebar)
+lyricsSearchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => searchLyrics(lyricsSearchInput.value), 400);
+});
+lyricsSearchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { clearTimeout(searchDebounce); searchLyrics(lyricsSearchInput.value); }
+  e.stopPropagation();
+});
+
+// Timing offset
+document.getElementById('lyrics-earlier').addEventListener('click', (e) => {
+  e.stopPropagation();
+  lyricsOffset -= 0.5;
+  document.getElementById('lyrics-offset-val').textContent = lyricsOffset.toFixed(1) + 's';
+});
+document.getElementById('lyrics-later').addEventListener('click', (e) => {
+  e.stopPropagation();
+  lyricsOffset += 0.5;
+  document.getElementById('lyrics-offset-val').textContent = lyricsOffset.toFixed(1) + 's';
+});
+document.getElementById('lyrics-clear-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearLyrics();
+});
+
+// ── Auto-Rotate Mode ───────────────────────────────────────
+// Shuffles through simulations with smooth cross-fade transitions.
+let autoRotateEnabled = false;
+let autoRotateTimer = 0;
+let autoRotateIntervalOverride = 25;
+const CROSSFADE_DURATION = 2.5; // seconds for transition
+let crossfadeProgress = 1; // 1 = fully showing current sim
+let crossfadeDirection = 0; // 0 = none, 1 = fading out, 2 = fading in
+let pendingSimIndex = -1;
+
+function startAutoRotate() {
+  autoRotateEnabled = true;
+  autoRotateTimer = 0;
+  document.getElementById('auto-rotate-btn').classList.add('active');
+  // Sync sidebar chip
+  const chip = document.getElementById('auto-shuffle-chip');
+  if (chip) { chip.textContent = 'Auto Shuffle: On'; chip.classList.add('active'); }
+  const row = document.getElementById('shuffle-interval-row');
+  if (row) row.style.display = 'block';
+}
+
+function stopAutoRotate() {
+  autoRotateEnabled = false;
+  document.getElementById('auto-rotate-btn').classList.remove('active');
+  const chip = document.getElementById('auto-shuffle-chip');
+  if (chip) { chip.textContent = 'Auto Shuffle: Off'; chip.classList.remove('active'); }
+  const row = document.getElementById('shuffle-interval-row');
+  if (row) row.style.display = 'none';
+}
+
+function triggerAutoTransition() {
+  // Pick a random next sim
+  let idx;
+  do { idx = Math.floor(Math.random() * SIMULATIONS.length); } while (idx === currentSimIndex);
+  pendingSimIndex = idx;
+  crossfadeDirection = 1; // start fading out
+  crossfadeProgress = 1;
+}
+
+function updateAutoRotate(dt) {
+  if (!autoRotateEnabled) return;
+
+  if (crossfadeDirection === 0) {
+    // Counting down to next transition
+    autoRotateTimer += dt;
+    if (autoRotateTimer >= autoRotateIntervalOverride) {
+      autoRotateTimer = 0;
+      triggerAutoTransition();
+    }
+  } else if (crossfadeDirection === 1) {
+    // Fading out current sim (zoom in close as it fades)
+    crossfadeProgress -= dt / CROSSFADE_DURATION;
+    if (crossfadeProgress <= 0) {
+      crossfadeProgress = 0;
+      // Switch sim at the crossover point
+      loadSim(pendingSimIndex);
+      crossfadeDirection = 2; // start fading in
+    }
+  } else if (crossfadeDirection === 2) {
+    // Fading in new sim (emerge from inside)
+    crossfadeProgress += dt / CROSSFADE_DURATION;
+    if (crossfadeProgress >= 1) {
+      crossfadeProgress = 1;
+      crossfadeDirection = 0;
+    }
+  }
+}
+
+function getCrossfadeOpacity() {
+  if (crossfadeDirection === 0) return 1;
+  // Smooth ease: quick fade at edges, slow in middle
+  return Math.pow(crossfadeProgress, 0.8);
+}
+
+// ── Animation Loop ─────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  updateAudio();
+
+  if (!compiledSim) { composer.render(); return; }
+
+  const dt = clock.getDelta() * simSpeed;
+  const elapsed = clock.getElapsedTime() * simSpeed;
+  const bass = audio.sBass * audioSensitivity;
+  const mids = audio.sMids * audioSensitivity;
+  const highs = audio.sHighs * audioSensitivity;
+  const rms = audio.sRms * audioSensitivity;
+
+  // Auto-rotate between sims
+  updateAutoRotate(dt);
+  const fadeOpacity = getCrossfadeOpacity();
+
+  // Update audio bars
+  document.getElementById('bar-bass').style.height = (2 + bass * 18) + 'px';
+  document.getElementById('bar-mid').style.height = (2 + mids * 18) + 'px';
+  document.getElementById('bar-high').style.height = (2 + highs * 18) + 'px';
+
+  // Smooth lyric blend
+  lyricBlend += (lyricBlendTarget - lyricBlend) * 0.06;
+  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.95; // decay if hidden
+
+  // Run simulation for each particle
+  const pos = pointGeo.attributes.position.array;
+  const col = pointGeo.attributes.color.array;
+
+  for (let i = 0; i < particleCount; i++) {
+    try {
+      compiledSim(i, particleCount, targetVec, colorObj, elapsed, THREE,
+        addControl, setInfo, annotate, bass, mids, highs, rms);
+    } catch (e) {
+      if (i === 0) console.warn('Sim error:', e);
+      targetVec.set(0, 0, 0);
+      colorObj.setHSL(0, 0, 0.1);
+    }
+
+    let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
+    let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
+
+    // Particle text blending
+    if (lb > 0.01 && i < lyricParticleCount) {
+      const tx = textTargets[i * 3];
+      const ty = textTargets[i * 3 + 1];
+      const tz = textTargets[i * 3 + 2];
+
+      // Some particles (every 5th) orbit around their text position instead of locking
+      const isOrbiter = (i % 5 === 0);
+      let finalTx = tx, finalTy = ty, finalTz = tz;
+      if (isOrbiter) {
+        const orbitR = 1.2 + Math.sin(i * 0.7) * 0.5;
+        const orbitA = elapsed * 2.0 + i * 0.3;
+        finalTx = tx + Math.cos(orbitA) * orbitR;
+        finalTy = ty + Math.sin(orbitA * 1.3) * orbitR * 0.6;
+        finalTz = tz + Math.sin(orbitA * 0.7) * orbitR;
+      }
+
+      fx = fx * (1 - lb) + finalTx * lb;
+      fy = fy * (1 - lb) + finalTy * lb;
+      fz = fz * (1 - lb) + finalTz * lb;
+
+      // Text particles: boost brightness per visual style for cohesiveness.
+      // Each style has different opacity/blending, so text needs different treatment.
+      const styleBoosts = { spark: 2.0, plasma: 1.6, glass: 1.3, ink: 2.5, steel: 3.0 };
+      const baseBoost = styleBoosts[visualStyle] || 2.0;
+      const pulse = 0.25 * Math.sin(elapsed * 3 + i * 0.01);
+      const boost = baseBoost + pulse;
+
+      // For ink (normal blending, opaque), push toward white for contrast
+      // For glass (translucent), keep colors softer
+      // For steel (tiny dots), push very bright since dots are small
+      const tr = Math.min(1.0, cr * boost);
+      const tg = Math.min(1.0, cg * boost);
+      const tb = Math.min(1.0, cb * boost);
+
+      cr = cr * (1 - lb) + tr * lb;
+      cg = cg * (1 - lb) + tg * lb;
+      cb = cb * (1 - lb) + tb * lb;
+    }
+
+    pos[i * 3]     = fx;
+    pos[i * 3 + 1] = fy;
+    pos[i * 3 + 2] = fz;
+    col[i * 3]     = cr * fadeOpacity;
+    col[i * 3 + 1] = cg * fadeOpacity;
+    col[i * 3 + 2] = cb * fadeOpacity;
+  }
+
+  pointGeo.attributes.position.needsUpdate = true;
+  pointGeo.attributes.color.needsUpdate = true;
+
+  // Cinematic camera journey
+  updateCinematicCamera(elapsed, bass, rms);
+
+  // Lyrics + silence detection
+  updateLyrics();
+  checkForSilence(audio.sRms);
+
+  // Dynamic bloom
+  bloomPass.strength = glowIntensity + rms * glowIntensity * 0.3;
+
+  composer.render();
+}
+
+animate();
+</script>
+</body>
+</html>
