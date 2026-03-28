@@ -5438,7 +5438,11 @@ overlay.addEventListener('click', async () => {
   started = true;
   overlay.classList.add('hidden');
   await initAudio();
-  loadSim(0);
+  // Start on a random sim each visit
+  const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
+  loadSim(randomStart);
+  // Auto-shuffle on by default
+  startAutoRotate();
   // Auto-detect song after mic is warmed up
   setTimeout(async () => {
     await checkProStatus();
