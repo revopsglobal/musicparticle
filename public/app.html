@@ -4990,30 +4990,32 @@ function updateLyrics() {
   }
 
   if (currentIdx < 0) {
-    // Before first lyric line
-    lyricBlendTarget = 0;
+    // Before first lyric line, but lyrics are active: show first line as preview
+    if (lyricsData.length > 0 && lastLyricIdx === -1) {
+      sampleTextPositions(lyricsData[0].text);
+      lastLyricIdx = -2; // mark as previewing
+      lyricBlendTarget = 1;
+    }
     return;
   }
 
-  // Check if we're in an instrumental break:
-  // If the next line is far away (>4s gap), dissolve the text after showing it for 3s
+  // Check if we're in an instrumental break
   const currentLine = lyricsData[currentIdx];
   const nextLine = lyricsData[currentIdx + 1];
   const timeSinceLineStart = now - currentLine.time;
   const gapToNext = nextLine ? (nextLine.time - currentLine.time) : 999;
-
-  // Dissolve if: line has been showing for 3+ seconds AND next line is 4+ seconds away
   const isInBreak = timeSinceLineStart > 3.0 && gapToNext > 4.0;
 
   if (isInBreak) {
-    // Instrumental break: particles scatter back to sim shape
     lyricBlendTarget = 0;
   } else if (currentIdx !== lastLyricIdx) {
-    // New lyric line: sample text, trigger scatter then reform
     lastLyricIdx = currentIdx;
     sampleTextPositions(currentLine.text);
-    lyricBlendTarget = 0; // scatter first
-    setTimeout(() => { lyricBlendTarget = 1; }, 300); // reform after 300ms
+    lyricBlendTarget = 0;
+    setTimeout(() => { lyricBlendTarget = 1; }, 300);
+  } else {
+    // Same line, keep showing it
+    lyricBlendTarget = 1;
   }
 }
 
