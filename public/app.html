@@ -628,55 +628,6 @@ annotate("core", new THREE.Vector3(0, 0, 0), "Projection Origin");
 `
   },
   {
-    name: 'GEOMETRICAL CONFIG',
-    cam: [10, 55, 130],
-    code: `
-const pulse = addControl("pulse", "Breath Speed", 0.1, 2.0, 0.7);
-const radius = addControl("radius", "Shell Size", 10, 60, 30);
-const warp = addControl("warp", "Warp Strength", 0, 3, 1.5);
-const spin = addControl("spin", "Spin Speed", 0, 3, 1.0);
-
-const t = time * pulse;
-
-const phi = Math.acos(1 - 2 * (i / count));
-const theta = Math.sqrt(count * Math.PI) * phi;
-
-const wave = Math.sin(phi * 6 + t * 2) * warp;
-const wave2 = Math.cos(theta * 0.5 - t * 1.5) * warp;
-
-const r = radius + wave * 8;
-
-let x = r * Math.sin(phi) * Math.cos(theta);
-let y = r * Math.sin(phi) * Math.sin(theta);
-let z = r * Math.cos(phi);
-
-// cosmic spiral rotation
-const rot = t * spin + wave2;
-const rx = x * Math.cos(rot) - y * Math.sin(rot);
-const ry = x * Math.sin(rot) + y * Math.cos(rot);
-
-// vertical breathing distortion
-z += Math.sin(r * 0.3 + t * 3) * warp * 3;
-
-target.set(rx, ry, z);
-
-// energetic color flow
-const hue = ((phi / Math.PI) + t * 0.08) % 1;
-const sat = 0.7 + Math.sin(theta * 0.3 + t) * 0.3;
-const light = 0.45 + Math.sin(t + phi * 4) * 0.15;
-
-color.setHSL(hue, sat, light);
-
-if (i === 0) {
-setInfo(
-"Quantum Galaxy Shell",
-"A breathing hyperspherical energy shell rotating through harmonic spiral interference."
-);
-annotate("core", new THREE.Vector3(0,0,0), "Quantum Singularity");
-}
-`
-  },
-  {
     name: 'CHLADNI PLATE',
     cam: [20, 120, 250],
     code: `
@@ -1315,6 +1266,55 @@ if (i === 0) {
     "Uma pista espacial arco-íris em movimento, com curvas suaves e campo de estrelas ao redor."
   );
   annotate("top", new THREE.Vector3(0, 24, 0), "RAINBOW ROAD");
+}
+`
+  },
+  {
+    name: 'GEOMETRICAL CONFIG',
+    cam: [10, 55, 130],
+    code: `
+const pulse = addControl("pulse", "Breath Speed", 0.1, 2.0, 0.7);
+const radius = addControl("radius", "Shell Size", 10, 60, 30);
+const warp = addControl("warp", "Warp Strength", 0, 3, 1.5);
+const spin = addControl("spin", "Spin Speed", 0, 3, 1.0);
+
+const t = time * pulse;
+
+const phi = Math.acos(1 - 2 * (i / count));
+const theta = Math.sqrt(count * Math.PI) * phi;
+
+const wave = Math.sin(phi * 6 + t * 2) * warp;
+const wave2 = Math.cos(theta * 0.5 - t * 1.5) * warp;
+
+const r = radius + wave * 8;
+
+let x = r * Math.sin(phi) * Math.cos(theta);
+let y = r * Math.sin(phi) * Math.sin(theta);
+let z = r * Math.cos(phi);
+
+// cosmic spiral rotation
+const rot = t * spin + wave2;
+const rx = x * Math.cos(rot) - y * Math.sin(rot);
+const ry = x * Math.sin(rot) + y * Math.cos(rot);
+
+// vertical breathing distortion
+z += Math.sin(r * 0.3 + t * 3) * warp * 3;
+
+target.set(rx, ry, z);
+
+// energetic color flow
+const hue = ((phi / Math.PI) + t * 0.08) % 1;
+const sat = 0.7 + Math.sin(theta * 0.3 + t) * 0.3;
+const light = 0.45 + Math.sin(t + phi * 4) * 0.15;
+
+color.setHSL(hue, sat, light);
+
+if (i === 0) {
+setInfo(
+"Quantum Galaxy Shell",
+"A breathing hyperspherical energy shell rotating through harmonic spiral interference."
+);
+annotate("core", new THREE.Vector3(0,0,0), "Quantum Singularity");
 }
 `
   },
@@ -5187,67 +5187,6 @@ if (i === 0) {
 `
   },
 
-  {
-    name: 'CRYSTAL GROWTH',
-    cam: [15, 60, 150],
-    code: `
-const growSpeed = addControl("growSpeed", "Growth Rate", 0.1, 2.0, 0.5);
-const branches = Math.floor(addControl("branches", "Branch Count", 3, 8, 6));
-const thickness = addControl("thickness", "Dendrite Width", 0.5, 4.0, 1.5);
-const frost = addControl("frost", "Frost Glow", 0.0, 1.0, 0.7);
-
-const t = time * growSpeed;
-
-// Growth front expands over time (cycling)
-const maxReach = 50;
-const growthPhase = (t * 0.3) % 1.0;
-const reach = maxReach * (0.3 + 0.7 * growthPhase);
-
-// Distribute along dendritic branches
-const branchIdx = Math.floor(i / (count / branches)) % branches;
-const branchAngle = (branchIdx / branches) * Math.PI * 2;
-const localI = i % Math.floor(count / branches);
-const localFrac = localI / Math.floor(count / branches);
-
-// Main arm extends outward
-const armLen = localFrac * reach;
-
-// Sub-branches fork at 60-degree angles (dendritic)
-const subBranch = Math.floor(localFrac * 6);
-const subFrac = (localFrac * 6) % 1.0;
-const forkAngle = (subBranch % 2 === 0 ? 1 : -1) * Math.PI / 3;
-const forkLen = subFrac * reach * 0.3 * (1 - localFrac * 0.5);
-
-// Position along main arm + sub-branch offset
-const mainX = armLen * Math.cos(branchAngle);
-const mainY = armLen * Math.sin(branchAngle);
-
-const subAngle = branchAngle + forkAngle;
-const fx = mainX + forkLen * Math.cos(subAngle);
-const fy = mainY + forkLen * Math.sin(subAngle);
-
-// Z: slight crystalline faceting
-const fz = Math.sin(armLen * 0.2 + branchAngle * 3) * thickness
-         + Math.cos(forkLen * 0.5) * thickness * 0.5;
-
-// Scatter for thickness
-const scatter = thickness * (Math.sin(i * 7.31) * 0.5);
-target.set(fx + scatter * 0.3, fy + scatter * 0.3, fz);
-
-// Icy color palette: blues and whites
-const tipGlow = Math.pow(localFrac, 2) * frost;
-const hue = 0.55 + Math.sin(branchAngle + t) * 0.05;
-const sat = 0.3 + 0.4 * (1 - localFrac);
-const lum = 0.3 + 0.3 * localFrac + 0.3 * tipGlow;
-
-color.setHSL(hue, sat, Math.min(1.0, lum));
-
-if (i === 0) {
-    setInfo("Crystal Growth", "Dendritic branching structure growing outward from a seed point. Six-fold symmetry with recursive sub-branches, like frost forming on glass.");
-    annotate("seed", new THREE.Vector3(0, 0, 0), "Seed");
-}
-`
-  },
 
   {
     name: 'MANDELBROT',
@@ -5449,67 +5388,6 @@ if (i === 0) {
 `
   },
 
-  {
-    name: 'FUNGAL MYCELIUM',
-    cam: [15, 60, 150],
-    code: `
-const growthRate = addControl("growth", "Growth Speed", 0.1, 2.0, 0.6);
-const branchProb = addControl("branching", "Branch Density", 0.1, 1.0, 0.5);
-const spread = addControl("spread", "Network Spread", 20, 80, 50);
-const pulse = addControl("pulse", "Nutrient Pulse", 0.0, 1.0, 0.6);
-
-const t = time * growthRate;
-
-// Create a network of branching hyphae
-const strands = 12;
-const strandIdx = Math.floor(i / (count / strands)) % strands;
-const localI = i % Math.floor(count / strands);
-const localFrac = localI / Math.floor(count / strands);
-
-// Each strand grows from center with pseudo-random branching
-const seed = Math.sin(strandIdx * 73.156 + 12.34) * 1000 % 1;
-const baseAngle = (strandIdx / strands) * Math.PI * 2;
-
-// Growth extends over time (cycling)
-const growPhase = (t * 0.2 + seed * 0.5) % 1.0;
-const maxLen = spread * (0.4 + 0.6 * growPhase);
-
-// Position along hypha with branching
-const along = localFrac * maxLen;
-
-// Organic meandering path
-const meander = branchProb * 8;
-const mx = Math.sin(along * 0.15 + strandIdx * 2.1 + t * 0.3) * meander;
-const my = Math.cos(along * 0.12 + strandIdx * 3.7 + t * 0.2) * meander;
-
-// Branch forks
-const forkPoint = Math.floor(localFrac * 4);
-const forkSide = (forkPoint % 2 === 0 ? 1 : -1);
-const forkOffset = Math.sin(localFrac * 12 + strandIdx) * branchProb * 10 * localFrac;
-
-const angle = baseAngle + mx * 0.03 + forkOffset * 0.02;
-const x = along * Math.cos(angle) + mx + forkSide * forkOffset * Math.cos(angle + Math.PI/2);
-const y = along * Math.sin(angle) + my + forkSide * forkOffset * Math.sin(angle + Math.PI/2);
-const z = Math.sin(along * 0.1 + t + strandIdx) * 5 + Math.cos(localFrac * Math.PI * 3) * 3;
-
-target.set(x, y, z);
-
-// Nutrient pulse traveling along network
-const nutrientWave = Math.sin(localFrac * Math.PI * 4 - t * 3) * 0.5 + 0.5;
-const tip = Math.pow(localFrac, 3);
-
-const hue = (0.08 + strandIdx * 0.02 + nutrientWave * 0.05) % 1.0;
-const sat = 0.3 + 0.4 * nutrientWave * pulse;
-const lum = 0.1 + 0.2 * nutrientWave * pulse + 0.4 * tip;
-
-color.setHSL(hue, sat, Math.min(0.9, lum));
-
-if (i === 0) {
-    setInfo("Fungal Mycelium", "Branching network of hyphae growing outward from a central node. Nutrient pulses travel the network like signals through nature's original internet.");
-    annotate("node", new THREE.Vector3(0, 0, 0), "Central Node");
-}
-`
-  },
 
 // ── End of simulations ──
 ];
