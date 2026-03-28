@@ -4353,11 +4353,16 @@ overlay.addEventListener('click', async () => {
   await initAudio();
   loadSim(0);
   // Auto-detect song after mic is warmed up
+  console.log('[detect] scheduling auto-detect in 3 seconds');
   setTimeout(async () => {
+    console.log('[detect] timer fired, checking status. hasAutoDetected:', hasAutoDetected, 'analyser:', !!analyser);
     await checkProStatus();
     if (!hasAutoDetected) {
       hasAutoDetected = true;
+      console.log('[detect] calling autoDetectSong(true)');
       autoDetectSong(true);
+    } else {
+      console.log('[detect] skipped: already detected');
     }
   }, 3000);
 });
@@ -4819,8 +4824,9 @@ function showProPrompt() {
 }
 
 async function autoDetectSong(silent) {
-  if (isDetecting) return;
+  if (isDetecting) { console.log('[detect] already detecting, skipping'); return; }
   isDetecting = true;
+  console.log('[detect] starting detection, silent:', silent);
 
   if (!silent) {
     detectBtn.textContent = 'Listening...';
@@ -4896,6 +4902,7 @@ async function autoDetectSong(silent) {
       if (!silent) detectStatus.textContent = 'No song detected';
     }
   } catch (e) {
+    console.warn('[detect] error:', e);
     if (!silent) detectStatus.textContent = 'Detection failed';
     console.warn('Detect error:', e);
   } finally {
