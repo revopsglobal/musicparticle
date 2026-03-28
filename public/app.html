@@ -12,11 +12,9 @@
   /* ── Overlay ── */
   #overlay {
     position: fixed; inset: 0; z-index: 200;
-    background: rgba(6,6,12,0.6);
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-    padding-bottom: 3rem;
-    cursor: pointer; transition: opacity 0.5s ease;
-    backdrop-filter: blur(2px);
+    background: radial-gradient(ellipse at center, rgba(20,18,30,0.95) 0%, #06060c 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: opacity 0.8s ease;
   }
   #overlay.hidden { opacity: 0; pointer-events: none; }
   .pulse-ring {
@@ -295,7 +293,8 @@
 <body>
 
 <div id="overlay">
-  <p style="font-size:0.7rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase">Tap anywhere to enable audio</p>
+  <p style="font-family:'Helvetica Neue',sans-serif; font-size:1.8rem; font-weight:200; color:rgba(255,255,255,0.6); letter-spacing:0.04em; margin-bottom:0.6rem;">MusicParticle</p>
+  <p style="font-size:0.65rem; color:rgba(255,255,255,0.2); letter-spacing:0.18em; text-transform:uppercase">Tap to start</p>
 </div>
 
 <div id="hud-info">
@@ -4119,14 +4118,12 @@ const helpBtn = document.getElementById('help-btn');
 const helpTooltip = document.getElementById('help-tooltip');
 let started = false;
 
-// Start the simulation immediately (no audio yet, just visuals)
-loadSim(0);
-
 overlay.addEventListener('click', async () => {
   if (started) return;
   started = true;
   overlay.classList.add('hidden');
   await initAudio();
+  loadSim(0);
   // Auto-detect song after mic is warmed up
   setTimeout(async () => {
     await checkProStatus();
