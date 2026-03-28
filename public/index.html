@@ -189,12 +189,11 @@
       color: var(--dim);
       line-height: 1.6;
     }
-    .how-aside {
-      font-size: 0.78rem;
-      color: var(--muted);
-      line-height: 1.6;
-      font-style: italic;
-      font-family: 'Instrument Serif', serif;
+    .how-canvas {
+      width: 100%;
+      height: 120px;
+      display: block;
+      opacity: 0.6;
     }
 
     /* ═══════════════════════════════════════════════
@@ -427,7 +426,7 @@
       .statement { padding: 5rem 1.5rem; }
       .how-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
       .how-item { grid-template-columns: 40px 1fr; }
-      .how-aside { display: none; }
+      .how-canvas { display: none; }
       .sims-canvas-overlay { bottom: 2rem; left: 1.5rem; }
       .sims-overlay-name { font-size: clamp(1.8rem, 8vw, 3rem); }
       .sims-overlay-desc { font-size: 0.78rem; max-width: 260px; }
@@ -476,7 +475,7 @@
           <h3>Play anything</h3>
           <p>Spotify, vinyl, a live instrument, YouTube on your phone. If it makes sound near your device, it works.</p>
         </div>
-        <p class="how-aside">Works with any audio source. No app integration needed. Just sound in the room.</p>
+        <canvas class="how-canvas" id="how-canvas-1"></canvas>
       </div>
       <div class="how-item">
         <span class="how-num">02</span>
@@ -484,7 +483,7 @@
           <h3>One permission</h3>
           <p>Your browser asks for microphone access. Nothing is recorded. Nothing leaves your device.</p>
         </div>
-        <p class="how-aside">Audio analysis runs in your browser via the Web Audio API. Zero data is transmitted.</p>
+        <canvas class="how-canvas" id="how-canvas-2"></canvas>
       </div>
       <div class="how-item">
         <span class="how-num">03</span>
@@ -492,7 +491,7 @@
           <h3>Immerse</h3>
           <p>The camera drifts through the shape. Particles pulse with the beat. Auto-shuffle transitions between universes.</p>
         </div>
-        <p class="how-aside">Bass drives pulsation. Mids shift color and rotation. Highs scatter particles and add sparkle.</p>
+        <canvas class="how-canvas" id="how-canvas-3"></canvas>
       </div>
     </div>
   </section>
@@ -1066,6 +1065,86 @@
       }, { threshold: 0.05 });
       startObserver.observe(document.querySelector('.sims-scroll-container'));
     }
+  </script>
+
+  <!-- HOW-IT-WORKS MINI ANIMATIONS -->
+  <script>
+    function initHowCanvases() {
+      // Canvas 1: soundwave bars
+      const c1 = document.getElementById('how-canvas-1');
+      if (c1) {
+        const ctx = c1.getContext('2d');
+        const r = () => { c1.width = c1.offsetWidth * 2; c1.height = c1.offsetHeight * 2; };
+        r(); window.addEventListener('resize', r);
+        const bars = 32;
+        (function draw(t) {
+          requestAnimationFrame(draw);
+          ctx.clearRect(0, 0, c1.width, c1.height);
+          const cx = c1.width / 2, cy = c1.height / 2;
+          for (let i = 0; i < bars; i++) {
+            const x = (i / bars) * c1.width;
+            const h = (Math.sin(t * 0.003 + i * 0.4) * 0.5 + 0.5) * c1.height * 0.6;
+            ctx.fillStyle = `rgba(196, 168, 130, ${0.3 + Math.sin(t * 0.002 + i) * 0.15})`;
+            ctx.fillRect(x + 2, cy - h / 2, c1.width / bars - 4, h);
+          }
+        })(0);
+      }
+
+      // Canvas 2: concentric mic pulse rings
+      const c2 = document.getElementById('how-canvas-2');
+      if (c2) {
+        const ctx = c2.getContext('2d');
+        const r = () => { c2.width = c2.offsetWidth * 2; c2.height = c2.offsetHeight * 2; };
+        r(); window.addEventListener('resize', r);
+        (function draw(t) {
+          requestAnimationFrame(draw);
+          ctx.clearRect(0, 0, c2.width, c2.height);
+          const cx = c2.width / 2, cy = c2.height / 2;
+          for (let i = 0; i < 4; i++) {
+            const phase = (t * 0.001 + i * 0.8) % 3;
+            const radius = phase * c2.height * 0.35;
+            const alpha = Math.max(0, 0.4 - phase * 0.13);
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(196, 168, 130, ${alpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(232, 228, 220, 0.5)';
+          ctx.fill();
+        })(0);
+      }
+
+      // Canvas 3: expanding particle burst
+      const c3 = document.getElementById('how-canvas-3');
+      if (c3) {
+        const ctx = c3.getContext('2d');
+        const r = () => { c3.width = c3.offsetWidth * 2; c3.height = c3.offsetHeight * 2; };
+        r(); window.addEventListener('resize', r);
+        const dots = [];
+        for (let i = 0; i < 60; i++) dots.push({ a: Math.random() * Math.PI * 2, s: 0.3 + Math.random() * 0.7, d: 0 });
+        (function draw(t) {
+          requestAnimationFrame(draw);
+          ctx.fillStyle = 'rgba(6,6,12,0.15)';
+          ctx.fillRect(0, 0, c3.width, c3.height);
+          const cx = c3.width / 2, cy = c3.height / 2;
+          const cycle = (t * 0.0008) % 2;
+          for (const dot of dots) {
+            dot.d = cycle < 1 ? cycle * c3.height * 0.4 * dot.s : (2 - cycle) * c3.height * 0.4 * dot.s;
+            const x = cx + Math.cos(dot.a + t * 0.0003) * dot.d;
+            const y = cy + Math.sin(dot.a + t * 0.0003) * dot.d;
+            const alpha = cycle < 1 ? 0.5 : Math.max(0, 0.5 - (cycle - 1) * 0.5);
+            ctx.beginPath();
+            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(196, 168, 130, ${alpha})`;
+            ctx.fill();
+          }
+        })(0);
+      }
+    }
+    initHowCanvases();
   </script>
 
   <!-- SCROLL ANIMATIONS -->
