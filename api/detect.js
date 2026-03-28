@@ -52,7 +52,7 @@ export default async function handler(req, res) {
 
     const subscriptions = await subResponse.json();
     const sub = Array.isArray(subscriptions) ? subscriptions[0] : null;
-    const isPro = sub && sub.status === 'active' && (sub.plan === 'monthly' || sub.plan === 'annual');
+    const isPro = sub && sub.status === 'active' && sub.plan !== 'free';
 
     if (!isPro) {
       return res.status(403).json({
