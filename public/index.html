@@ -163,31 +163,38 @@
     }
     .how-item {
       display: grid;
-      grid-template-columns: 80px 1fr;
-      gap: 0;
-      padding: 2.5rem 0;
+      grid-template-columns: 60px 1fr 1fr;
+      gap: 2rem;
+      padding: 2.2rem 0;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       opacity: 0; transform: translateY(20px);
       transition: opacity 0.6s ease, transform 0.6s ease;
+      align-items: baseline;
     }
     .how-item.visible { opacity: 1; transform: none; }
     .how-num {
       font-family: 'Instrument Serif', serif;
-      font-size: 2.4rem;
+      font-size: 2rem;
       color: var(--muted);
       line-height: 1;
     }
     .how-content h3 {
       font-family: 'Instrument Serif', serif;
-      font-size: 1.4rem;
+      font-size: 1.3rem;
       font-weight: 400;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
     }
     .how-content p {
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       color: var(--dim);
       line-height: 1.6;
-      max-width: 440px;
+    }
+    .how-aside {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+      font-style: italic;
+      font-family: 'Instrument Serif', serif;
     }
 
     /* ═══════════════════════════════════════════════
@@ -393,7 +400,8 @@
       .hero h1 { font-size: clamp(2.6rem, 10vw, 4rem); }
       .statement { padding: 5rem 1.5rem; }
       .how-section, .sims-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
-      .how-item { grid-template-columns: 50px 1fr; }
+      .how-item { grid-template-columns: 40px 1fr; }
+      .how-aside { display: none; }
       .sims-grid { grid-template-columns: 1fr; }
       .sim-item:nth-child(odd) { padding-right: 0; border-right: none; }
       .sim-item:nth-child(even) { padding-left: 0; }
@@ -442,20 +450,23 @@
           <h3>Play anything</h3>
           <p>Spotify, vinyl, a live instrument, YouTube on your phone. If it makes sound near your device, it works.</p>
         </div>
+        <p class="how-aside">Works with any audio source. No app integration needed. Just sound in the room.</p>
       </div>
       <div class="how-item">
         <span class="how-num">02</span>
         <div class="how-content">
           <h3>One permission</h3>
-          <p>Your browser asks for microphone access. Nothing is recorded. Nothing is transmitted. Audio analysis happens entirely in your browser.</p>
+          <p>Your browser asks for microphone access. Nothing is recorded. Nothing leaves your device.</p>
         </div>
+        <p class="how-aside">Audio analysis runs in your browser via the Web Audio API. Zero data is transmitted.</p>
       </div>
       <div class="how-item">
         <span class="how-num">03</span>
         <div class="how-content">
           <h3>Immerse</h3>
-          <p>The camera drifts through the shape. Particles pulse with the beat. Switch between 21 mathematical universes or let auto-shuffle take you on a journey.</p>
+          <p>The camera drifts through the shape. Particles pulse with the beat. Auto-shuffle transitions between universes.</p>
         </div>
+        <p class="how-aside">Bass drives pulsation. Mids shift color and rotation. Highs scatter particles and add sparkle.</p>
       </div>
     </div>
   </section>
