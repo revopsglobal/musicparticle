@@ -7,7 +7,7 @@
   <meta name="description" content="Play music. Watch particles react. 24 simulations, real-time audio, no login.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -42,12 +42,33 @@
       mix-blend-mode: difference;
     }
     .wordmark {
-      font-family: 'Instrument Serif', serif;
-      font-size: 1.15rem;
-      font-style: italic;
-      letter-spacing: 0.01em;
+      font-family: 'Syne', sans-serif;
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--cream);
+      display: flex;
+      align-items: center;
     }
+    .wordmark .wm-p { color: var(--warm); }
+    .wordmark .wm-scatter {
+      position: relative;
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      margin-left: 2px;
+    }
+    .wordmark .wm-scatter i {
+      position: absolute;
+      border-radius: 50%;
+      display: block;
+    }
+    .wordmark .wm-scatter i:nth-child(1) { width:3.5px;height:3.5px;background:var(--pop);top:3px;left:2px;box-shadow:0 0 6px 1px rgba(232,93,58,0.4); }
+    .wordmark .wm-scatter i:nth-child(2) { width:2.5px;height:2.5px;background:var(--warm);top:9px;left:9px;opacity:0.6; }
+    .wordmark .wm-scatter i:nth-child(3) { width:2px;height:2px;background:var(--cream);top:15px;left:4px;opacity:0.3; }
+    .wordmark .wm-scatter i:nth-child(4) { width:1.5px;height:1.5px;background:var(--pop);top:5px;left:15px;opacity:0.35; }
+    .wordmark .wm-scatter i:nth-child(5) { width:2px;height:2px;background:var(--warm);top:13px;left:16px;opacity:0.2; }
+    .wordmark .wm-scatter i:nth-child(6) { width:1px;height:1px;background:var(--cream);top:1px;left:10px;opacity:0.25; }
     .nav-links {
       display: flex; gap: 2rem; align-items: center;
     }
@@ -431,9 +452,10 @@
       display: flex; justify-content: space-between; align-items: center;
     }
     .footer-left {
-      font-family: 'Instrument Serif', serif;
-      font-style: italic;
-      font-size: 0.9rem;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: -0.02em;
       color: var(--muted);
     }
     .footer-right {
@@ -471,10 +493,10 @@
 <body>
 
   <nav>
-    <a href="/" class="wordmark">MusicParticle</a>
+    <a href="/" class="wordmark"><span>Music</span><span class="wm-p">Particle</span><span class="wm-scatter"><i></i><i></i><i></i><i></i><i></i><i></i></span></a>
     <div class="nav-links">
       <a href="#how">How</a>
-      <a href="#pricing">Pricing</a>
+      <a href="#simulations">Simulations</a>
       <a href="/app" class="nav-cta">Open App</a>
     </div>
   </nav>
@@ -544,53 +566,21 @@
 
   <section class="lyrics-section">
     <div class="lyrics-intro">
-      <span class="pro-badge">Pro</span>
+      <span class="pro-badge">Beta</span>
       <h2>Now imagine the lyrics <em>appearing</em></h2>
-      <p>The app identifies what song is playing, pulls particles out of the simulation, and forms the words being sung. Each line scatters and reforms. Watch.</p>
+      <p>The app listens to what you are playing, identifies the song, and pulls particles out of the simulation to form the words being sung. Visuals work with every song. Lyrics are available for most popular tracks.</p>
     </div>
     <canvas id="lyrics-demo-canvas" class="lyrics-canvas-full"></canvas>
     <div class="lyrics-bottom">
-      <p>Synced in real time. Automatically detects the next song. During instrumental breaks, particles return to the shape. Text inherits the colors of whatever simulation is active.</p>
-      <a href="/app" class="lyrics-cta">Try it with Pro</a>
+      <p>Synced in real time. Automatically detects the next song. During instrumental breaks, particles return to the shape. Lyrics are in beta and may not be available for every track.</p>
+      <a href="/app" class="lyrics-cta">Try it now</a>
     </div>
   </section>
 
-  <section class="pricing-section" id="pricing">
-    <div class="pricing-header">
-      <h2>Two versions. Both are real.</h2>
-      <p>The free version is the full visualizer. Pro adds live lyrics.</p>
-    </div>
-    <div class="pricing-cols">
-      <div class="pricing-col">
-        <p class="pricing-tier-name">Free</p>
-        <p class="pricing-amount">$0</p>
-        <p class="pricing-period">No account needed</p>
-        <ul class="pricing-list">
-          <li>All 24 simulations</li>
-          <li>5 visual styles (Spark, Plasma, Glass, Ink, Steel)</li>
-          <li>Cinematic auto-camera</li>
-          <li>Auto-shuffle with cross-fade</li>
-          <li>Full audio controls</li>
-          <li>Camera speed and zoom controls</li>
-        </ul>
-        <a href="/app" class="pricing-action">Open the app</a>
-      </div>
-      <div class="pricing-col">
-        <p class="pricing-tier-name">Pro</p>
-        <p class="pricing-amount" id="pro-price">$4.99</p>
-        <p class="pricing-period" id="pro-period">per month</p>
-        <ul class="pricing-list">
-          <li>Everything in Free</li>
-          <li>Automatic song detection</li>
-          <li>Particle lyrics overlay</li>
-          <li>Time-synced to the music</li>
-          <li>Instrumental break detection</li>
-          <li>Song change re-detection</li>
-        </ul>
-        <a href="/app" class="pricing-action">Get Pro</a>
-        <p class="pricing-annual-note" onclick="toggleAnnual()">&uarr; Or $39/year ($3.25/mo)</p>
-      </div>
-    </div>
+  <section style="padding:5rem 2.5rem; text-align:center; border-top:1px solid rgba(255,255,255,0.04);">
+    <h2 style="font-family:'Instrument Serif',serif; font-size:clamp(1.6rem,3vw,2.4rem); font-weight:400; margin-bottom:0.8rem;">Everything is free.</h2>
+    <p style="font-size:0.9rem; color:var(--dim); max-width:460px; margin:0 auto 2rem; line-height:1.6;">24 simulations, 5 visual styles, cinematic camera, auto-shuffle, full controls, and lyrics detection. No account. No login. No paywall.</p>
+    <a href="/app" style="display:inline-block; font-size:0.78rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.9rem 2.4rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.4s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">Open the visualizer</a>
   </section>
 
   <footer>
