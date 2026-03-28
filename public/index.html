@@ -944,14 +944,18 @@
       let running = false;
 
       function resize() {
-        const section = canvas.parentElement;
-        const w = section.clientWidth, h = section.clientHeight;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const w = Math.max(rect.width, 300);
+        const h = Math.max(rect.height, 300);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
         renderer.setSize(w, h);
         composer.setSize(w, h);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
       }
-      resize();
+      // Defer initial resize to ensure layout is settled
+      requestAnimationFrame(() => { resize(); requestAnimationFrame(resize); });
       window.addEventListener('resize', resize);
 
       function animate() {
@@ -1021,10 +1025,10 @@
       }
 
       const obs = new IntersectionObserver(e => {
-        if (e[0].isIntersecting && !running) { running = true; animate(); }
+        if (e[0].isIntersecting && !running) { resize(); running = true; animate(); }
         if (!e[0].isIntersecting) running = false;
       }, { threshold: 0.05 });
-      obs.observe(canvas);
+      obs.observe(canvas.parentElement);
     })();
   </script>
 
