@@ -4309,7 +4309,6 @@ async function initAudio() {
     analyser.smoothingTimeConstant = 0.25;
     source.connect(analyser);
     freqData = new Uint8Array(analyser.frequencyBinCount);
-    console.log('[audio] mic initialized');
   } catch (e) {
     console.warn('Microphone access denied');
   }
@@ -4356,16 +4355,12 @@ overlay.addEventListener('click', async () => {
   await initAudio();
   loadSim(0);
   // Auto-detect song after mic is warmed up
-  console.log('[detect] scheduling auto-detect in 3 seconds');
   setTimeout(async () => {
-    console.log('[detect] timer fired, checking status. hasAutoDetected:', hasAutoDetected, 'analyser:', !!analyser);
     await checkProStatus();
     if (!hasAutoDetected) {
       hasAutoDetected = true;
-      console.log('[detect] calling autoDetectSong(true)');
       autoDetectSong(true);
     } else {
-      console.log('[detect] skipped: already detected');
     }
   }, 3000);
 });
@@ -4797,7 +4792,6 @@ function recordAudioClip(durationMs) {
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        console.log('[detect] recorded', blob.size, 'bytes');
         resolve(blob);
       };
       recorder.start();
@@ -4834,9 +4828,7 @@ function showProPrompt() {
 }
 
 async function autoDetectSong(silent) {
-  if (isDetecting) { console.log('[detect] already detecting, skipping'); return; }
   isDetecting = true;
-  console.log('[detect] starting detection, silent:', silent);
 
   if (!silent) {
     detectBtn.textContent = 'Listening...';
@@ -4912,7 +4904,6 @@ async function autoDetectSong(silent) {
       if (!silent) detectStatus.textContent = 'No song detected';
     }
   } catch (e) {
-    console.warn('[detect] error:', e);
     if (!silent) detectStatus.textContent = 'Detection failed';
     console.warn('Detect error:', e);
   } finally {
