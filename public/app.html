@@ -4805,8 +4805,9 @@ function updateLyrics() {
   const nextLine = lyricsData[currentIdx + 1];
   const timeSinceLineStart = now - currentLine.time;
   const gapToNext = nextLine ? (nextLine.time - currentLine.time) : 999;
-  // Only dissolve if line has been showing 5+ seconds AND next line is 6+ seconds away
-  const isInBreak = timeSinceLineStart > 5.0 && gapToNext > 6.0;
+  // Only dissolve during long instrumental breaks (8s showing, 10s gap)
+  // This is very conservative to prevent premature text disappearance
+  const isInBreak = timeSinceLineStart > 8.0 && gapToNext > 10.0;
 
   if (isInBreak) {
     lyricBlendTarget = 0;
@@ -4983,9 +4984,13 @@ function animate() {
   document.getElementById('bar-high').style.height = (2 + highs * 18) + 'px';
 
   // Smooth lyric blend
-  // Slower blend: text forms and holds longer before any decay
-  lyricBlend += (lyricBlendTarget - lyricBlend) * 0.04;
-  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.98; // very slow decay if hidden
+  // Blend speed: fast rise to 1 (text forms quickly), slow fall to 0 (text lingers)
+  if (lyricBlendTarget > lyricBlend) {
+    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.08; // fast form
+  } else {
+    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.02; // slow dissolve
+  }
+  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.99;
 
   // Run simulation for each particle
   const pos = pointGeo.attributes.position.array;
