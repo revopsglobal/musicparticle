@@ -3990,6 +3990,1038 @@ if (i === 0) {
 
 
 
+  {
+    name: 'BIEXCITONS',
+    cam: [15, 85, 190],
+    code: `
+const scale       = addControl("scale",      "Global Scale",         10, 200,  75);
+const bindEnergy  = addControl("bind",       "Binding Energy",        1, 100,  42);
+const augerRate   = addControl("auger",      "Auger Recombination",   0, 100,  35);
+const condensate  = addControl("bec",        "BEC Condensate",        0, 100,  55);
+const fractalDepth= addControl("fractal",    "Fractal Depth",         1, 100,  60);
+const juliaReal   = addControl("juliaRe",    "Julia Re (c.x)",      -50,  50,  -7);
+const juliaImag   = addControl("juliaIm",    "Julia Im (c.y)",      -50,  50,  15);
+const kochLevel   = addControl("koch",       "Koch Lattice",          0, 100,  50);
+const spinConfig  = addControl("spin",       "Spin Config s=0/3",     0, 100,  30);
+const photonEmit  = addControl("photon",     "Photon Emission Rate",  0, 100,  70);
+ 
+const Eb    = bindEnergy / 100;        
+const aug   = augerRate  / 100;         
+const bec   = condensate / 100;          
+const fD    = fractalDepth / 100;        
+const jRe   = juliaReal  / 100;          
+const jIm   = juliaImag  / 100;         
+const kW    = kochLevel  / 100;          
+const spin  = spinConfig / 100;    
+const pRate = photonEmit / 100;         
+ 
+const norm = i / count;
+ 
+const jMaxIter = 6;
+let jzx = (norm * 3.2 - 1.6) * fD;
+let jzy = (Math.sin(norm * Math.PI * 5) * 1.6) * fD;
+let jIter = 0;
+let jTmp = 0;
+
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+jTmp = jzx*jzx - jzy*jzy + jRe; jzy = 2.0*jzx*jzy + jIm; jzx = jTmp; jIter += (jzx*jzx+jzy*jzy < 4.0) ? 1 : 0;
+const juliaFrac = jIter / jMaxIter;   // 0..1 smooth escape
+ 
+const kochSide  = Math.floor(norm * 3);
+const kochT     = (norm * 3) - kochSide;
+const kochBase  = kochSide * (Math.PI * 2 / 3);
+const kochAng   = kochBase + kochT * (Math.PI * 2 / 3);
+// Koch bump: sin wave at 3^2 = 9 frequency creates 1 fractal level
+const kochBump  = Math.sin(kochT * Math.PI * 9) * 0.18 * kW
+                + Math.sin(kochT * Math.PI * 27) * 0.06 * kW;
+const kochR     = scale * 0.72 * (1.0 + kochBump);
+ 
+const fernT    = norm;
+const fernSel  = Math.floor(((Math.sin(i * 127.1) * 0.5 + 0.5)) * 4);
+
+const fern0x   = 0.0;
+const fern0y   = 0.16 * fernT * scale * 0.6;
+
+const f1t      = fernT * 2.0 - 1.0;
+const fern1x   = (0.85 * f1t + 0.04 * Math.sin(fernT * 31.4)) * scale * 0.38;
+const fern1y   = (-0.04 * f1t + 0.85 * fernT + 1.6 * 0.12) * scale * 0.55;
+
+const fern2x   = (0.20 * f1t - 0.26 * Math.cos(fernT * 31.4)) * scale * 0.45;
+const fern2y   = (0.23 * f1t + 0.22 * fernT + 1.6 * 0.05) * scale * 0.55;
+
+const fern3x   = (-0.15 * f1t + 0.28 * Math.sin(fernT * 62.8)) * scale * 0.4;
+const fern3y   = (0.26 * f1t + 0.24 * fernT) * scale * 0.55;
+
+const w0 = 1.0 - Math.min(1, fernSel);
+const w1 = Math.max(0, 1.0 - Math.abs(fernSel - 1));
+const w2 = Math.max(0, 1.0 - Math.abs(fernSel - 2));
+const w3 = Math.max(0, 1.0 - Math.abs(fernSel - 3)) * Math.min(1, fernSel);
+const fernX    = fern0x*w0 + fern1x*w1 + fern2x*w2 + fern3x*w3;
+const fernY    = fern0y*w0 + fern1y*w1 + fern2y*w2 + fern3y*w3;
+ 
+const ex1_n    = 1.0 + Math.floor(norm * 20 * 3) / 20;  
+const ex1_phi  = norm * Math.PI * 2 * 17 + time * 0.28;
+const ex1_thet = Math.acos(1.0 - 2.0 * ((norm * 7919) % 1.0));
+const ex1_r    = scale * Eb * (ex1_n * ex1_n) * (0.45 + 0.55 * juliaFrac);
+const ex1x     = ex1_r * Math.sin(ex1_thet) * Math.cos(ex1_phi);
+const ex1y     = ex1_r * Math.sin(ex1_thet) * Math.sin(ex1_phi);
+const ex1z     = ex1_r * Math.cos(ex1_thet)
+               + Math.sin(time * 0.15 + norm * Math.PI * 6) * scale * 0.08 * bec;
+ 
+const ex2_phi  = norm * Math.PI * 2 * 13 + time * 0.22 + Math.PI;
+const ex2_r    = scale * Eb * 1.4 * (0.6 + 0.4 * juliaFrac);
+const ex2_osc  = Math.sin(time * 0.4 + norm * Math.PI * 8) * scale * Eb * 0.3;
+const ex2x     = ex2_r * Math.cos(ex2_phi) + ex2_osc * Math.cos(ex2_phi + Math.PI * 0.5);
+const ex2y     = ex2_r * Math.sin(ex2_phi) - ex2_osc * Math.sin(ex2_phi + Math.PI * 0.5);
+const ex2z     = Math.cos(norm * Math.PI * 9 + time * 0.3) * scale * Eb * 0.55;
+ 
+const xx_phi   = norm * Math.PI * 2 * 8 + time * 0.18;
+const xx_theta = norm * Math.PI * 1.5;
+const xx_bond  = scale * Eb * 0.6;                       
+const xx_auger = 1.0 - aug * 0.35 * Math.abs(Math.sin(time * 1.2 + norm * Math.PI * 4));
+const xx_r     = scale * (0.28 + juliaFrac * 0.32) * xx_auger;
+
+const xx_x     = Math.sin(xx_theta) * Math.cos(xx_phi) * xx_r
+               + Math.cos(xx_phi) * xx_bond * Math.sign(Math.sin(norm * Math.PI * 2));
+const xx_y     = Math.sin(xx_theta) * Math.sin(xx_phi) * xx_r
+               + Math.sin(xx_phi) * xx_bond * Math.sign(Math.sin(norm * Math.PI * 2));
+const xx_z     = Math.cos(xx_theta) * xx_r * 0.85
+               + Math.sin(time * 0.6 + norm * Math.PI * 3) * scale * 0.06;
+ 
+const kochX    = Math.cos(kochAng) * kochR;
+const kochY    = Math.sin(kochAng) * kochR;
+const kochZ    = Math.sin(norm * Math.PI * 6 + time * 0.2) * scale * 0.22 * kW;
+ 
+const fernZ    = Math.sin(time * 0.35 + norm * Math.PI * 12) * scale * 0.14;
+ 
+const julX     = jzx * scale * 0.42 * fD;
+const julY     = jzy * scale * 0.42 * fD;
+const julZ     = juliaFrac * scale * 0.55
+               + Math.sin(time * 0.25 + norm * 7.3) * scale * 0.12;
+ 
+const bec_phi  = norm * Math.PI * 2 * 40 + time * 1.1;
+const bec_r    = scale * (1.0 - bec) * 0.15            
+               + scale * 0.08 * Math.sin(norm * Math.PI * 80 + time * 2.0) * pRate;
+const bec_ring = scale * 0.38 * pRate * Math.abs(Math.sin(time * 0.8 + norm * Math.PI * 2));
+const becX     = (bec_r + bec_ring) * Math.cos(bec_phi);
+const becY     = (bec_r + bec_ring) * Math.sin(bec_phi);
+const becZ     = bec_r * Math.sin(bec_phi * 3.0 + time * 0.5) * 0.4;
+ 
+const zones    = 7.0;
+const lm0 = Math.max(0, 1.0 - Math.abs(norm * zones - 0.5) * 2.5);
+const lm1 = Math.max(0, 1.0 - Math.abs(norm * zones - 1.5) * 2.5);
+const lm2 = Math.max(0, 1.0 - Math.abs(norm * zones - 2.5) * 2.5);
+const lm3 = Math.max(0, 1.0 - Math.abs(norm * zones - 3.5) * 2.5);
+const lm4 = Math.max(0, 1.0 - Math.abs(norm * zones - 4.5) * 2.5);
+const lm5 = Math.max(0, 1.0 - Math.abs(norm * zones - 5.5) * 2.5);
+const lm6 = Math.max(0, 1.0 - Math.abs(norm * zones - 6.5) * 2.5);
+
+const blendX = ex1x*lm0 + ex2x*lm1 + xx_x*lm2 + kochX*lm3 + fernX*lm4 + julX*lm5 + becX*lm6;
+const blendY = ex1y*lm0 + ex2y*lm1 + xx_y*lm2 + kochY*lm3 + fernY*lm4 + julY*lm5 + becY*lm6;
+const blendZ = ex1z*lm0 + ex2z*lm1 + xx_z*lm2 + kochZ*lm3 + fernZ*lm4 + julZ*lm5 + becZ*lm6;
+ 
+const starkShift = Math.sin(time * 0.7 + norm * Math.PI * 2) * scale * Eb * 0.12 * bec;
+const finalX = blendX + starkShift * Math.cos(norm * Math.PI * 4);
+const finalY = blendY + starkShift * Math.sin(norm * Math.PI * 4);
+const finalZ = blendZ;
+ 
+const clamp = 999;
+const safeX = Math.max(-clamp, Math.min(clamp, finalX));
+const safeY = Math.max(-clamp, Math.min(clamp, finalY));
+const safeZ = Math.max(-clamp, Math.min(clamp, finalZ));
+ 
+target.set(safeX, safeY, safeZ);
+ 
+const hue0 = 0.13;  
+const hue1 = 0.48;   
+const hue2 = 0.75;   
+const hue3 = 0.58;   
+const hue4 = 0.35;   
+const hue5 = 0.88;   
+const hue6 = 0.60;   
+ 
+const baseHue = hue0*lm0 + hue1*lm1 + hue2*lm2 + hue3*lm3
+              + hue4*lm4 + hue5*lm5 + hue6*lm6;
+ 
+const fracHue  = (baseHue + juliaFrac * 0.12 * fD) % 1.0;
+ 
+const augFlash = 1.0 - aug * 0.45 * Math.abs(Math.sin(time * 2.5 + i * 0.007));
+ 
+const satBoost = 0.70 + lm6 * 0.30 + lm2 * 0.20;
+const litBoost = 0.35 + lm6 * 0.45 * pRate + juliaFrac * 0.18 * fD;
+const finalLit = Math.min(0.92, litBoost * augFlash);
+ 
+color.setHSL(fracHue, satBoost, finalLit);
+ 
+if (i === 0) {
+  setInfo(
+    "Biexciton Quasiparticle — Fractal Simulation",
+    "4-body e-h-e-h bound state | Wannier orbital shells | " +
+    "H2-like Coulomb molecule | Koch snowflake crystal lattice | " +
+    "Barnsley fern branching | Julia set confinement shells | " +
+    "BEC condensate + Auger recombination | Stark redshift | " +
+    "Binding energy Eb=" + Eb.toFixed(2) + " | Auger=" + aug.toFixed(2)
+  );
+ 
+  annotate("biexciton",  new THREE.Vector3(0, 0, 0),              "Biexciton XX Core");
+  annotate("exciton1",   new THREE.Vector3(scale * 0.5, 0, 0),    "Exciton X1 (e-h)");
+  annotate("exciton2",   new THREE.Vector3(-scale * 0.5, 0, 0),   "Exciton X2 (e-h)");
+  annotate("bec",        new THREE.Vector3(0, scale * 0.7, 0),    "BEC Condensate");
+  annotate("julia",      new THREE.Vector3(0, -scale * 0.6, 0),   "Julia Confinement");
+  annotate("koch",       new THREE.Vector3(scale * 0.65, scale * 0.5, 0), "Koch Crystal");
+  annotate("fern",       new THREE.Vector3(-scale * 0.5, scale * 0.6, 0),"Fern Branching");
+}
+`
+  },
+  {
+    name: 'DATAFLOW',
+    cam: [15, 80, 180],
+    code: `
+// ═══════════════════════════════════════════════════════════════
+//  ISA-95 Manufacturing Data Flow  —  Left → Right Layout
+//  Paste into Custom Editor at particles.casberry.in
+// ═══════════════════════════════════════════════════════════════
+
+// ---- Sliders (addControl returns current value) ----
+const sc     = addControl('scale',   'Scene Scale',       0.5, 3.0, 1.5);
+const speed  = addControl('speed',   'Flow Speed',        0.1, 3.0, 1.0);
+const agg    = addControl('agg',     'Aggregation',       0.0, 1.0, 0.6);
+const anomIn = addControl('anomaly', 'Anomaly Intensity', 0.0, 1.0, 0.3);
+const poolS  = addControl('poolStr', 'Pool Dwell',        0.1, 2.0, 0.8);
+
+const u = i / count;
+const t = time * speed * 0.4;
+
+// ── Layer X positions: 6 layers spread left to right ──
+// L0 = -5*sc (left), L5 = +5*sc (right)
+// layerX(n) = (n * 2.0 - 5.0) * sc
+
+// ── HUD + 3D labels (i === 0 only) ──
+if (i === 0) {
+    setInfo(
+        'ISA-95 Data Flow',
+        count + ' particles  ·  Telemetry ▸  Commands ◂  Anomalies ◆'
+    );
+    annotate('l0', new THREE.Vector3(-5.0 * sc, -3.2 * sc, 0), 'L0 · Sensors');
+    annotate('l1', new THREE.Vector3(-3.0 * sc, -3.2 * sc, 0), 'L1 · Edge/PLC');
+    annotate('l2', new THREE.Vector3(-1.0 * sc, -3.2 * sc, 0), 'L2 · SCADA');
+    annotate('l3', new THREE.Vector3( 1.0 * sc, -3.2 * sc, 0), 'L3 · MES');
+    annotate('l4', new THREE.Vector3( 3.0 * sc, -3.2 * sc, 0), 'L4 · ERP');
+    annotate('l5', new THREE.Vector3( 5.0 * sc, -3.2 * sc, 0), 'L5 · Cloud');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT 1 — LAYER NODES  (u: 0.00 – 0.10)
+//  Orbiting disc clusters at each of the 6 ISA-95 tiers.
+//  Gives the scene its spatial backbone.
+// ═══════════════════════════════════════════════════════════
+if (u < 0.10) {
+    const nu       = u / 0.10;
+    const layerIdx = Math.min(Math.floor(nu * 6.0), 5);
+    const inLayer  = (nu * 6.0) % 1.0;
+    const lx       = (layerIdx * 2.0 - 5.0) * sc;
+
+    const angle = inLayer * 6.2832 + time * (0.3 + layerIdx * 0.05);
+    const r     = (0.6 + inLayer * 0.5) * sc;
+
+    target.set(
+        lx + Math.sin(time * 0.3 + inLayer * 12.0) * 0.06 * sc,
+        Math.cos(angle) * r,
+        Math.sin(angle) * r
+    );
+
+    // warm-orange left, cool-blue right
+    color.setHSL(
+        0.08 + layerIdx * 0.13,
+        0.55,
+        0.42 + Math.sin(angle * 2.0) * 0.08
+    );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT 2 — TELEMETRY  L→R + POOLING  (u: 0.10 – 0.52)
+//  Sensor data flowing rightward through the stack.
+//  Stream compresses (aggregation) as it moves right.
+//  Particles dwell & orbit at each layer node.
+// ═══════════════════════════════════════════════════════════
+else if (u < 0.52) {
+    const tu = (u - 0.10) / 0.42;
+
+    // stagger each particle along the journey
+    const phase     = tu * 47.0 + Math.sin(tu * 311.0) * 2.5;
+    const cycleTime = 6.0 + poolS * 4.0;
+
+    // progress 0 → 5 (L0 → L5), looping
+    const rawP = ((t + phase) % cycleTime + cycleTime) % cycleTime
+                 / cycleTime * 5.0;
+
+    // ── sticky easing: dwell near integer values (layers) ──
+    const frac = rawP % 1.0;
+    const base = Math.floor(rawP);
+    const exp  = 0.4 + poolS * 0.6;
+    const ease = frac < 0.5
+        ? 0.5 * Math.pow(2.0 * frac, exp)
+        : 1.0 - 0.5 * Math.pow(2.0 * (1.0 - frac), exp);
+    const stickyP = Math.min(base + ease, 5.0);
+    const lx      = (stickyP * 2.0 - 5.0) * sc;
+
+    // ── pool orbit when near a layer ──
+    const distToLayer = Math.min(frac, 1.0 - frac) * 2.0;
+    const poolAmt     = Math.max(0.0, 1.0 - distToLayer * 2.5) * poolS;
+    const orbitAngle  = time * 2.5 + phase * 3.0;
+    const orbitR      = poolAmt * 0.55 * sc;
+
+    // ── aggregation: stream gets tighter further right ──
+    const spread      = 1.0 - (stickyP / 5.0) * agg * 0.85;
+    const streamAngle = tu * 6.2832 * 3.0 + Math.sin(tu * 89.0);
+    const baseR       = spread * 1.5 * sc;
+
+    // offset upward so telemetry and commands separate in Y
+    const yOff = 0.5 * sc;
+
+    target.set(
+        lx,
+        yOff + Math.cos(streamAngle) * baseR * 0.4 + Math.cos(orbitAngle) * orbitR,
+        Math.sin(streamAngle) * baseR * 0.4 + Math.sin(orbitAngle) * orbitR
+    );
+
+    // warm orange at left → teal at right, brightens when pooling
+    color.setHSL(
+        0.06 + (stickyP / 5.0) * 0.42,
+        0.65 + poolAmt * 0.25,
+        0.42 + poolAmt * 0.18
+    );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT 3 — COMMANDS  R→L + POOLING  (u: 0.52 – 0.72)
+//  Setpoints & recipes flowing leftward (cloud → floor).
+//  Sparser. Offset below telemetry for visual separation.
+// ═══════════════════════════════════════════════════════════
+else if (u < 0.72) {
+    const du = (u - 0.52) / 0.20;
+
+    const phase     = du * 53.0 + Math.sin(du * 271.0) * 2.0;
+    const cycleTime = 5.0 + poolS * 3.0;
+
+    // right-to-left: 5 → 0
+    const rawP    = 5.0 - (((t * 0.7 + phase) % cycleTime + cycleTime)
+                    % cycleTime / cycleTime * 5.0);
+    const clamped = Math.max(0.0, Math.min(5.0, rawP));
+
+    const frac = ((clamped % 1.0) + 1.0) % 1.0;
+    const base = Math.floor(clamped);
+    const exp  = 0.5 + poolS * 0.5;
+    const ease = frac < 0.5
+        ? 0.5 * Math.pow(2.0 * frac, exp)
+        : 1.0 - 0.5 * Math.pow(2.0 * (1.0 - frac), exp);
+    const stickyP = Math.min(base + ease, 5.0);
+    const lx      = (stickyP * 2.0 - 5.0) * sc;
+
+    const distToLayer = Math.min(frac, 1.0 - frac) * 2.0;
+    const poolAmt     = Math.max(0.0, 1.0 - distToLayer * 2.5) * poolS;
+    const orbitAngle  = time * 1.8 + phase * 2.5;
+    const orbitR      = poolAmt * 0.4 * sc;
+
+    // offset below telemetry
+    const yOff     = -0.5 * sc;
+    const cmdAngle = du * 6.2832 * 2.0;
+    const cmdR     = 0.45 * sc;
+
+    target.set(
+        lx,
+        yOff + Math.cos(cmdAngle) * cmdR * 0.3 + Math.cos(orbitAngle) * orbitR,
+        Math.sin(cmdAngle) * cmdR * 0.3 + Math.sin(orbitAngle) * orbitR
+    );
+
+    // cool blue, brightens at pool points
+    color.setHSL(
+        0.58 + poolAmt * 0.05,
+        0.55,
+        0.38 + poolAmt * 0.22
+    );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT 4 — CROSS-LINKS within layers  (u: 0.72 – 0.86)
+//  Historian replication, peer SCADA traffic, etc.
+//  Vertical/depth sweeps at each layer's X position.
+// ═══════════════════════════════════════════════════════════
+else if (u < 0.86) {
+    const hu       = (u - 0.72) / 0.14;
+    const layerIdx = Math.min(Math.floor(hu * 6.0), 5);
+    const inLink   = (hu * 6.0) % 1.0;
+    const lx       = (layerIdx * 2.0 - 5.0) * sc;
+
+    const sweep = Math.sin(time * 0.8 + inLink * 6.2832 + layerIdx * 1.3);
+    const depth = Math.cos(time * 0.6 + inLink * 4.0 + layerIdx);
+
+    target.set(
+        lx + Math.sin(time + inLink * 20.0) * 0.05 * sc,
+        sweep * 2.0 * sc,
+        depth * 1.0 * sc
+    );
+
+    // muted green-cyan
+    color.setHSL(
+        0.35 + layerIdx * 0.03,
+        0.35,
+        0.32 + Math.abs(sweep) * 0.1
+    );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT 5 — ANOMALY BURSTS  (u: 0.86 – 1.00)
+//  Red pulses originating at L0 (left), expanding rightward.
+//  Gated by the anomaly intensity slider.
+// ═══════════════════════════════════════════════════════════
+else {
+    const au = (u - 0.86) / 0.14;
+
+    const burstPhase = au * 29.0 + Math.sin(au * 197.0) * 3.0;
+    const burstCycle = 3.0;
+    const rawBurst   = ((t * 1.5 + burstPhase) % burstCycle + burstCycle)
+                       % burstCycle / burstCycle;
+
+    // gate: only visible when anomaly slider is high enough
+    const gate = (Math.sin(burstPhase * 5.0) * 0.5 + 0.5) < anomIn ? 1.0 : 0.0;
+
+    // expand from left to right
+    const burstX  = (-5.0 + rawBurst * 10.0) * sc * gate;
+    const expandR = rawBurst * 1.2 * sc * gate;
+    const bAngle  = au * 6.2832 * 7.0 + time * 3.0;
+
+    target.set(
+        burstX,
+        Math.cos(bAngle) * expandR,
+        Math.sin(bAngle) * expandR
+    );
+
+    // red-amber, fading as it moves right
+    color.setHSL(
+        0.02 + rawBurst * 0.06,
+        0.9 * gate,
+        ((1.0 - rawBurst) * 0.4 + 0.3) * gate
+    );
+}
+`
+  },
+  {
+    name: 'DNA HELIX',
+    cam: [12, 70, 160],
+    code: `
+// ── controls ────────────────────────────────────────────────────────────────
+const cellRadius   = addControl("cellRadius",   "Cell Size",        20, 80, 45);
+const helixHeight  = addControl("helixHeight",  "Helix Stretch",     5, 40, 18);
+const helixTwist   = addControl("helixTwist",   "Helix Twist Speed", 0,  4,  1);
+const breatheAmt   = addControl("breatheAmt",   "Membrane Pulse",    0,  8,  3);
+const organelleMix = addControl("organelleMix", "Organelle Density", 0,  1, 0.55);
+const flowSpeed    = addControl("flowSpeed",    "Flow Speed",        0,  3, 1.0);
+
+if (i === 0) {
+  setInfo(
+    "Living Cell — DNA Helix",
+    "A eukaryotic cell breathes with organelle clusters and a winding double helix. Adjust sliders to morph structure."
+  );
+  annotate("nucleus", new THREE.Vector3(0, 0, 0), "Nucleus");
+  annotate("helix",   new THREE.Vector3(0, helixHeight * 0.5, 0), "DNA Helix");
+}
+
+// ── partition particles into roles ───────────────────────────────────────────
+const t         = time * flowSpeed;
+const norm      = i / count;                      // 0..1
+const iF        = i;
+
+// Role boundaries (tuneable via organelleMix)
+const helixCut       = 0.18;                      // 18% → double helix
+const membraneCut    = helixCut + 0.28;           // 28% → membrane
+const organelleCut   = membraneCut + organelleMix * 0.35; // up to 35% → organelles
+// remaining → cytoplasm drift
+
+// ── shared math helpers (no allocations) ─────────────────────────────────────
+const twoPi    = 6.283185307;
+const goldenAng = 2.399963229;                    // radians, golden angle
+
+let px, py, pz, hue, sat, lit;
+
+// ════════════════════════════════════════════════════════════════════════════
+// 1. DOUBLE HELIX  (norm < helixCut)
+// ════════════════════════════════════════════════════════════════════════════
+if (norm < helixCut) {
+  const strand    = (iF % 2 === 0) ? 1.0 : -1.0; // two strands
+  const helixNorm = norm / helixCut;              // 0..1 along helix
+  const angle     = helixNorm * twoPi * 5        // 5 full turns
+                  + strand * 1.5707963           // strand offset (π/2)
+                  + t * helixTwist;
+  const helixR    = 4.5;
+  const yPos      = (helixNorm - 0.5) * helixHeight;
+
+  // base-pair rungs (every ~8th particle snaps toward center)
+  const rungPull  = (Math.cos(helixNorm * twoPi * 20) > 0.92) ? 0.35 : 1.0;
+
+  px = Math.cos(angle) * helixR * rungPull;
+  pz = Math.sin(angle) * helixR * rungPull;
+  py = yPos + Math.sin(t * 0.4 + helixNorm * twoPi) * 0.6; // gentle sway
+
+  // color: cyan→violet along length, rungs glow warm
+  hue = 0.52 + helixNorm * 0.22 + (1.0 - rungPull) * 0.18;
+  sat = 0.9;
+  lit = 0.45 + (1.0 - rungPull) * 0.25 + 0.1 * Math.sin(t * 2 + helixNorm * 10);
+
+// ════════════════════════════════════════════════════════════════════════════
+// 2. CELL MEMBRANE  (norm in [helixCut, membraneCut))
+// ════════════════════════════════════════════════════════════════════════════
+} else if (norm < membraneCut) {
+  const memNorm = (norm - helixCut) / (membraneCut - helixCut); // 0..1
+  const idx2    = Math.floor(memNorm * count * (membraneCut - helixCut));
+
+  // Fibonacci sphere for uniform surface coverage
+  const theta2  = Math.acos(1.0 - 2.0 * memNorm);
+  const phi2    = goldenAng * iF;
+
+  const breathe = cellRadius + breatheAmt * Math.sin(t * 0.9 + memNorm * twoPi * 3);
+
+  // lipid bilayer ripple — two concentric shells
+  const shell   = (iF % 3 === 0) ? 1.04 : 1.0;
+  const r       = breathe * shell;
+
+  px = Math.sin(theta2) * Math.cos(phi2) * r;
+  py = Math.cos(theta2) * r;
+  pz = Math.sin(theta2) * Math.sin(phi2) * r;
+
+  // phospholipid color: teal with warm tips
+  hue = 0.48 + 0.08 * Math.sin(phi2 * 3 + t * 0.5);
+  sat = 0.7;
+  lit = 0.38 + 0.12 * Math.abs(Math.cos(theta2));
+
+// ════════════════════════════════════════════════════════════════════════════
+// 3. ORGANELLES  (mitochondria, ER, ribosomes)
+// ════════════════════════════════════════════════════════════════════════════
+} else if (norm < organelleCut) {
+  const orgNorm  = (norm - membraneCut) / (organelleCut - membraneCut);
+  const orgType  = Math.floor(orgNorm * 5);      // 5 organelle groups
+  const orgLocal = (orgNorm * 5) % 1.0;          // local position within group
+
+  // organelle centers arranged inside cell
+  const oCenters = [
+    [-14, -6,  8],   // mitochondrion A
+    [ 12, -8, -6],   // mitochondrion B
+    [-8,  10, -10],  // rough ER patch
+    [ 10,  8,  12],  // Golgi stack
+    [ 0,  -12,  6],  // ribosome cloud
+  ];
+
+  const oRadii  = [5.5, 5.5, 7.0, 4.0, 9.0];
+  const oHues   = [0.08, 0.08, 0.35, 0.82, 0.12];
+
+  const oIdx    = orgType % 5;
+  const cx      = oCenters[oIdx][0];
+  const cy      = oCenters[oIdx][1];
+  const cz      = oCenters[oIdx][2];
+  const oR      = oRadii[oIdx];
+
+  const angle2  = orgLocal * twoPi;
+  const elevAng = (orgLocal * 7.3) % twoPi;      // varied elevation
+  const wiggle  = 0.5 * Math.sin(t * 1.2 + orgLocal * twoPi * 4);
+
+  // mitochondria (0,1): elongated ellipsoid
+  // ER (2): flat branched sheet
+  // Golgi (3): stacked disc layers
+  // ribosomes (4): scattered cloud
+  let localR, lx, ly, lz;
+
+  if (oIdx < 2) {
+    // elongated mitochondrion
+    localR = oR * (0.7 + 0.3 * Math.cos(elevAng));
+    lx = Math.cos(angle2) * localR * 1.8;
+    ly = Math.sin(elevAng) * oR * 0.5 + wiggle;
+    lz = Math.sin(angle2) * localR;
+  } else if (oIdx === 2) {
+    // rough ER: branched flat ribbons
+    const branch = Math.floor(orgLocal * 4);
+    const bAngle = branch * 1.5707963 + t * 0.15;
+    localR = orgLocal * oR;
+    lx = Math.cos(bAngle) * localR;
+    ly = Math.sin(orgLocal * twoPi * 6) * 1.5 + wiggle * 0.5;
+    lz = Math.sin(bAngle) * localR;
+  } else if (oIdx === 3) {
+    // Golgi: stacked discs
+    const disc = Math.floor(orgLocal * 4);
+    const dR   = oR * (0.6 + disc * 0.15);
+    lx = Math.cos(angle2) * dR;
+    ly = disc * 1.8 - 2.7 + wiggle * 0.3;
+    lz = Math.sin(angle2) * dR;
+  } else {
+    // ribosome cloud: scattered spherical
+    lx = (Math.cos(angle2) * Math.cos(elevAng)) * oR;
+    ly = Math.sin(elevAng) * oR + wiggle;
+    lz = (Math.sin(angle2) * Math.cos(elevAng)) * oR;
+  }
+
+  px = cx + lx;
+  py = cy + ly;
+  pz = cz + lz;
+
+  hue = oHues[oIdx] + 0.05 * Math.sin(t + orgLocal * twoPi);
+  sat = 0.85;
+  lit = 0.42 + 0.12 * Math.cos(orgLocal * twoPi * 3 + t);
+
+// ════════════════════════════════════════════════════════════════════════════
+// 4. CYTOPLASM DRIFT  (remaining particles)
+// ════════════════════════════════════════════════════════════════════════════
+} else {
+  const cytNorm  = (norm - organelleCut) / (1.0 - organelleCut + 0.0001);
+  const theta3   = Math.acos(1.0 - 2.0 * cytNorm);
+  const phi3     = goldenAng * iF + t * 0.25;    // slow rotation drift
+  const rInner   = cellRadius * (0.2 + 0.7 * Math.pow(cytNorm, 0.5));
+
+  // Perlin-like turbulence from sine sums
+  const nx = Math.sin(t * 0.3 + cytNorm * 13.7) * 2.5;
+  const ny = Math.cos(t * 0.25 + cytNorm * 11.3) * 2.5;
+  const nz = Math.sin(t * 0.35 + cytNorm * 9.1 + 1.7) * 2.5;
+
+  px = Math.sin(theta3) * Math.cos(phi3) * rInner + nx;
+  py = Math.cos(theta3) * rInner + ny;
+  pz = Math.sin(theta3) * Math.sin(phi3) * rInner + nz;
+
+  // cytoplasm: faint greens and blues, semi-transparent feel
+  hue = 0.43 + 0.12 * Math.sin(cytNorm * twoPi * 2 + t * 0.4);
+  sat = 0.55;
+  lit = 0.30 + 0.10 * Math.sin(cytNorm * 8 + t);
+}
+
+target.set(px, py, pz);
+color.setHSL(hue, sat, lit);
+`
+  },
+  {
+    name: 'CHLADNI WAVE',
+    cam: [20, 120, 250],
+    code: `
+const scale = addControl("scale", "Scale", 40, 180, 95);
+const seed = addControl("seed", "Seed", 0, 100, 1);
+
+// field / plate
+const mode = Math.floor(addControl("mode", "Mode", 0, 4, 0));
+const plate = Math.floor(addControl("plate", "Plate", 0, 3, 0)); // 0=square 1=circle 2=diamond 3=rounded
+const symmetry = Math.floor(addControl("symmetry", "Symmetry", 1, 8, 1));
+
+const a = Math.floor(addControl("a", "A", 1, 14, 4));
+const b = Math.floor(addControl("b", "B", 1, 14, 7));
+const c = Math.floor(addControl("c", "C", 1, 14, 9));
+const d = Math.floor(addControl("d", "D", 1, 14, 2));
+const fieldMix = addControl("fieldMix", "Field Mix", 0.0, 1.0, 0.28);
+
+// transform
+const aspect = addControl("aspect", "Aspect", 0.4, 2.0, 1.0);
+const rotation = addControl("rotation", "Rotation", 0.0, 1.0, 0.0);
+
+// nodal projection
+const iterations = Math.floor(addControl("iterations", "Iterations", 0, 10, 5));
+const project = addControl("project", "Project", 0.0, 1.8, 0.78);
+const thickness = addControl("thickness", "Thickness", 0.02, 1.2, 0.16);
+const tangentSpread = addControl("tangentSpread", "Tangent Spread", 0.0, 1.0, 0.26);
+const jitter = addControl("jitter", "Jitter", 0.0, 1.0, 0.18);
+
+// motion / warp
+const warp = addControl("warp", "Warp", 0.0, 2.0, 0.35);
+const warpFreq = addControl("warpFreq", "Warp Freq", 0.5, 6.0, 2.4);
+const swirl = addControl("swirl", "Swirl", 0.0, 3.0, 0.35);
+const ripple = addControl("ripple", "Ripple", 0.0, 2.0, 0.55);
+const drift = addControl("drift", "Drift", 0.0, 2.0, 0.22);
+
+// plate boundary / depth
+const boundaryPull = addControl("boundaryPull", "Boundary Pull", 0.0, 1.0, 0.82);
+const maskSoftness = addControl("maskSoftness", "Mask Softness", 0.02, 0.4, 0.10);
+const lift = addControl("lift", "Lift", 0.0, 20.0, 6.0);
+const zRipple = addControl("zRipple", "Z Ripple", 0.0, 8.0, 1.4);
+
+// color
+const hue = addControl("hue", "Hue", 0.0, 1.0, 0.08);
+const saturation = addControl("saturation", "Saturation", 0.0, 1.0, 0.78);
+const hueCycle = addControl("hueCycle", "Hue Cycle", 0.0, 1.0, 0.14);
+const lightBase = addControl("lightBase", "Light Base", 0.0, 0.5, 0.12);
+const lightGain = addControl("lightGain", "Light Gain", 0.0, 1.0, 0.62);
+
+function fract(v) {
+  return v - Math.floor(v);
+}
+
+function hash(n) {
+  return fract(Math.sin(n) * 43758.5453123);
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function mix(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function plateMetric(px, py) {
+  const pi = 3.141592653589793;
+  const ang = rotation * pi;
+  const ca = Math.cos(ang);
+  const sa = Math.sin(ang);
+
+  let x = px * ca - py * sa;
+  let y = px * sa + py * ca;
+  y /= aspect;
+
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+
+  if (plate === 0) {
+    return Math.max(ax, ay);
+  }
+  if (plate === 1) {
+    return Math.sqrt(x * x + y * y);
+  }
+  if (plate === 2) {
+    return ax + ay;
+  }
+  return Math.pow(Math.pow(ax, 4.0) + Math.pow(ay, 4.0), 0.25);
+}
+
+function chladni(px, py, tt) {
+  const pi = 3.141592653589793;
+  const ang0 = rotation * pi;
+  const ca = Math.cos(ang0);
+  const sa = Math.sin(ang0);
+
+  let x = px * ca - py * sa;
+  let y = px * sa + py * ca;
+  y /= aspect;
+
+  const r0 = Math.sqrt(x * x + y * y);
+  if (swirl > 0.0) {
+    const a0 = Math.atan2(y, x) + swirl * 0.45 * r0;
+    x = r0 * Math.cos(a0);
+    y = r0 * Math.sin(a0);
+  }
+
+  if (warp > 0.0) {
+    const wx = warp * 0.14 * Math.sin((y * warpFreq + tt * 0.9 + 0.21 * Math.cos(x * 3.1)) * pi);
+    const wy = warp * 0.14 * Math.sin((x * warpFreq - tt * 0.7 + 0.18 * Math.sin(y * 2.7)) * pi);
+    x += wx;
+    y += wy;
+  }
+
+  if (symmetry > 1) {
+    const rr = Math.sqrt(x * x + y * y);
+    const aa = Math.atan2(y, x);
+    const sector = 2.0 * pi / symmetry;
+    const folded = (fract((aa + pi) / sector) - 0.5) * sector;
+    x = rr * Math.cos(folded);
+    y = rr * Math.sin(folded);
+  }
+
+  const r = Math.sqrt(x * x + y * y);
+  const axy = Math.atan2(y, x);
+
+  const f0 =
+    Math.sin(a * pi * x) * Math.sin(b * pi * y) -
+    Math.sin(c * pi * x) * Math.sin(d * pi * y);
+
+  const f1 =
+    Math.cos(a * pi * x) -
+    Math.cos(b * pi * y) +
+    0.35 * Math.sin(c * pi * (x + y)) +
+    0.20 * Math.cos(d * pi * (x - y));
+
+  const f2 =
+    Math.sin(a * pi * x) +
+    Math.sin(b * pi * y) -
+    Math.sin(c * pi * (x + y) * 0.5) -
+    0.5 * Math.sin(d * pi * (x - y) * 0.5);
+
+  const f3 =
+    Math.sin(a * pi * r) +
+    0.7 * Math.cos(b * axy) -
+    0.45 * Math.sin(c * pi * x) * Math.cos(d * pi * y);
+
+  const f4 =
+    Math.sin(a * pi * x) * Math.cos(b * pi * y) +
+    0.6 * Math.cos(c * pi * r - d * axy) -
+    0.35 * Math.sin((a + b) * pi * (x - y) * 0.25);
+
+  let main = f0;
+  if (mode === 1) main = f1;
+  else if (mode === 2) main = f2;
+  else if (mode === 3) main = f3;
+  else if (mode === 4) main = f4;
+
+  let f = mix(main, f3, fieldMix);
+
+  if (ripple > 0.0) {
+    f += 0.18 * ripple * Math.sin((r * 4.0 - tt * 1.35) * pi);
+  }
+
+  return f;
+}
+
+const t = time * drift;
+const q = i + seed * 131.17;
+
+// quasi-random square start
+let x = 2.0 * fract(i * 0.754877666 + hash(q + 1.3) * 0.37) - 1.0;
+let y = 2.0 * fract(i * 0.569840291 + hash(q + 8.1) * 0.41) - 1.0;
+
+// mild compaction for nicer density
+const r0 = Math.sqrt(x * x + y * y);
+const comp = 0.88 + 0.12 / (1.0 + 1.8 * r0);
+x *= comp;
+y *= comp;
+
+// project toward nodal lines
+const eps = 0.0035;
+for (let k = 0; k < iterations; k++) {
+  const f0 = chladni(x, y, t);
+  const gx0 = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+  const gy0 = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+  const g20 = gx0 * gx0 + gy0 * gy0 + 1e-6;
+  const step = project * f0 / g20;
+  x -= gx0 * step;
+  y -= gy0 * step;
+}
+
+// pull back toward plate if outside
+const m = plateMetric(x, y);
+if (m > 1.0) {
+  const sc = mix(1.0, 1.0 / (m + 1e-6), boundaryPull);
+  x *= sc;
+  y *= sc;
+}
+
+// tangent direction for line-like continuity
+const f = chladni(x, y, t);
+const gx = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
+const gy = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
+const gLen = Math.sqrt(gx * gx + gy * gy) + 1e-6;
+
+const tx = -gy / gLen;
+const ty = gx / gLen;
+
+const along = (hash(q + 17.7) - 0.5) * tangentSpread * 0.10;
+const off = (hash(q + 27.1) - 0.5) * jitter * 0.05;
+
+x += tx * along + gx / gLen * off;
+y += ty * along + gy / gLen * off;
+
+// plate mask / brightness
+const m2 = plateMetric(x, y);
+const edge = Math.exp(-Math.max(0.0, m2 - 1.0) / maskSoftness);
+const near = Math.exp(-Math.abs(f) / Math.max(0.0001, thickness));
+
+const r = Math.sqrt(x * x + y * y);
+const pulse = 0.5 + 0.5 * Math.sin(9.0 * r - t * 1.6 + a * 0.37);
+
+// final placement
+const px = x * scale;
+const py = y * scale;
+const pz =
+  lift * near * edge +
+  zRipple * pulse * near * edge +
+  0.25 * Math.sin(i * 0.11 + t) * (0.4 + 0.6 * near);
+
+// color
+const h = fract(hue + hueCycle * (0.45 * near + 0.20 * r + 0.12 * pulse));
+const s = saturation * (0.35 + 0.65 * edge);
+const l = clamp(
+  lightBase +
+    lightGain * near * edge +
+    0.08 * pulse * edge,
+  0.04,
+  0.95
+);
+
+target.set(px, py, pz);
+color.setHSL(h, s, l);
+
+if (i === 0) {
+  setInfo(
+    "Advanced Chladni Plate",
+    "A multi-control particle Chladni system with plate shapes, symmetry, warp, projection, and color controls."
+  );
+}
+`
+  },
+  {
+    name: 'GODDESS',
+    cam: [15, 90, 200],
+    code: `
+// === GODDESS ===
+// A luminous classical figure sculpted entirely from light.
+// Body profile is a sum of 11 Gaussian anatomical features: head sphere, neck
+// constriction, shoulder breadth, bust, waist tuck, hip swell, thighs, knees,
+// calves, ankles, feet. Legs bifurcate smoothly via tanh() below the hip line.
+// 160-strand Fibonacci hair falls with wind. An aurora gown ripples at the base.
+
+const figScale  = addControl("figScale",  "Figure Scale",  5,  28,  13);
+const hairFlow  = addControl("hairFlow",  "Hair Flow",     0,   3,   0.8);
+const turnSpeed = addControl("turnSpeed", "Slow Turn",     0, 0.4,   0.1);
+const auraHue   = addControl("auraHue",   "Aura Color",    0,   1,   0.58);
+
+const GOLDEN = 2.399963229;
+const ROT    = time * turnSpeed;
+const cosR   = Math.cos(ROT);
+const sinR   = Math.sin(ROT);
+
+const N_HAIR = (count * 0.11) | 0;
+const N_BODY = (count * 0.82) | 0;
+
+if (i < N_HAIR) {
+
+    // ─── FLOWING HAIR ────────────────────────────────────────────────────────
+    const nStr = 160;
+    const hLoc = i / N_HAIR;
+    const sIdx = (hLoc * nStr) | 0;
+    const sT   = hLoc * nStr - sIdx;    // 0-1 position along strand
+
+    // Strand root: golden-angle spread from crown arc down to nape
+    const sPhi = sIdx * GOLDEN;
+    const sPol = 0.28 + (sIdx / nStr) * 1.26;
+    const hCY  = figScale * 0.84;
+    const hCR  = figScale * 0.108;
+
+    const rX = hCR * Math.sin(sPol) * Math.cos(sPhi);
+    const rY = hCY + hCR * Math.cos(sPol);
+    const rZ = hCR * Math.sin(sPol) * Math.sin(sPhi);
+
+    // Gravity fall + organic curl + tip wind sway
+    const fallY = sT * figScale * 0.66;
+    const cAmp  = figScale * 0.016 * Math.sin(sT * 3.14159);
+    const cX    = cAmp * Math.cos(sPhi + sT * 2.3);
+    const cZ    = cAmp * Math.sin(sPhi + sT * 2.3);
+    const sT2   = sT * sT;
+    const wX    = hairFlow * 0.021 * figScale * Math.sin(time * 0.88 + sIdx * 0.53) * sT2;
+    const wZ    = hairFlow * 0.016 * figScale * Math.cos(time * 0.71 + sIdx * 0.44) * sT2;
+
+    const hx = rX + cX + wX;
+    const hy = rY - fallY;
+    const hz = rZ + cZ - fallY * 0.07 + wZ;
+
+    target.set(hx * cosR - hz * sinR, hy, hx * sinR + hz * cosR);
+
+    // Deep hair: near-black with electric blue shimmer rising toward tips
+    const shimmer = sT2 * (0.5 + 0.5 * Math.sin(sT * 8.5 + time * 3.2 + sIdx * 0.48));
+    color.setHSL(0.63 + auraHue * 0.07, 0.88, 0.05 + shimmer * 0.24);
+
+} else if (i < N_BODY) {
+
+    // ─── BODY SURFACE ────────────────────────────────────────────────────────
+    const bLoc = (i - N_HAIR) / (N_BODY - N_HAIR);
+    const phi  = (i - N_HAIR) * GOLDEN;
+    const yn   = bLoc * 2.0 - 1.0;    // -1.0 (feet) to +1.0 (crown)
+
+    // ── GAUSSIAN SILHOUETTE PROFILE ──────────────────────────────────────────
+    // Each feature: G = exp(-0.5 * ((yn - center) / width)^2)
+    // Positive amplitude = outward swell. Negative = inward constriction.
+
+    const _dH = yn - 0.86; const G_hd = Math.exp(-0.5 * (_dH / 0.072) * (_dH / 0.072)); // head
+    const _dN = yn - 0.77; const G_nk = Math.exp(-0.5 * (_dN / 0.021) * (_dN / 0.021)); // neck
+    const _dS = yn - 0.69; const G_sh = Math.exp(-0.5 * (_dS / 0.042) * (_dS / 0.042)); // shoulder
+    const _dB = yn - 0.52; const G_bu = Math.exp(-0.5 * (_dB / 0.065) * (_dB / 0.065)); // bust
+    const _dW = yn - 0.35; const G_wa = Math.exp(-0.5 * (_dW / 0.028) * (_dW / 0.028)); // waist
+    const _dI = yn - 0.12; const G_hp = Math.exp(-0.5 * (_dI / 0.082) * (_dI / 0.082)); // hips
+    const _dT = yn + 0.10; const G_th = Math.exp(-0.5 * (_dT / 0.078) * (_dT / 0.078)); // thighs
+    const _dK = yn + 0.41; const G_kn = Math.exp(-0.5 * (_dK / 0.034) * (_dK / 0.034)); // knees
+    const _dC = yn + 0.59; const G_ca = Math.exp(-0.5 * (_dC / 0.048) * (_dC / 0.048)); // calves
+    const _dA = yn + 0.79; const G_an = Math.exp(-0.5 * (_dA / 0.020) * (_dA / 0.020)); // ankles
+    const _dF = yn + 0.93; const G_ft = Math.exp(-0.5 * (_dF / 0.032) * (_dF / 0.032)); // feet
+
+    const rPro = Math.max(0.022,
+          0.075              // backbone base — keeps narrow regions from collapsing
+        + 0.088 * G_hd     // head sphere
+        - 0.048 * G_nk     // neck constriction
+        + 0.155 * G_sh     // shoulder breadth
+        + 0.080 * G_bu     // bust fullness
+        - 0.032 * G_wa     // waist tuck
+        + 0.130 * G_hp     // hip swell
+        + 0.065 * G_th     // thigh volume
+        + 0.028 * G_kn     // knee
+        + 0.048 * G_ca     // calf
+        - 0.038 * G_an     // ankle tuck
+        + 0.024 * G_ft     // foot
+    );
+
+    const r  = rPro * figScale;
+    const rz = r * 0.78;   // body is slightly shallower front-to-back
+
+    // Smooth leg bifurcation: tanh-shaped lateral split starting at hip
+    const legD   = Math.max(0.0, 0.07 - yn);
+    const legOff = Math.tanh(legD * 5.5) * figScale * 0.090;
+    const legX   = Math.tanh(Math.sin(phi) * 3.2) * legOff;
+
+    const bx = r  * Math.cos(phi) + legX;
+    const by = yn * figScale;
+    const bz = rz * Math.sin(phi);
+
+    target.set(bx * cosR - bz * sinR, by, bx * sinR + bz * cosR);
+
+    // ── COLOR: ivory core, aurora rim light, warm gold at landmarks ───────────
+    const rim     = Math.pow(Math.abs(Math.sin(phi)), 2.5);           // silhouette glow
+    const landmrk = G_sh * 0.85 + G_hp * 0.65 + G_bu * 0.40;        // key feature warmth
+    const vGrad   = (yn + 1.0) * 0.5;                                 // foot-to-crown gradient
+
+    const hueRaw = auraHue + rim * 0.20 - landmrk * 0.04 + vGrad * 0.04 + time * 0.007;
+    const hue    = ((hueRaw % 1.0) + 1.0) % 1.0;
+    const sat    = Math.min(1.0, 0.28 + rim * 0.58 + landmrk * 0.18);
+    const lit    = Math.min(0.97, Math.max(0.05, 0.48 + rim * 0.40 + landmrk * 0.06 - vGrad * 0.07));
+
+    color.setHSL(hue, sat, lit);
+
+} else {
+
+    // ─── AURORA GOWN ─────────────────────────────────────────────────────────
+    const gLoc = (i - N_BODY) / (count - N_BODY);
+    const gPhi = (i - N_BODY) * GOLDEN;
+    const gT   = gLoc;
+
+    // Conical skirt expanding outward and downward from the hip
+    const gY    = figScale * (0.11 - gT * 1.08);
+    const gBase = figScale * (0.19 + gT * 0.52);
+    // Multi-frequency fabric ripple
+    const rip1  = figScale * 0.035 * Math.sin(gPhi * 7.0  - time * 2.1 + gT * 6.0);
+    const rip2  = figScale * 0.020 * Math.sin(gPhi * 13.0 + time * 3.3 - gT * 2.8);
+    const gR    = gBase + rip1 + rip2;
+    const hemW  = figScale * 0.042 * Math.sin(gPhi * 5.0 - time * 1.7);
+
+    const gx = gR * Math.cos(gPhi);
+    const gy = gY + hemW;
+    const gz = gR * Math.sin(gPhi);
+
+    target.set(gx * cosR - gz * sinR, gy, gx * sinR + gz * cosR);
+
+    // Aurora: indigo at waist cycling through violet and into magenta at hem
+    const gHue = (auraHue + 0.04 + gT * 0.30 + (gPhi / 6.28318) * 0.05 + time * 0.033) % 1.0;
+    const gSat = 0.90 + 0.10 * Math.sin(gPhi * 3.0 + time);
+    const gLit = Math.max(0.06, 0.38 - gT * 0.22 + 0.10 * Math.sin(gPhi * 4.0 + time * 1.4));
+    color.setHSL(gHue, gSat, gLit);
+}
+
+if (i === 0) {
+    setInfo(
+        "GODDESS",
+        "A classical figure sculpted in light. Body: 11 summed Gaussian features — head, neck, shoulders, bust, waist, hips, thighs, knees, calves, ankles, feet. Leg bifurcation via smooth tanh() lateral split. 160-strand Fibonacci hair falls with wind physics. Aurora gown carries two-frequency fabric ripple. Slide Aura Color across the full spectrum."
+    );
+    annotate("crown", new THREE.Vector3(0, figScale * 0.96, 0), "Crown");
+    annotate("heart", new THREE.Vector3(0, figScale * 0.53, 0), "Heart");
+    annotate("hem",   new THREE.Vector3(figScale * 0.40, -figScale * 0.92, 0), "Gown");
+}
+`
+  },
+
 // ── End of simulations ──
 ];
 
