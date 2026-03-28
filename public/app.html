@@ -334,7 +334,7 @@
       <rect x="16" y="30" width="1.5" height="16" rx="0.75" fill="#c4a882" opacity="0.25"/>
       <rect x="20" y="32" width="1.5" height="12" rx="0.75" fill="#c4a882" opacity="0.2"/>
     </svg>
-    <p style="font-size:0.6rem; color:rgba(255,255,255,0.2); letter-spacing:0.2em; text-transform:uppercase">Tap to start</p>
+    <p style="font-size:0.7rem; color:rgba(255,255,255,0.35); letter-spacing:0.2em; text-transform:uppercase; margin-top:0.5rem;">Tap to start</p>
   </div>
 </div>
 
@@ -508,27 +508,23 @@
   resize();
   window.addEventListener('resize', resize);
 
-  // Create particles filling the entire screen with depth layers
+  // Create particles in concentric orbiting rings (centered morphing shape)
   for (let i = 0; i < N; i++) {
-    const depth = Math.random(); // 0=far, 1=close
+    const ring = Math.floor(Math.random() * 5);
+    const baseR = [0.08, 0.16, 0.25, 0.35, 0.46][ring];
+    const speed = [0.0004, -0.0003, 0.00025, -0.0002, 0.00015][ring];
     particles.push({
-      // Spread across entire screen
-      x: (Math.random() - 0.5) * 2.2,
-      y: (Math.random() - 0.5) * 2.2,
-      z: depth,
-      // Slow orbital drift
       angle: Math.random() * Math.PI * 2,
-      orbitR: 0.02 + Math.random() * 0.08,
-      speed: (Math.random() - 0.5) * 0.0004,
-      size: (0.5 + depth * 2.0) * window.devicePixelRatio,
-      brightness: 0.1 + depth * 0.5,
+      radius: baseR + (Math.random() - 0.5) * 0.05,
+      speed: speed * (0.7 + Math.random() * 0.6),
+      size: (0.8 + Math.random() * 1.8) * window.devicePixelRatio * 0.5,
+      brightness: 0.15 + Math.random() * 0.45,
+      yOffset: (Math.random() - 0.5) * 0.04,
       phase: Math.random() * Math.PI * 2,
     });
   }
 
   let running = true;
-  // Camera drift: slowly moves through the field
-  let camX = 0, camY = 0;
 
   function animate(time) {
     if (!running) return;
@@ -537,38 +533,24 @@
 
     const cx = w / 2;
     const cy = h / 2;
+    const scale = Math.min(w, h);
     const t = time * 0.001;
-
-    // Slow camera drift (like drifting through space)
-    camX = Math.sin(t * 0.08) * w * 0.05;
-    camY = Math.cos(t * 0.06) * h * 0.04;
 
     for (const p of particles) {
       p.angle += p.speed;
+      const breathe = 1 + Math.sin(t * 0.4 + p.phase) * 0.06;
+      const morph = 1 + Math.sin(t * 0.15 + p.angle * 2) * 0.15; // shape morphing
+      const r = p.radius * scale * breathe * morph;
+      const x = cx + Math.cos(p.angle) * r;
+      const y = cy + Math.sin(p.angle) * r * 0.65 + p.yOffset * scale;
 
-      // Parallax: close particles move more with camera drift
-      const parallax = 0.3 + p.z * 0.7;
-      const breathe = 1 + Math.sin(t * 0.4 + p.phase) * 0.03;
-
-      const px = cx + p.x * w * 0.5 * breathe + Math.cos(p.angle) * p.orbitR * w - camX * parallax;
-      const py = cy + p.y * h * 0.5 * breathe + Math.sin(p.angle) * p.orbitR * h - camY * parallax;
-
-      // Pulsing brightness
       const pulse = p.brightness + Math.sin(t * 1.5 + p.phase) * 0.08;
-      const alpha = Math.max(0.03, Math.min(0.65, pulse));
+      const alpha = Math.max(0.05, Math.min(0.6, pulse));
 
       ctx.beginPath();
-      ctx.arc(px, py, p.size, 0, Math.PI * 2);
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(196, 168, 130, ${alpha})`;
       ctx.fill();
-
-      // Occasional brighter particle with warm pop color
-      if (p.z > 0.8 && Math.sin(t * 3 + p.phase * 7) > 0.95) {
-        ctx.beginPath();
-        ctx.arc(px, py, p.size * 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(232, 93, 58, 0.4)`;
-        ctx.fill();
-      }
     }
   }
   animate(0);
