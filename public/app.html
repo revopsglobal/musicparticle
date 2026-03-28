@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MusicParticle</title>
-<meta name="theme-color" content="#06060c">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="manifest" href="/manifest.json">
@@ -13,7 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { overflow: hidden; background: #06060c; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
+  html, body { background: #000000; margin: 0; padding: 0; }
+  body { overflow: hidden; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
   canvas { display: block; }
 
   /* ── Overlay ── */
@@ -46,9 +49,12 @@
   #bottom-bar {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
     display: flex; align-items: center; justify-content: center;
-    padding: 12px 20px; gap: 16px;
-    background: linear-gradient(transparent, rgba(6,6,12,0.85));
+    padding: 8px 20px 6px;
+    gap: 16px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    pointer-events: none;
   }
+  #bottom-bar > * { pointer-events: auto; }
   .nav-btn {
     width: 32px; height: 32px; border-radius: 50%;
     border: 1px solid rgba(255,255,255,0.12);
@@ -69,7 +75,7 @@
   #sidebar {
     position: fixed; top: 0; right: -320px; bottom: 0; z-index: 100;
     width: 300px; padding: 20px 18px;
-    background: rgba(8, 8, 16, 0.95);
+    background: rgba(0, 0, 0, 0.95);
     border-left: 1px solid rgba(255,255,255,0.06);
     backdrop-filter: blur(16px);
     overflow-y: auto; overflow-x: hidden;
@@ -80,7 +86,7 @@
   #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
   .section-title {
-    font-size: 0.55rem; color: rgba(255,255,255,0.25); letter-spacing: 0.18em;
+    font-size: 0.65rem; color: rgba(255,255,255,0.25); letter-spacing: 0.18em;
     text-transform: uppercase; margin: 18px 0 10px; padding-bottom: 6px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
   }
@@ -90,9 +96,9 @@
   .ctrl-slider { margin-bottom: 12px; }
   .ctrl-slider label {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-bottom: 4px;
+    font-size: 0.72rem; color: rgba(255,255,255,0.4); margin-bottom: 4px;
   }
-  .ctrl-slider label span { color: rgba(255,255,255,0.55); font-variant-numeric: tabular-nums; }
+  .ctrl-slider label span { color: rgba(255,255,255,0.6); font-variant-numeric: tabular-nums; }
   .ctrl-slider input[type=range] {
     width: 100%; height: 3px; -webkit-appearance: none; appearance: none;
     background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
@@ -106,10 +112,10 @@
   /* Chip selectors */
   .chip-group { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
   .chip {
-    padding: 4px 10px; border-radius: 10px;
+    padding: 6px 12px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     background: transparent; color: rgba(255,255,255,0.3);
-    font-size: 0.55rem; letter-spacing: 0.06em; text-transform: uppercase;
+    font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase;
     cursor: pointer; transition: all 0.2s ease; user-select: none;
   }
   .chip:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.5); }
@@ -120,7 +126,7 @@
     position: fixed; top: 16px; right: 16px; z-index: 110;
     width: 30px; height: 30px; border-radius: 6px;
     border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(8,8,16,0.6); color: rgba(255,255,255,0.35);
+    background: rgba(0,0,0,0.6); color: rgba(255,255,255,0.35);
     font-size: 0.65rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.3s ease; backdrop-filter: blur(8px);
@@ -131,7 +137,16 @@
   #hud-info {
     position: fixed; top: 16px; left: 16px; z-index: 40;
     max-width: 280px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: opacity 0.4s ease;
   }
+  #hud-info.hidden { opacity: 0; pointer-events: none; }
   #hud-title {
     font-size: 0.7rem; color: rgba(255,255,255,0.5); letter-spacing: 0.1em;
     font-weight: 500; margin-bottom: 3px;
@@ -157,7 +172,7 @@
     position: fixed; bottom: 82px; right: 16px; z-index: 50;
     background: rgba(10,10,20,0.95); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 6px; padding: 12px 14px;
-    font-size: 0.58rem; color: rgba(255,255,255,0.3); line-height: 2;
+    font-size: 0.7rem; color: rgba(255,255,255,0.3); line-height: 2;
     opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
     backdrop-filter: blur(12px);
   }
@@ -171,8 +186,9 @@
   /* Audio level indicator */
   #audio-indicator {
     position: fixed; bottom: 52px; left: 16px; z-index: 40;
-    display: flex; gap: 2px; align-items: flex-end; height: 20px;
+    display: none; gap: 2px; align-items: flex-end; height: 20px;
   }
+  #audio-indicator.active { display: flex; }
   .audio-bar {
     width: 3px; border-radius: 1px;
     background: rgba(255,255,255,0.15);
@@ -223,8 +239,8 @@
 
   /* ── Control help text ── */
   .ctrl-help {
-    font-size: 0.45rem; color: rgba(255,255,255,0.12); margin-top: -8px;
-    margin-bottom: 10px; line-height: 1.4; padding-left: 2px;
+    font-size: 0.6rem; color: rgba(255,255,255,0.15); margin-top: -6px;
+    margin-bottom: 10px; line-height: 1.5; padding-left: 2px;
   }
 
   /* ── Visual Style List ── */
@@ -236,10 +252,10 @@
   }
   .style-option:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); }
   .style-option.active { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
-  .style-name { font-size: 0.6rem; color: rgba(255,255,255,0.5); font-weight: 500; letter-spacing: 0.05em; }
+  .style-name { font-size: 0.7rem; color: rgba(255,255,255,0.5); font-weight: 500; letter-spacing: 0.05em; }
   .style-option.active .style-name { color: rgba(255,255,255,0.75); }
-  .style-desc { font-size: 0.5rem; color: rgba(255,255,255,0.18); margin-top: 2px; line-height: 1.4; }
-  .style-option.active .style-desc { color: rgba(255,255,255,0.28); }
+  .style-desc { font-size: 0.6rem; color: rgba(255,255,255,0.2); margin-top: 2px; line-height: 1.4; }
+  .style-option.active .style-desc { color: rgba(255,255,255,0.3); }
 
   /* ── Lyrics Search (inline in sidebar) ── */
   #lyrics-search-input {
@@ -247,7 +263,7 @@
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 6px; color: #ddd;
-    font-size: 0.65rem; font-family: inherit;
+    font-size: 0.75rem; font-family: inherit;
     outline: none; transition: border-color 0.2s ease;
   }
   #lyrics-search-input:focus { border-color: rgba(255,255,255,0.2); }
@@ -263,44 +279,123 @@
     cursor: pointer; transition: all 0.2s ease;
   }
   .lyrics-result:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }
-  .lyrics-result-title { font-size: 0.6rem; color: rgba(255,255,255,0.5); }
-  .lyrics-result-artist { font-size: 0.5rem; color: rgba(255,255,255,0.2); margin-top: 1px; }
+  .lyrics-result-title { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
+  .lyrics-result-artist { font-size: 0.6rem; color: rgba(255,255,255,0.2); margin-top: 1px; }
   .lyrics-result-badge {
-    display: inline-block; font-size: 0.45rem; color: rgba(120,200,120,0.5);
+    display: inline-block; font-size: 0.55rem; color: rgba(120,200,120,0.5);
     letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px;
   }
-  #lyrics-status { font-size: 0.5rem; color: rgba(255,255,255,0.18); margin-top: 6px; }
+  #lyrics-status { font-size: 0.6rem; color: rgba(255,255,255,0.18); margin-top: 6px; }
 
   /* Lyrics toggle chip */
   #lyrics-toggle-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
   #lyrics-toggle-btn {
-    padding: 4px 10px; border-radius: 10px;
+    padding: 5px 12px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     background: transparent; color: rgba(255,255,255,0.3);
-    font-size: 0.55rem; cursor: pointer; transition: all 0.2s ease;
+    font-size: 0.65rem; cursor: pointer; transition: all 0.2s ease;
   }
   #lyrics-toggle-btn:hover { border-color: rgba(255,255,255,0.2); }
   #lyrics-toggle-btn.active { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.04); }
-  #lyrics-track-label { font-size: 0.5rem; color: rgba(255,255,255,0.2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #lyrics-track-label { font-size: 0.6rem; color: rgba(255,255,255,0.2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Timing offset row */
   .timing-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
   .timing-btn {
-    padding: 3px 8px; border-radius: 5px;
+    padding: 4px 10px; border-radius: 5px;
     border: 1px solid rgba(255,255,255,0.06);
     background: transparent; color: rgba(255,255,255,0.3);
-    font-size: 0.5rem; cursor: pointer; transition: all 0.15s ease;
+    font-size: 0.6rem; cursor: pointer; transition: all 0.15s ease;
   }
   .timing-btn:hover { border-color: rgba(255,255,255,0.15); }
   #lyrics-offset-val {
-    font-size: 0.5rem; color: rgba(255,255,255,0.3);
+    font-size: 0.6rem; color: rgba(255,255,255,0.3);
     font-variant-numeric: tabular-nums; min-width: 40px; text-align: center;
   }
   #lyrics-clear-btn {
-    padding: 3px 8px; border-radius: 5px;
+    padding: 4px 10px; border-radius: 5px;
     border: 1px solid rgba(200,100,100,0.12);
     background: transparent; color: rgba(200,100,100,0.35);
-    font-size: 0.5rem; cursor: pointer; margin-left: auto;
+    font-size: 0.6rem; cursor: pointer; margin-left: auto;
+  }
+
+  /* ── Mic Prompt ── */
+  #mic-prompt {
+    position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%);
+    z-index: 200;
+    background: rgba(20,20,30,0.92);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 16px;
+    display: none;
+    align-items: center; gap: 10px;
+    font-size: 0.65rem; color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+    animation: mic-prompt-in 0.4s ease;
+  }
+  @keyframes mic-prompt-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  #mic-prompt button {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px; padding: 6px 12px;
+    color: rgba(255,255,255,0.7); font-size: 0.6rem; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  #mic-prompt button:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+  #mic-prompt .prompt-dismiss {
+    background: none; border: none; padding: 2px 6px;
+    color: rgba(255,255,255,0.2); font-size: 0.8rem; cursor: pointer;
+  }
+
+  /* ── iOS Install Banner ── */
+  #ios-install-banner {
+    position: fixed; bottom: 52px; left: 16px; right: 16px; z-index: 200;
+    background: rgba(20,20,30,0.92);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: none; /* shown via JS */
+    align-items: center; gap: 12px;
+    font-size: 0.7rem; color: rgba(255,255,255,0.6);
+    line-height: 1.4;
+  }
+  #ios-install-banner .install-icon {
+    flex-shrink: 0; width: 20px; height: 20px;
+    fill: none; stroke: rgba(255,255,255,0.5); stroke-width: 1.5;
+  }
+  #ios-install-banner .install-dismiss {
+    flex-shrink: 0; background: none; border: none;
+    color: rgba(255,255,255,0.3); font-size: 1rem; cursor: pointer;
+    padding: 4px; margin-left: auto;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 600px) {
+    #hud-info { max-width: 220px; top: calc(16px + env(safe-area-inset-top)); }
+    #toggle-sidebar { top: calc(16px + env(safe-area-inset-top)); }
+    #help-btn { bottom: 48px; }
+    /* Sidebar text bumps */
+    .section-title { font-size: 0.75rem; }
+    .ctrl-slider label { font-size: 0.82rem; }
+    .ctrl-slider label span { font-size: 0.82rem; }
+    .ctrl-help { font-size: 0.68rem; }
+    .chip { font-size: 0.72rem; padding: 8px 14px; }
+    .style-name { font-size: 0.78rem; }
+    .style-desc { font-size: 0.68rem; }
+    #lyrics-search-input { font-size: 0.82rem; padding: 10px 12px; }
+    #lyrics-toggle-btn { font-size: 0.72rem; padding: 6px 14px; }
+    #lyrics-track-label { font-size: 0.68rem; }
+    #lyrics-status { font-size: 0.68rem; }
+    .lyrics-result-title { font-size: 0.78rem; }
+    .lyrics-result-artist { font-size: 0.68rem; }
+    .timing-btn { font-size: 0.68rem; }
+    #lyrics-offset-val { font-size: 0.68rem; }
+    #lyrics-clear-btn { font-size: 0.68rem; }
   }
 </style>
 </head>
@@ -335,6 +430,7 @@
 </div>
 
 <div id="bottom-bar">
+  <button class="nav-btn" id="mic-toggle-btn" title="Mute/unmute mic (M)" style="font-size:0.55rem;letter-spacing:0.03em;position:relative">MIC</button>
   <button class="nav-btn" id="prev-btn" title="Previous">&lsaquo;</button>
   <div id="sim-name">HOPF FIBRATION</div>
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
@@ -457,6 +553,18 @@
 </div>
 
 <div id="lyrics-track-info"></div>
+<div id="mic-prompt">
+  <span>Play music and let particles react</span>
+  <button id="mic-prompt-enable">Enable mic</button>
+  <button class="prompt-dismiss" id="mic-prompt-dismiss">x</button>
+</div>
+
+<div id="ios-install-banner">
+  <svg class="install-icon" viewBox="0 0 24 24"><path d="M12 3v12M12 3l-4 4M12 3l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round"/></svg>
+  <span>Tap <strong>Share</strong> then <strong>Add to Home Screen</strong> for fullscreen mode</span>
+  <button class="install-dismiss" onclick="this.parentElement.style.display='none';localStorage.setItem('mp-install-dismissed','1')">x</button>
+</div>
+
 <div id="lyrics-notify">
   <span id="lyrics-notify-text"></span>
   <button id="lyrics-notify-btn">Enable</button>
@@ -4704,55 +4812,6 @@ if (i === 0) {
 `
   },
 
-  {
-    name: 'MANDALA',
-    cam: [10, 50, 120],
-    code: `
-const petals = Math.floor(addControl("petals", "Petal Count", 4, 16, 8));
-const rings = Math.floor(addControl("rings", "Ring Count", 3, 12, 7));
-const spin = addControl("spin", "Spin Speed", 0.0, 2.0, 0.4);
-const depth = addControl("depth", "3D Depth", 0, 30, 12);
-
-const t = time * spin;
-
-const ringIdx = Math.floor(i / (count / rings)) % rings;
-const ringFrac = ringIdx / Math.max(1, rings - 1);
-const localI = i % Math.floor(count / rings);
-const localCount = Math.floor(count / rings);
-
-const angle = (localI / localCount) * Math.PI * 2;
-
-// Radial distance with petal modulation
-const petalWave = Math.cos(angle * petals + t * (ringIdx % 2 === 0 ? 1 : -1)) * 0.4 + 0.6;
-const baseR = 5 + ringFrac * 45;
-const r = baseR * petalWave;
-
-// Kaleidoscopic mirroring: alternate rings counter-rotate
-const mirrorAngle = angle + t * (ringIdx % 2 === 0 ? 0.5 : -0.5) + ringIdx * Math.PI / petals;
-
-const x = r * Math.cos(mirrorAngle);
-const y = r * Math.sin(mirrorAngle);
-
-// Z undulation gives 3D mandala bowl shape
-const zWave = Math.sin(ringFrac * Math.PI) * depth;
-const zPulse = Math.sin(angle * petals * 2 + t * 3) * depth * 0.2 * ringFrac;
-const z = zWave + zPulse;
-
-target.set(x, y, z);
-
-// Concentric color rings with rotating hue
-const hue = (ringFrac * 0.6 + t * 0.08 + Math.sin(angle * petals) * 0.1) % 1.0;
-const sat = 0.6 + 0.4 * petalWave;
-const lum = 0.25 + 0.35 * ringFrac + 0.2 * Math.pow(petalWave, 3);
-
-color.setHSL(hue, sat, lum);
-
-if (i === 0) {
-    setInfo("Mandala", "Radial symmetry with concentric counter-rotating rings. Petal modulation creates kaleidoscopic interference patterns that breathe in three dimensions.");
-    annotate("center", new THREE.Vector3(0, 0, 0), "Bindu");
-}
-`
-  },
 
   {
     name: 'FLUID DYNAMICS',
@@ -5050,8 +5109,12 @@ camera.lookAt(0, 0, 0);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setClearColor(0x06060c);
+renderer.setClearColor(0x000000);
 document.body.appendChild(renderer.domElement);
+function fixCanvasStyle() {
+  renderer.domElement.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;';
+}
+fixCanvasStyle();
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -5187,10 +5250,23 @@ function addControl(id, label, min, max, initial) {
   return simControls[id];
 }
 
+let hudTimer = null;
+const hudInfo = document.getElementById('hud-info');
+
 function setInfo(title, desc) {
   document.getElementById('hud-title').textContent = title;
   document.getElementById('hud-desc').textContent = desc;
+  // Show on sim change, auto-hide after 4s
+  hudInfo.classList.remove('hidden');
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => hudInfo.classList.add('hidden'), 4000);
 }
+
+// Tap to toggle
+hudInfo.addEventListener('click', (e) => {
+  e.stopPropagation();
+  hudInfo.classList.add('hidden');
+});
 
 function annotate() {} // no-op for now
 
@@ -5279,21 +5355,24 @@ overlay.addEventListener('click', async () => {
   if (started) return;
   started = true;
   overlay.classList.add('hidden');
-  await initAudio();
   // Start on a random sim each visit
   const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
   loadSim(randomStart);
   // Auto-shuffle on by default
   startAutoRotate();
-  // Auto-detect song after mic is warmed up
-  setTimeout(async () => {
-    await checkProStatus();
-    if (!hasAutoDetected && micStream) {
-      hasAutoDetected = true;
-      if (detectStatus) detectStatus.textContent = 'Listening...';
-      autoDetectSong(false);
-    }
-  }, 5000);
+  // Show mic prompt after a moment
+  setTimeout(() => {
+    const micPrompt = document.getElementById('mic-prompt');
+    if (micPrompt) micPrompt.style.display = 'flex';
+  }, 2000);
+  // Show iOS install banner after app starts
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('mp-install-dismissed');
+  if (isIOS && !isStandalone && !dismissed) {
+    const banner = document.getElementById('ios-install-banner');
+    if (banner) setTimeout(() => { banner.style.display = 'flex'; }, 8000);
+  }
 });
 
 // Navigation
@@ -5349,6 +5428,66 @@ toggleBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   sidebar.classList.toggle('open');
   toggleBtn.textContent = sidebar.classList.contains('open') ? 'x' : '+';
+});
+
+// iOS install banner
+// iOS install banner shown after app starts (moved to overlay click handler)
+
+// Mic toggle
+let micMuted = false;
+let micInitialized = false;
+const micToggleBtn = document.getElementById('mic-toggle-btn');
+
+async function enableMic() {
+  if (!micInitialized) {
+    await initAudio();
+    micInitialized = true;
+  }
+  micMuted = false;
+  if (micStream) micStream.getAudioTracks().forEach(t => { t.enabled = true; });
+  micToggleBtn.textContent = 'MIC';
+  micToggleBtn.classList.add('active');
+  const indicator = document.getElementById('audio-indicator');
+  if (indicator) indicator.classList.add('active');
+  // Hide prompt if visible
+  const prompt = document.getElementById('mic-prompt');
+  if (prompt) prompt.style.display = 'none';
+  // Auto-detect song
+  await checkProStatus();
+  if (!hasAutoDetected && micStream) {
+    hasAutoDetected = true;
+    if (detectStatus) detectStatus.textContent = 'Listening...';
+    autoDetectSong(false);
+  }
+}
+
+micToggleBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!micInitialized) {
+    await enableMic();
+    return;
+  }
+  micMuted = !micMuted;
+  if (micStream) micStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+  micToggleBtn.textContent = micMuted ? 'MUTE' : 'MIC';
+  micToggleBtn.classList.toggle('active', !micMuted);
+  const ind = document.getElementById('audio-indicator');
+  if (ind) ind.classList.toggle('active', !micMuted);
+});
+
+// Mic prompt buttons
+document.getElementById('mic-prompt-enable').addEventListener('click', (e) => {
+  e.stopPropagation();
+  enableMic();
+});
+document.getElementById('mic-prompt-dismiss').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('mic-prompt').style.display = 'none';
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'm' || e.key === 'M') { if (!e.ctrlKey && !e.metaKey) micToggleBtn.click(); }
 });
 
 // System controls
@@ -5443,6 +5582,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
+  fixCanvasStyle();
 });
 
 // ── Cinematic Camera ───────────────────────────────────────
@@ -5812,7 +5952,12 @@ async function autoDetectSong(silent) {
       const detectedSeconds = parseTimecode(timecode);
 
       if (title === lastDetectedTitle && lyricsActive) {
-        if (!silent) detectStatus.textContent = `Already synced to "${title}"`;
+        // Re-sync timing for the same song (may have restarted)
+        const detectedNow = parseTimecode(timecode);
+        const processingDelay = 7;
+        lyricsOffset = detectedNow + processingDelay;
+        lyricsStartTime = performance.now() / 1000;
+        if (!silent) detectStatus.textContent = `Re-synced "${title}"`;
         return;
       }
 
@@ -5866,7 +6011,7 @@ function enablePendingLyrics() {
 
 // Silence detection: if audio goes quiet for ~5 seconds, re-detect (song probably changed)
 function checkForSilence(currentRms) {
-  if (isDetecting) return;
+  if (isDetecting || micMuted || !micInitialized) return;
 
   if (currentRms < SILENCE_THRESHOLD) {
     silenceFrames++;
@@ -5888,27 +6033,34 @@ function checkForSilence(currentRms) {
 // Periodic re-detect: catches song changes without silence gaps (crossfade playlists)
 // Only runs if user has opted into lyrics
 let lastRedetectTime = 0;
-const REDETECT_INTERVAL = 45000; // 45 seconds
+const REDETECT_INTERVAL = 30000; // 30 seconds
 
 function checkForSongChange() {
   if (!lyricsEverEnabled || isDetecting) return;
   const now = performance.now();
   if (now - lastRedetectTime < REDETECT_INTERVAL) return;
 
-  // Only re-detect if lyrics are near the end of the song (last 30 seconds)
-  // or if we have no active lyrics
   if (!lyricsActive) {
+    // No lyrics active, always try to detect
     lastRedetectTime = now;
     autoDetectSong(true);
   } else if (lyricsData.length > 0) {
     const lyricNow = now / 1000 - lyricsStartTime + lyricsOffset;
     const lastLine = lyricsData[lyricsData.length - 1];
-    // If we're past the last lyric line by 10+ seconds, song probably changed
     if (lyricNow > lastLine.time + 10) {
+      // Past end of lyrics, song probably changed
       lastRedetectTime = now;
       clearLyrics();
       autoDetectSong(true);
+    } else if (now - lastRedetectTime > 60000) {
+      // Failsafe: always re-detect after 60s even if lyrics still active
+      lastRedetectTime = now;
+      autoDetectSong(true);
     }
+  } else {
+    // Lyrics active but no data, re-detect
+    lastRedetectTime = now;
+    autoDetectSong(true);
   }
 }
 
@@ -5975,9 +6127,10 @@ function updateLyrics() {
     if (timeSincePrev > 3.0) {
       // Long gap: scatter then reform (dramatic transition)
       lyricBlendTarget = 0;
-      setTimeout(() => { lyricBlendTarget = 1; }, 250);
+      setTimeout(() => { lyricBlendTarget = 1; }, 400);
     } else {
-      // Quick line change: keep blend high, just swap targets
+      // Quick line change: brief partial dissolve then reform
+      lyricBlend = Math.max(0.3, lyricBlend * 0.5);
       lyricBlendTarget = 1;
     }
   } else {
@@ -6139,9 +6292,9 @@ function animate() {
   // Smooth lyric blend
   // Blend speed: fast rise to 1 (text forms quickly), slow fall to 0 (text lingers)
   if (lyricBlendTarget > lyricBlend) {
-    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.08; // fast form
+    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.04; // visible particle formation
   } else {
-    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.02; // slow dissolve
+    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.03; // visible dissolve
   }
   const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.99;
 

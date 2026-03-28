@@ -151,6 +151,12 @@
       background: var(--cream);
       color: var(--bg);
     }
+    .hero-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 1rem;
+      letter-spacing: 0.02em;
+    }
     .scroll-hint {
       position: absolute; bottom: 1.5rem; right: 2.5rem;
       z-index: 2;
@@ -303,6 +309,37 @@
     }
 
     /* ═══════════════════════════════════════════════
+       SIMS END CARD
+    ═══════════════════════════════════════════════ */
+    .sims-end-card {
+      height: 60vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.2rem; text-align: center;
+      padding: 0 2rem;
+    }
+    .sims-end-card p {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      font-weight: 400;
+      color: var(--dim);
+    }
+    .sims-end-cta {
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.8rem 2rem;
+      border: 1px solid var(--cream);
+      color: var(--cream);
+      transition: all 0.3s;
+    }
+    .sims-end-cta:hover {
+      background: var(--cream);
+      color: var(--bg);
+    }
+
+    /* ═══════════════════════════════════════════════
        LYRICS: the product moment
     ═══════════════════════════════════════════════ */
     /* ═══════════════════════════════════════════════
@@ -311,8 +348,16 @@
     .lyrics-section {
       position: relative;
       border-top: 1px solid rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+    .lyrics-canvas-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
     .lyrics-intro {
+      position: relative; z-index: 2;
       padding: 6rem 2.5rem 3rem;
       text-align: center;
     }
@@ -341,12 +386,10 @@
       margin-bottom: 1rem;
     }
     .lyrics-canvas-full {
-      width: 100%;
-      height: 70vh;
-      min-height: 400px;
-      display: block;
+      display: none; /* replaced by .lyrics-canvas-bg */
     }
     .lyrics-bottom {
+      position: relative; z-index: 2;
       padding: 2rem 2.5rem 5rem;
       text-align: center;
     }
@@ -457,6 +500,45 @@
     .pricing-annual-note:hover { color: var(--dim); }
 
     /* ═══════════════════════════════════════════════
+       FREE: everything is free CTA
+    ═══════════════════════════════════════════════ */
+    .free-section {
+      padding: 5rem 2.5rem;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .free-section h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 400;
+      margin-bottom: 0.8rem;
+    }
+    .free-section p {
+      font-size: 0.9rem;
+      color: var(--dim);
+      max-width: 460px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+    .free-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.9rem 2.4rem;
+      border: 1px solid var(--cream);
+      color: var(--cream);
+      transition: all 0.4s;
+    }
+    .free-cta:hover {
+      background: var(--cream);
+      color: var(--bg);
+    }
+
+    /* ═══════════════════════════════════════════════
        FOOTER: just a line and a name
     ═══════════════════════════════════════════════ */
     footer {
@@ -482,21 +564,41 @@
     @media (max-width: 800px) {
       nav { padding: 1rem 1.5rem; }
       .nav-links a:not(.nav-cta) { display: none; }
-      .hero { padding: 0 1.5rem 3rem; }
+      .nav-cta { padding: 0.6rem 1.4rem; min-height: 44px; display: flex; align-items: center; }
+      .hero { padding: 0 1.5rem 3rem; min-height: 500px; }
       .hero h1 { font-size: clamp(2.6rem, 10vw, 4rem); }
-      .statement { padding: 5rem 1.5rem; }
-      .how-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
+      .hero-sub { font-size: 0.9rem; }
+      .hero-launch { min-height: 48px; display: flex; align-items: center; justify-content: center; }
+      .scroll-hint { display: none; }
+      .statement { padding: 4rem 1.5rem; }
+      .statement p { font-size: clamp(1.3rem, 5vw, 1.8rem); }
+      .how-section, .pricing-section { padding: 3rem 1.5rem 4rem; }
       .how-list { grid-template-columns: 1fr; gap: 2rem; }
       .how-item { padding: 0; border-left: none; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 2rem; }
       .how-item:first-child { padding-left: 0; }
+      .sim-trigger { height: 70vh; }
       .sims-canvas-overlay { bottom: 2rem; left: 1.5rem; }
       .sims-overlay-name { font-size: clamp(1.8rem, 8vw, 3rem); }
       .sims-overlay-desc { font-size: 0.78rem; max-width: 260px; }
-      .lyrics-info { flex-direction: column; }
+      .lyrics-section { padding-bottom: 0; }
+      .lyrics-intro { padding: 3rem 1.5rem 1.5rem; }
+      .lyrics-intro h2 { font-size: clamp(1.4rem, 5vw, 1.8rem); }
+      .lyrics-intro p { font-size: 0.82rem; }
+      .lyrics-section > div[style*="height: 50vh"] { height: 35vh !important; }
+      .lyrics-bottom { padding: 1.5rem 1.5rem 3rem; }
+      .lyrics-bottom p { font-size: 0.75rem; margin-bottom: 1rem; }
+      .lyrics-cta { min-height: 48px; display: flex; align-items: center; justify-content: center; width: fit-content; margin: 0 auto; }
       .pricing-cols { grid-template-columns: 1fr; }
       .pricing-col:first-child { padding-right: 0; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.04); }
       .pricing-col:last-child { padding-left: 0; }
-      footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+      .pricing-amount { font-size: 2.4rem; }
+      .pricing-action { min-height: 48px; display: flex; align-items: center; justify-content: center; width: fit-content; }
+      .sims-end-card { height: 40vh; }
+      .sims-end-cta { min-height: 48px; }
+      .free-section { padding: 3rem 1.5rem; }
+      .free-section p { font-size: 0.82rem; }
+      .free-cta { min-height: 48px; }
+      footer { flex-direction: column; gap: 0.5rem; text-align: center; padding: 2rem 1.5rem; }
     }
   </style>
   <script type="importmap">
@@ -510,7 +612,7 @@
     <div class="nav-links">
       <a href="#how">How</a>
       <a href="#simulations">Simulations</a>
-      <a href="/app" class="nav-cta">Open App</a>
+      <a href="/app" class="nav-cta">Open Visualizer</a>
     </div>
   </nav>
 
@@ -520,6 +622,7 @@
       <h1>See what<br>you <em>hear</em></h1>
       <p class="hero-sub">33 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
       <a href="/app" class="hero-launch">Open the visualizer</a>
+      <p class="hero-hint">Free. No login. Works with any music source.</p>
     </div>
     <span class="scroll-hint">Scroll</span>
   </section>
@@ -571,29 +674,29 @@
     <div class="sim-trigger" data-sim="3"></div>
     <div class="sim-trigger" data-sim="4"></div>
     <div class="sim-trigger" data-sim="5"></div>
-    <div style="height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.2rem; text-align:center; padding:0 2rem;">
-      <p style="font-family:'Instrument Serif',serif; font-size:clamp(1.4rem,3vw,2.2rem); font-weight:400; color:var(--dim);">That was 6 of 33.</p>
-      <a href="/app" style="font-size:0.75rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.8rem 2rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.3s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">See them all</a>
+    <div class="sims-end-card">
+      <p>That was 6 of 33.</p>
+      <a href="/app" class="sims-end-cta">See them all</a>
     </div>
   </div>
 
   <section class="lyrics-section">
+    <canvas id="lyrics-demo-canvas" class="lyrics-canvas-bg"></canvas>
     <div class="lyrics-intro">
       <span class="pro-badge">Beta</span>
       <h2>Now imagine the lyrics <em>appearing</em></h2>
       <p>The app listens to what you are playing, identifies the song, and pulls particles out of the simulation to form the words being sung. Visuals work with every song. Lyrics are available for most popular tracks.</p>
     </div>
-    <canvas id="lyrics-demo-canvas" class="lyrics-canvas-full"></canvas>
+    <div style="height: 50vh; position: relative;"></div>
     <div class="lyrics-bottom">
       <p>Synced in real time. Automatically detects the next song. During instrumental breaks, particles return to the shape. Lyrics are in beta and may not be available for every track.</p>
-      <a href="/app" class="lyrics-cta">Try it now</a>
     </div>
   </section>
 
-  <section style="padding:5rem 2.5rem; text-align:center; border-top:1px solid rgba(255,255,255,0.04);">
-    <h2 style="font-family:'Instrument Serif',serif; font-size:clamp(1.6rem,3vw,2.4rem); font-weight:400; margin-bottom:0.8rem;">Everything is free.</h2>
-    <p style="font-size:0.9rem; color:var(--dim); max-width:460px; margin:0 auto 2rem; line-height:1.6;">33 simulations, 5 visual styles, cinematic camera, auto-shuffle, full controls, and lyrics detection. No account. No login. No paywall.</p>
-    <a href="/app" style="display:inline-block; font-size:0.78rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; padding:0.9rem 2.4rem; border:1px solid var(--cream); color:var(--cream); text-decoration:none; transition:all 0.4s;" onmouseover="this.style.background='var(--cream)';this.style.color='var(--bg)'" onmouseout="this.style.background='transparent';this.style.color='var(--cream)'">Open the visualizer</a>
+  <section class="free-section">
+    <h2>Everything is free.</h2>
+    <p>33 simulations, 5 visual styles, cinematic camera, auto-shuffle, full controls, and lyrics detection. No account. No login. No paywall.</p>
+    <a href="/app" class="free-cta">Open the visualizer</a>
   </section>
 
   <footer>
@@ -698,147 +801,229 @@
     }
   </script>
 
-  <!-- PARTICLE LYRICS DEMO -->
-  <script>
+  <!-- PARTICLE LYRICS DEMO (Three.js 3D with bloom) -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
     (function() {
       const canvas = document.getElementById('lyrics-demo-canvas');
       if (!canvas) return;
-      const ctx = canvas.getContext('2d');
 
-      // Use actual lyric-like lines, not single words
-      const LINES = [
-        'I see fire',
-        'burning bright',
-        'close your eyes',
-        'feel the night',
-        'we are light',
-      ];
+      const LINES = ['I see fire','burning bright','close your eyes','feel the night','we are light'];
       let lineIdx = 0;
-      let particles = [];
-      let targets = [];
-      let w, h;
-      const N = 3500;
-      const AMBIENT = 400; // extra particles that float around, never form text
+
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x06060c, 1);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
+      camera.position.set(0, 0, 80);
+
+      // Bloom
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.2, 0.6, 0.3);
+      composer.addPass(bloom);
+
+      const N = 6000;
+      const AMBIENT = 1500;
+      const TOTAL = N + AMBIENT;
+
+      const positions = new Float32Array(TOTAL * 3);
+      const velocities = new Float32Array(TOTAL * 3);
+      const sizes = new Float32Array(TOTAL);
+      const alphas = new Float32Array(TOTAL);
+      const textTargets = new Float32Array(N * 3);
+      const orbitTargets = new Float32Array(N * 3);
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+      geo.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+
+      const mat = new THREE.ShaderMaterial({
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        uniforms: {
+          uColor1: { value: new THREE.Color(0.95, 0.6, 0.35) },
+          uColor2: { value: new THREE.Color(0.9, 0.4, 0.2) },
+        },
+        vertexShader: `
+          attribute float aSize;
+          attribute float aAlpha;
+          varying float vAlpha;
+          varying float vDist;
+          void main() {
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = aSize * (300.0 / -mv.z);
+            gl_Position = projectionMatrix * mv;
+            vAlpha = aAlpha;
+            vDist = length(position.xy) / 60.0;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor1;
+          uniform vec3 uColor2;
+          varying float vAlpha;
+          varying float vDist;
+          void main() {
+            float d = length(gl_PointCoord - 0.5) * 2.0;
+            if (d > 1.0) discard;
+            float glow = exp(-d * d * 3.0);
+            vec3 col = mix(uColor1, uColor2, vDist);
+            gl_FragColor = vec4(col, vAlpha * glow);
+          }
+        `,
+      });
+
+      const pts = new THREE.Points(geo, mat);
+      scene.add(pts);
+
+      // Sample text to 3D positions
+      function sampleText(text) {
+        const oc = document.createElement('canvas');
+        oc.width = 1024; oc.height = 512;
+        const c = oc.getContext('2d');
+        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        let fs = 140;
+        c.font = `italic 400 ${fs}px "Instrument Serif", serif`;
+        let m = c.measureText(text);
+        while (m.width > 900 && fs > 30) { fs -= 4; c.font = `italic 400 ${fs}px "Instrument Serif", serif`; m = c.measureText(text); }
+        c.fillText(text, 512, 256);
+        const img = c.getImageData(0, 0, 1024, 512).data;
+        const filled = [];
+        for (let y = 0; y < 512; y += 2) for (let x = 0; x < 1024; x += 2) if (img[(y * 1024 + x) * 4 + 3] > 128) filled.push(x, y);
+        for (let i = 0; i < N; i++) {
+          const fi = filled.length > 0 ? (Math.floor(Math.random() * (filled.length / 2)) * 2) : 0;
+          const px = filled.length > 0 ? (filled[fi] - 512) / 10 : 0;
+          const py = filled.length > 0 ? -(filled[fi + 1] - 256) / 10 : 0;
+          const pz = (Math.random() - 0.5) * 3;
+          textTargets[i * 3] = px;
+          textTargets[i * 3 + 1] = py;
+          textTargets[i * 3 + 2] = pz;
+        }
+      }
+
+      // Generate 3D toroidal orbit
+      function generateOrbit() {
+        const R = 35, r = 12;
+        for (let i = 0; i < N; i++) {
+          const t = (i / N) * Math.PI * 2;
+          const phi = (i * 137.508 * Math.PI / 180) % (Math.PI * 2);
+          orbitTargets[i * 3] = (R + r * Math.cos(phi)) * Math.cos(t);
+          orbitTargets[i * 3 + 1] = (R + r * Math.cos(phi)) * Math.sin(t) * 0.4;
+          orbitTargets[i * 3 + 2] = r * Math.sin(phi);
+        }
+      }
+
+      function init() {
+        for (let i = 0; i < TOTAL; i++) {
+          const isAmb = i >= N;
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.random() * 40;
+          positions[i * 3] = Math.cos(a) * d;
+          positions[i * 3 + 1] = Math.sin(a) * d * 0.5;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+          velocities[i * 3] = velocities[i * 3 + 1] = velocities[i * 3 + 2] = 0;
+          sizes[i] = isAmb ? (0.3 + Math.random() * 0.5) : (0.5 + Math.random() * 1.2);
+          alphas[i] = isAmb ? 0.08 : 0.15;
+        }
+      }
+
+      sampleText(LINES[0]);
+      generateOrbit();
+      init();
+
+      let textBlend = 0, targetBlend = 0;
+      let phase = 'forming', timer = 0, globalAngle = 0;
+      let running = false;
 
       function resize() {
-        const rect = canvas.parentElement.getBoundingClientRect();
-        w = rect.width * window.devicePixelRatio;
-        h = Math.max(rect.height, 300) * window.devicePixelRatio;
-        canvas.width = w; canvas.height = h;
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = Math.max(rect.height, 300) + 'px';
+        const section = canvas.parentElement;
+        const w = section.clientWidth, h = section.clientHeight;
+        renderer.setSize(w, h);
+        composer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
       }
       resize();
       window.addEventListener('resize', resize);
 
-      function sample(text) {
-        const oc = document.createElement('canvas');
-        oc.width = w; oc.height = h;
-        const c = oc.getContext('2d');
-        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
-        let fs = Math.min(w * 0.15, 140);
-        c.font = `italic 400 ${fs}px "Instrument Serif", serif`;
-        let m = c.measureText(text);
-        while (m.width > w * 0.85 && fs > 20) { fs -= 3; c.font = `italic 400 ${fs}px "Instrument Serif", serif`; m = c.measureText(text); }
-        c.fillText(text, w / 2, h / 2);
-        const img = c.getImageData(0, 0, w, h).data;
-        const filled = [];
-        const step = Math.max(2, Math.floor(w / 450));
-        for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) if (img[(y * w + x) * 4 + 3] > 128) filled.push({x, y});
-        targets = [];
-        for (let i = 0; i < N; i++) targets.push(filled.length ? filled[Math.floor(Math.random() * filled.length)] : {x: w/2, y: h/2});
-      }
-
-      function init() {
-        particles = [];
-        for (let i = 0; i < N + AMBIENT; i++) {
-          particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            vx: (Math.random() - 0.5) * 0.5,
-            vy: (Math.random() - 0.5) * 0.5,
-            size: 0.8 + Math.random() * 1.2,
-            hue: 25 + Math.random() * 20, // warm amber range
-            isAmbient: i >= N,
-          });
-        }
-      }
-      init(); sample(LINES[0]);
-
-      let phase = 'forming', timer = 0;
-
       function animate() {
+        if (!running) return;
         requestAnimationFrame(animate);
-        ctx.fillStyle = 'rgba(6,6,12,0.1)';
-        ctx.fillRect(0, 0, w, h);
         timer++;
+        globalAngle += 0.004;
 
-        // Text particles
-        if (phase === 'forming') {
-          for (let i = 0; i < N; i++) {
-            const p = particles[i], t = targets[i];
-            p.vx += (t.x - p.x) * 0.03;
-            p.vy += (t.y - p.y) * 0.03;
-            p.vx *= 0.88; p.vy *= 0.88;
-            p.x += p.vx; p.y += p.vy;
+        if (phase === 'forming') { targetBlend = 1; if (timer > 80) { phase = 'holding'; timer = 0; } }
+        else if (phase === 'holding') { targetBlend = 1; if (timer > 160) { phase = 'dissolving'; timer = 0; } }
+        else if (phase === 'dissolving') { targetBlend = 0; if (timer > 70) { phase = 'forming'; timer = 0; lineIdx = (lineIdx + 1) % LINES.length; sampleText(LINES[lineIdx]); } }
+
+        textBlend += (targetBlend - textBlend) * 0.06;
+
+        const cosA = Math.cos(globalAngle), sinA = Math.sin(globalAngle);
+
+        for (let i = 0; i < N; i++) {
+          const i3 = i * 3;
+          const ox = orbitTargets[i3], oy = orbitTargets[i3 + 1], oz = orbitTargets[i3 + 2];
+          // Rotate orbit in 3D
+          const rx = ox * cosA - oz * sinA;
+          const rz = ox * sinA + oz * cosA;
+          const ry = oy;
+          // Blend orbit and text
+          const tx = rx * (1 - textBlend) + textTargets[i3] * textBlend;
+          const ty = ry * (1 - textBlend) + textTargets[i3 + 1] * textBlend;
+          const tz = rz * (1 - textBlend) + textTargets[i3 + 2] * textBlend;
+          // Spring physics
+          velocities[i3] += (tx - positions[i3]) * 0.05;
+          velocities[i3 + 1] += (ty - positions[i3 + 1]) * 0.05;
+          velocities[i3 + 2] += (tz - positions[i3 + 2]) * 0.05;
+          velocities[i3] *= 0.85; velocities[i3 + 1] *= 0.85; velocities[i3 + 2] *= 0.85;
+          positions[i3] += velocities[i3];
+          positions[i3 + 1] += velocities[i3 + 1];
+          positions[i3 + 2] += velocities[i3 + 2];
+          // Breathing
+          if (phase === 'holding') {
+            positions[i3] += (Math.random() - 0.5) * 0.15;
+            positions[i3 + 1] += (Math.random() - 0.5) * 0.15;
           }
-          if (timer > 120) { phase = 'holding'; timer = 0; }
-        } else if (phase === 'holding') {
-          for (let i = 0; i < N; i++) {
-            const p = particles[i], t = targets[i];
-            p.x += (t.x - p.x) * 0.06;
-            p.y += (t.y - p.y) * 0.06;
-            // Gentle breathing
-            p.x += (Math.random() - 0.5) * 0.4;
-            p.y += (Math.random() - 0.5) * 0.4;
-          }
-          if (timer > 120) { phase = 'scattering'; timer = 0; }
-        } else {
-          for (let i = 0; i < N; i++) {
-            const p = particles[i];
-            const a = Math.random() * Math.PI * 2;
-            p.vx += Math.cos(a) * 0.3;
-            p.vy += Math.sin(a) * 0.3;
-            p.vx *= 0.97; p.vy *= 0.97;
-            p.x += p.vx; p.y += p.vy;
-          }
-          if (timer > 60) {
-            phase = 'forming'; timer = 0;
-            lineIdx = (lineIdx + 1) % LINES.length;
-            sample(LINES[lineIdx]);
-          }
+          alphas[i] = 0.15 + textBlend * 0.55;
         }
 
-        // Ambient particles: always drift slowly
-        for (let i = N; i < N + AMBIENT; i++) {
-          const p = particles[i];
-          p.x += p.vx; p.y += p.vy;
-          // Gentle wander
-          p.vx += (Math.random() - 0.5) * 0.02;
-          p.vy += (Math.random() - 0.5) * 0.02;
-          p.vx *= 0.995; p.vy *= 0.995;
-          // Wrap around edges
-          if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
-          if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+        // Ambient: slow 3D drift
+        for (let i = N; i < TOTAL; i++) {
+          const i3 = i * 3;
+          const phase2 = (i * 0.73 + timer * 0.002);
+          const orbR = 25 + (i % 17) * 2;
+          const tx = Math.cos(phase2 + globalAngle) * orbR;
+          const ty = Math.sin(phase2 * 0.6 + globalAngle) * orbR * 0.35;
+          const tz = Math.sin(phase2 * 1.3) * 15;
+          positions[i3] += (tx - positions[i3]) * 0.006;
+          positions[i3 + 1] += (ty - positions[i3 + 1]) * 0.006;
+          positions[i3 + 2] += (tz - positions[i3 + 2]) * 0.006;
+          alphas[i] = 0.05 + Math.sin(timer * 0.008 + i) * 0.03;
         }
 
-        // Draw all particles
-        for (let i = 0; i < N + AMBIENT; i++) {
-          const p = particles[i];
-          let alpha;
-          if (p.isAmbient) {
-            alpha = 0.12;
-          } else {
-            alpha = phase === 'scattering' ? 0.15 : (phase === 'forming' ? 0.35 : 0.5);
-          }
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${p.hue}, 45%, 65%, ${alpha})`;
-          ctx.fill();
-        }
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.aAlpha.needsUpdate = true;
+
+        // Gentle camera sway
+        camera.position.x = Math.sin(globalAngle * 0.3) * 5;
+        camera.position.y = Math.cos(globalAngle * 0.2) * 3;
+        camera.lookAt(0, 0, 0);
+
+        composer.render();
       }
 
-      const obs = new IntersectionObserver(e => { if (e[0].isIntersecting) { animate(); obs.disconnect(); } }, {threshold: 0.05});
+      const obs = new IntersectionObserver(e => {
+        if (e[0].isIntersecting && !running) { running = true; animate(); }
+        if (!e[0].isIntersecting) running = false;
+      }, { threshold: 0.05 });
       obs.observe(canvas);
     })();
   </script>
