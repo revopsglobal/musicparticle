@@ -3,1298 +3,758 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MusicParticle | Your music, visualized</title>
-  <meta name="description" content="21 particle simulations that react to whatever you are listening to. Cinematic camera journeys, particle lyrics, real-time audio reactivity. No login required.">
+  <title>MusicParticle</title>
+  <meta name="description" content="Play music. Watch particles react. 21 simulations, real-time audio, no login.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
       --bg: #06060c;
-      --bg-card: rgba(255, 255, 255, 0.03);
-      --border: rgba(255, 255, 255, 0.06);
-      --border-hover: rgba(255, 255, 255, 0.12);
-      --text: #e8e8ef;
-      --text-dim: #8888a0;
-      --text-muted: #55556a;
-      --accent-1: #7c6aff;
-      --accent-2: #ff6ac2;
-      --accent-3: #6affda;
-      --accent-4: #ffd76a;
-      --glow: rgba(124, 106, 255, 0.4);
+      --cream: #e8e4dc;
+      --dim: #7a7670;
+      --muted: #4a4640;
+      --warm: #c4a882;
+      --pop: #e85d3a;
     }
 
-    html {
-      scroll-behavior: smooth;
-    }
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       background: var(--bg);
-      color: var(--text);
+      color: var(--cream);
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
 
-    h1, h2, h3, h4 {
-      font-family: 'Outfit', sans-serif;
-    }
+    a { color: inherit; text-decoration: none; }
 
-    /* ── TICKER ── */
-
-    .ticker-wrap {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 200;
-      background: rgba(124, 106, 255, 0.06);
-      border-bottom: 1px solid rgba(124, 106, 255, 0.12);
-      overflow: hidden;
-      height: 32px;
-      display: flex;
-      align-items: center;
-    }
-
-    .ticker-track {
-      display: flex;
-      white-space: nowrap;
-      animation: ticker-scroll 40s linear infinite;
-    }
-
-    .ticker-track span {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(184, 173, 255, 0.5);
-      padding: 0 2rem;
-    }
-
-    .ticker-track .dot {
-      color: var(--accent-2);
-      padding: 0 0.5rem;
-    }
-
-    @keyframes ticker-scroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-
-    /* ── NAV ── */
-
+    /* ═══════════════════════════════════════════════
+       NAV: barely there, top-right cluster
+    ═══════════════════════════════════════════════ */
     nav {
-      position: fixed;
-      top: 32px;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(6, 6, 12, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.4rem 2.5rem;
+      mix-blend-mode: difference;
     }
-
-    .nav-logo {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 200;
-      font-size: 1.3rem;
-      letter-spacing: 0.04em;
-      color: var(--text);
-      text-decoration: none;
+    .wordmark {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.15rem;
+      font-style: italic;
+      letter-spacing: 0.01em;
+      color: var(--cream);
     }
-
-    .nav-logo strong {
-      font-weight: 400;
+    .nav-links {
+      display: flex; gap: 2rem; align-items: center;
     }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 2rem;
+    .nav-links a {
+      font-size: 0.78rem; font-weight: 400;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--dim); transition: color 0.3s;
     }
-
-    .nav-link {
-      font-size: 0.85rem;
-      color: var(--text-dim);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .nav-link:hover {
-      color: var(--text);
-    }
-
-    .btn-nav {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 500;
-      padding: 0.55rem 1.3rem;
-      border-radius: 8px;
-      border: 1px solid rgba(124, 106, 255, 0.3);
-      background: rgba(124, 106, 255, 0.08);
-      color: #b8adff;
-      text-decoration: none;
+    .nav-links a:hover { color: var(--cream); }
+    .nav-cta {
+      font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 0.55rem 1.4rem;
+      border: 1px solid var(--muted);
       transition: all 0.3s;
     }
+    .nav-cta:hover { border-color: var(--cream); color: var(--cream); }
 
-    .btn-nav:hover {
-      background: rgba(124, 106, 255, 0.15);
-      border-color: rgba(124, 106, 255, 0.5);
-      box-shadow: 0 0 20px rgba(124, 106, 255, 0.15);
-    }
-
-    /* ── HERO ── */
-
+    /* ═══════════════════════════════════════════════
+       HERO: full-screen canvas with overlaid type
+    ═══════════════════════════════════════════════ */
     .hero {
       position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      padding: 8rem 2rem 4rem;
+      height: 100vh; min-height: 600px;
+      display: flex; align-items: flex-end;
+      padding: 0 2.5rem 4rem;
       overflow: hidden;
     }
-
-    .hero-inner {
-      display: flex;
-      align-items: center;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-      gap: 2rem;
-    }
-
-    .hero-text {
-      flex: 0 0 42%;
-      position: relative;
-      z-index: 2;
-    }
-
-    .hero-visual {
-      flex: 1;
-      position: relative;
-      min-height: 500px;
-    }
-
     #hero-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
     }
-
+    .hero-overlay {
+      position: relative; z-index: 2;
+      max-width: 680px;
+    }
     .hero h1 {
-      font-size: clamp(2.8rem, 5.5vw, 4.5rem);
-      font-weight: 200;
-      line-height: 1.08;
-      letter-spacing: -0.02em;
+      font-family: 'Instrument Serif', serif;
+      font-weight: 400;
+      font-size: clamp(3.2rem, 8vw, 7rem);
+      line-height: 0.92;
+      letter-spacing: -0.03em;
       margin-bottom: 1.5rem;
     }
-
-    .gradient-text {
-      background: linear-gradient(135deg, #b8adff 0%, #ff9de0 50%, #6affda 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    .hero h1 em {
+      font-style: italic;
+      color: var(--warm);
     }
-
     .hero-sub {
-      font-size: 1.1rem;
-      font-weight: 300;
-      color: var(--text-dim);
-      line-height: 1.7;
-      max-width: 440px;
-      margin-bottom: 2.5rem;
-    }
-
-    .hero-ctas {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .btn-glow {
-      font-family: 'Space Grotesk', sans-serif;
       font-size: 1rem;
-      font-weight: 500;
-      padding: 0.9rem 2.2rem;
-      border-radius: 12px;
-      border: 1px solid rgba(124, 106, 255, 0.5);
-      background: rgba(124, 106, 255, 0.14);
-      color: #d0c8ff;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.35s;
-      position: relative;
-      box-shadow: 0 0 24px rgba(124, 106, 255, 0.12), 0 0 80px rgba(124, 106, 255, 0.06);
-    }
-
-    .btn-glow:hover {
-      background: rgba(124, 106, 255, 0.22);
-      border-color: rgba(124, 106, 255, 0.7);
-      box-shadow: 0 0 40px rgba(124, 106, 255, 0.25), 0 0 100px rgba(124, 106, 255, 0.1);
-      transform: translateY(-2px);
-    }
-
-    .btn-ghost {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 400;
-      padding: 0.9rem 1.8rem;
-      color: var(--text-dim);
-      text-decoration: none;
-      transition: color 0.2s;
-      background: none;
-      border: none;
-      cursor: pointer;
-    }
-
-    .btn-ghost:hover {
-      color: var(--text);
-    }
-
-    /* ── SECTIONS ── */
-
-    section {
-      padding: 7rem 2rem;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .section-label {
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--accent-1);
-      margin-bottom: 1rem;
-    }
-
-    .section-title {
-      font-size: clamp(2rem, 4vw, 3rem);
-      font-weight: 200;
-      line-height: 1.15;
-      margin-bottom: 1rem;
-    }
-
-    .section-desc {
-      font-size: 1.05rem;
-      color: var(--text-dim);
-      line-height: 1.7;
-      max-width: 560px;
-      margin-bottom: 3.5rem;
-    }
-
-    /* ── HOW IT WORKS ── */
-
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 2rem;
-    }
-
-    .step-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2.5rem 2rem;
-      transition: all 0.4s;
-      opacity: 0;
-      transform: translateY(30px);
-    }
-
-    .step-card.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .step-card:hover {
-      border-color: var(--border-hover);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .step-icon {
-      width: 48px;
-      height: 48px;
-      margin-bottom: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      background: rgba(124, 106, 255, 0.08);
-      border: 1px solid rgba(124, 106, 255, 0.15);
-    }
-
-    .step-icon svg {
-      width: 22px;
-      height: 22px;
-      stroke: var(--accent-1);
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .step-card h3 {
-      font-size: 1.15rem;
-      font-weight: 400;
-      margin-bottom: 0.75rem;
-    }
-
-    .step-card p {
-      font-size: 0.9rem;
-      color: var(--text-dim);
-      line-height: 1.6;
-    }
-
-    /* ── SIMULATION GRID ── */
-
-    .sim-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.25rem;
-    }
-
-    .sim-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.75rem;
-      border-left: 3px solid;
-      transition: all 0.35s;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      opacity: 0;
-      transform: translateY(20px);
-    }
-
-    .sim-card.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .sim-card:hover {
-      border-color: var(--border-hover);
-      background: rgba(255, 255, 255, 0.045);
-      transform: translateY(-3px);
-    }
-
-    .sim-card h3 {
-      font-size: 0.85rem;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-    }
-
-    .sim-card p {
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      line-height: 1.55;
-    }
-
-    /* ── PARTICLE LYRICS SECTION ── */
-
-    .lyrics-section {
-      position: relative;
-      padding: 7rem 2rem;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .lyrics-layout {
-      display: flex;
-      align-items: center;
-      gap: 4rem;
-    }
-
-    .lyrics-canvas-wrap {
-      flex: 1;
-      position: relative;
-      height: 360px;
-      border-radius: 20px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.4);
-    }
-
-    #lyrics-demo-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    .lyrics-text {
-      flex: 0 0 40%;
-      opacity: 0;
-      transform: translateY(30px);
-    }
-
-    .lyrics-text.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .lyrics-text h2 {
-      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
-      font-weight: 200;
-      line-height: 1.15;
-      margin-bottom: 1.25rem;
-    }
-
-    .lyrics-text p {
-      font-size: 0.95rem;
-      color: var(--text-dim);
-      line-height: 1.7;
-    }
-
-    /* ── PRICING ── */
-
-    .pricing-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      margin-bottom: 3rem;
-    }
-
-    .pricing-toggle span {
-      font-size: 0.85rem;
-      color: var(--text-dim);
-      transition: color 0.2s;
-    }
-
-    .pricing-toggle span.active {
-      color: var(--text);
-    }
-
-    .toggle-switch {
-      width: 48px;
-      height: 26px;
-      background: rgba(124, 106, 255, 0.15);
-      border: 1px solid rgba(124, 106, 255, 0.3);
-      border-radius: 13px;
-      cursor: pointer;
-      position: relative;
-      transition: background 0.3s;
-    }
-
-    .toggle-switch::after {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--accent-1);
-      transition: transform 0.3s;
-    }
-
-    .toggle-switch.annual::after {
-      transform: translateX(22px);
-    }
-
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .pricing-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2.5rem;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      transition: all 0.4s;
-      opacity: 0;
-      transform: translateY(20px);
-    }
-
-    .pricing-card.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .pricing-card.pro {
-      border-color: rgba(124, 106, 255, 0.25);
-      background: rgba(124, 106, 255, 0.04);
-    }
-
-    .pricing-card.pro:hover {
-      border-color: rgba(124, 106, 255, 0.4);
-      box-shadow: 0 0 40px rgba(124, 106, 255, 0.08);
-    }
-
-    .pricing-tier {
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 500;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 0.75rem;
-    }
-
-    .pricing-price {
-      font-family: 'Outfit', sans-serif;
-      font-size: 2.8rem;
-      font-weight: 200;
-      margin-bottom: 0.25rem;
-    }
-
-    .pricing-price .per {
-      font-size: 1rem;
-      color: var(--text-dim);
       font-weight: 300;
-    }
-
-    .pricing-note {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 1.75rem;
-      min-height: 1.2rem;
-    }
-
-    .pricing-features {
-      list-style: none;
+      color: var(--dim);
+      line-height: 1.65;
+      max-width: 420px;
       margin-bottom: 2rem;
     }
-
-    .pricing-features li {
-      font-size: 0.88rem;
-      color: var(--text-dim);
-      padding: 0.45rem 0;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
+    .hero-launch {
+      display: inline-block;
+      font-size: 0.78rem; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.9rem 2.4rem;
+      border: 1px solid var(--cream);
+      color: var(--cream);
+      transition: all 0.4s;
+    }
+    .hero-launch:hover {
+      background: var(--cream);
+      color: var(--bg);
+    }
+    .scroll-hint {
+      position: absolute; bottom: 1.5rem; right: 2.5rem;
+      z-index: 2;
+      font-size: 0.65rem; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--muted);
+      writing-mode: vertical-rl;
     }
 
-    .pricing-features li::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
+    /* ═══════════════════════════════════════════════
+       STATEMENT: big italic serif, full-width
+    ═══════════════════════════════════════════════ */
+    .statement {
+      padding: 8rem 2.5rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .statement p {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: clamp(1.6rem, 3.5vw, 2.8rem);
+      line-height: 1.4;
+      max-width: 900px;
+      color: var(--dim);
+    }
+    .statement p strong {
+      font-weight: 400;
+      font-style: normal;
+      color: var(--cream);
     }
 
-    .pricing-card.free .pricing-features li::before {
-      background: var(--accent-3);
+    /* ═══════════════════════════════════════════════
+       HOW: three numbered items, left-aligned, no cards
+    ═══════════════════════════════════════════════ */
+    .how-section {
+      padding: 6rem 2.5rem 8rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
     }
-
-    .pricing-card.pro .pricing-features li::before {
-      background: var(--accent-1);
+    .how-label {
+      font-size: 0.65rem; font-weight: 500;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 4rem;
     }
-
-    .pricing-btn {
-      display: block;
-      width: 100%;
-      text-align: center;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 500;
-      padding: 0.85rem;
-      border-radius: 10px;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.3s;
+    .how-list {
+      display: flex; flex-direction: column; gap: 0;
     }
-
-    .pricing-card.free .pricing-btn {
-      border: 1px solid var(--border-hover);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
+    .how-item {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 0;
+      padding: 2.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
     }
-
-    .pricing-card.free .pricing-btn:hover {
-      background: rgba(255, 255, 255, 0.08);
+    .how-item.visible { opacity: 1; transform: none; }
+    .how-num {
+      font-family: 'Instrument Serif', serif;
+      font-size: 2.4rem;
+      color: var(--muted);
+      line-height: 1;
     }
-
-    .pricing-card.pro .pricing-btn {
-      border: 1px solid rgba(124, 106, 255, 0.4);
-      background: rgba(124, 106, 255, 0.12);
-      color: #d0c8ff;
-    }
-
-    .pricing-card.pro .pricing-btn:hover {
-      background: rgba(124, 106, 255, 0.2);
-      box-shadow: 0 0 24px rgba(124, 106, 255, 0.15);
-    }
-
-    .pricing-bottom {
-      text-align: center;
-      margin-top: 2rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    /* ── SEPARATOR ── */
-
-    .sep {
-      max-width: 1200px;
-      margin: 0 auto;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border-hover), transparent);
-    }
-
-    /* ── FOOTER ── */
-
-    footer {
-      padding: 3rem 2rem;
-      text-align: center;
-    }
-
-    .footer-logo {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 200;
-      font-size: 1.1rem;
-      color: var(--text-muted);
+    .how-content h3 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.4rem;
+      font-weight: 400;
       margin-bottom: 0.5rem;
     }
+    .how-content p {
+      font-size: 0.88rem;
+      color: var(--dim);
+      line-height: 1.6;
+      max-width: 440px;
+    }
 
-    .footer-logo strong {
+    /* ═══════════════════════════════════════════════
+       SIMULATIONS: editorial two-column layout
+    ═══════════════════════════════════════════════ */
+    .sims-section {
+      padding: 6rem 2.5rem 8rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .sims-header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 4rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .sims-header h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
       font-weight: 400;
+      max-width: 400px;
+    }
+    .sims-count {
+      font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 0.3rem;
+    }
+    .sims-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .sim-item {
+      padding: 1.8rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex; align-items: baseline; gap: 1.2rem;
+      opacity: 0; transform: translateX(-10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .sim-item.visible { opacity: 1; transform: none; }
+    .sim-item:nth-child(odd) { padding-right: 2rem; border-right: 1px solid rgba(255,255,255,0.04); }
+    .sim-item:nth-child(even) { padding-left: 2rem; }
+    .sim-name {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.05rem;
+      white-space: nowrap;
+    }
+    .sim-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
     }
 
-    .footer-note {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    /* ═══════════════════════════════════════════════
+       LYRICS: the product moment
+    ═══════════════════════════════════════════════ */
+    .lyrics-section {
+      padding: 0 2.5rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .lyrics-canvas-full {
+      width: 100%; height: 50vh; min-height: 360px;
+      display: block;
+    }
+    .lyrics-info {
+      padding: 3rem 0 6rem;
+      display: flex; justify-content: space-between;
+      align-items: flex-start; gap: 2rem; flex-wrap: wrap;
+    }
+    .lyrics-info h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 400;
+      max-width: 340px;
+      line-height: 1.2;
+    }
+    .lyrics-info h2 em { font-style: italic; color: var(--warm); }
+    .lyrics-detail {
+      font-size: 0.85rem;
+      color: var(--dim);
+      line-height: 1.7;
+      max-width: 380px;
+    }
+    .pro-badge {
+      display: inline-block;
+      font-size: 0.6rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 0.25rem 0.7rem;
+      border: 1px solid var(--warm);
+      color: var(--warm);
+      margin-bottom: 0.8rem;
     }
 
-    /* ── RESPONSIVE ── */
+    /* ═══════════════════════════════════════════════
+       PRICING: two columns, editorial, no cards
+    ═══════════════════════════════════════════════ */
+    .pricing-section {
+      padding: 6rem 2.5rem 8rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .pricing-header {
+      margin-bottom: 4rem;
+    }
+    .pricing-header h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      font-weight: 400;
+      margin-bottom: 0.6rem;
+    }
+    .pricing-header p {
+      font-size: 0.85rem; color: var(--dim);
+    }
+    .pricing-cols {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .pricing-col {
+      padding: 3rem 0;
+    }
+    .pricing-col:first-child {
+      padding-right: 3rem;
+      border-right: 1px solid rgba(255,255,255,0.04);
+    }
+    .pricing-col:last-child { padding-left: 3rem; }
+    .pricing-tier-name {
+      font-size: 0.65rem; font-weight: 500;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1rem;
+    }
+    .pricing-amount {
+      font-family: 'Instrument Serif', serif;
+      font-size: 3.2rem;
+      font-weight: 400;
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+    .pricing-period {
+      font-size: 0.8rem; color: var(--dim);
+      margin-bottom: 2rem;
+    }
+    .pricing-list {
+      list-style: none;
+      margin-bottom: 2.5rem;
+    }
+    .pricing-list li {
+      font-size: 0.85rem;
+      color: var(--dim);
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .pricing-action {
+      display: inline-block;
+      font-size: 0.75rem; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.8rem 2rem;
+      border: 1px solid var(--muted);
+      color: var(--cream);
+      transition: all 0.3s;
+    }
+    .pricing-action:hover {
+      border-color: var(--cream);
+    }
+    .pricing-col:last-child .pricing-action {
+      background: var(--cream);
+      color: var(--bg);
+      border-color: var(--cream);
+    }
+    .pricing-col:last-child .pricing-action:hover {
+      background: var(--warm);
+      border-color: var(--warm);
+    }
+    .pricing-annual-note {
+      font-size: 0.72rem; color: var(--muted);
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    .pricing-annual-note:hover { color: var(--dim); }
 
-    @media (max-width: 900px) {
-      .hero-inner {
-        flex-direction: column;
-        text-align: center;
-      }
-
-      .hero-text {
-        flex: none;
-        order: 2;
-      }
-
-      .hero-visual {
-        flex: none;
-        width: 100%;
-        min-height: 350px;
-        order: 1;
-      }
-
-      .hero-sub {
-        margin-left: auto;
-        margin-right: auto;
-      }
-
-      .hero-ctas {
-        justify-content: center;
-      }
-
-      .steps-grid {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-      }
-
-      .sim-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .lyrics-layout {
-        flex-direction: column;
-      }
-
-      .lyrics-canvas-wrap {
-        width: 100%;
-        height: 280px;
-      }
-
-      .lyrics-text {
-        flex: none;
-        text-align: center;
-      }
-
-      .pricing-grid {
-        grid-template-columns: 1fr;
-        max-width: 420px;
-      }
-
-      .nav-link {
-        display: none;
-      }
+    /* ═══════════════════════════════════════════════
+       FOOTER: just a line and a name
+    ═══════════════════════════════════════════════ */
+    footer {
+      padding: 3rem 2.5rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-left {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .footer-right {
+      font-size: 0.65rem; color: var(--muted);
+      letter-spacing: 0.05em;
     }
 
-    @media (max-width: 600px) {
-      .sim-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* ── FADE TRANSITIONS ── */
-
-    .fade-up {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.7s ease, transform 0.7s ease;
-    }
-
-    .fade-up.visible {
-      opacity: 1;
-      transform: translateY(0);
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 800px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links a:not(.nav-cta) { display: none; }
+      .hero { padding: 0 1.5rem 3rem; }
+      .hero h1 { font-size: clamp(2.6rem, 10vw, 4rem); }
+      .statement { padding: 5rem 1.5rem; }
+      .how-section, .sims-section, .pricing-section { padding: 4rem 1.5rem 5rem; }
+      .how-item { grid-template-columns: 50px 1fr; }
+      .sims-grid { grid-template-columns: 1fr; }
+      .sim-item:nth-child(odd) { padding-right: 0; border-right: none; }
+      .sim-item:nth-child(even) { padding-left: 0; }
+      .lyrics-info { flex-direction: column; }
+      .pricing-cols { grid-template-columns: 1fr; }
+      .pricing-col:first-child { padding-right: 0; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.04); }
+      .pricing-col:last-child { padding-left: 0; }
+      footer { flex-direction: column; gap: 0.5rem; text-align: center; }
     }
   </style>
-
   <script type="importmap">
   { "imports": { "three": "https://unpkg.com/three@0.162.0/build/three.module.js" } }
   </script>
 </head>
 <body>
 
-  <!-- TICKER -->
-  <div class="ticker-wrap">
-    <div class="ticker-track" id="ticker">
-      <span>21 SIMULATIONS</span><span class="dot">/</span>
-      <span>HOPF FIBRATION</span><span class="dot">/</span>
-      <span>SIERPINSKI FLOW</span><span class="dot">/</span>
-      <span>CHLADNI PLATE</span><span class="dot">/</span>
-      <span>KABALLAH</span><span class="dot">/</span>
-      <span>REAL-TIME AUDIO</span><span class="dot">/</span>
-      <span>PARTICLE LYRICS</span><span class="dot">/</span>
-      <span>NO LOGIN REQUIRED</span><span class="dot">/</span>
-      <span>QUANTUM GALAXY</span><span class="dot">/</span>
-      <span>BIMERONS</span><span class="dot">/</span>
-      <span>TURING MORPHOGENESIS</span><span class="dot">/</span>
-      <span>ATTRACTOR BLOOM</span><span class="dot">/</span>
-      <span>CINEMATIC CAMERA</span><span class="dot">/</span>
-      <span>LIVING PULSAR</span><span class="dot">/</span>
-      <span>21 SIMULATIONS</span><span class="dot">/</span>
-      <span>HOPF FIBRATION</span><span class="dot">/</span>
-      <span>SIERPINSKI FLOW</span><span class="dot">/</span>
-      <span>CHLADNI PLATE</span><span class="dot">/</span>
-      <span>KABALLAH</span><span class="dot">/</span>
-      <span>REAL-TIME AUDIO</span><span class="dot">/</span>
-      <span>PARTICLE LYRICS</span><span class="dot">/</span>
-      <span>NO LOGIN REQUIRED</span><span class="dot">/</span>
-      <span>QUANTUM GALAXY</span><span class="dot">/</span>
-      <span>BIMERONS</span><span class="dot">/</span>
-      <span>TURING MORPHOGENESIS</span><span class="dot">/</span>
-      <span>ATTRACTOR BLOOM</span><span class="dot">/</span>
-      <span>CINEMATIC CAMERA</span><span class="dot">/</span>
-      <span>LIVING PULSAR</span><span class="dot">/</span>
-    </div>
-  </div>
-
-  <!-- NAV -->
   <nav>
-    <a href="/" class="nav-logo">Music<strong>Particle</strong></a>
-    <div class="nav-right">
-      <a href="#how" class="nav-link">How it Works</a>
-      <a href="#simulations" class="nav-link">Simulations</a>
-      <a href="#pricing" class="nav-link">Pricing</a>
-      <a href="/app" class="btn-nav">Launch</a>
+    <a href="/" class="wordmark">MusicParticle</a>
+    <div class="nav-links">
+      <a href="#how">How</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/app" class="nav-cta">Open App</a>
     </div>
   </nav>
 
-  <!-- HERO -->
   <section class="hero">
-    <div class="hero-inner">
-      <div class="hero-text">
-        <h1>Your music,<br><span class="gradient-text">visualized</span></h1>
-        <p class="hero-sub">21 particle simulations that react to whatever you are listening to. No login required.</p>
-        <div class="hero-ctas">
-          <a href="/app" class="btn-glow">Launch Visualizer</a>
-          <a href="#pricing" class="btn-ghost">See Pro Features</a>
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero-overlay">
+      <h1>Sound<br>becomes<br><em>light</em></h1>
+      <p class="hero-sub">21 particle simulations that listen to your music and react in real time. Play anything. Watch everything change.</p>
+      <a href="/app" class="hero-launch">Open the visualizer</a>
+    </div>
+    <span class="scroll-hint">Scroll</span>
+  </section>
+
+  <div class="statement">
+    <p><strong>No account. No download. No Spotify login.</strong> Grant microphone access, play music from any source, and the particles respond to what they hear. Bass drives pulsation. Mids shift color. Highs scatter and spark.</p>
+  </div>
+
+  <section class="how-section" id="how">
+    <p class="how-label">Process</p>
+    <div class="how-list">
+      <div class="how-item">
+        <span class="how-num">01</span>
+        <div class="how-content">
+          <h3>Play anything</h3>
+          <p>Spotify, vinyl, a live instrument, YouTube on your phone. If it makes sound near your device, it works.</p>
         </div>
       </div>
-      <div class="hero-visual">
-        <canvas id="hero-canvas"></canvas>
+      <div class="how-item">
+        <span class="how-num">02</span>
+        <div class="how-content">
+          <h3>One permission</h3>
+          <p>Your browser asks for microphone access. Nothing is recorded. Nothing is transmitted. Audio analysis happens entirely in your browser.</p>
+        </div>
+      </div>
+      <div class="how-item">
+        <span class="how-num">03</span>
+        <div class="how-content">
+          <h3>Immerse</h3>
+          <p>The camera drifts through the shape. Particles pulse with the beat. Switch between 21 mathematical universes or let auto-shuffle take you on a journey.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <div class="sep"></div>
-
-  <!-- HOW IT WORKS -->
-  <section id="how">
-    <p class="section-label fade-up">How it works</p>
-    <h2 class="section-title fade-up">Three steps to immersion</h2>
-    <p class="section-desc fade-up">No downloads, no accounts, no configuration. Just sound and light.</p>
-    <div class="steps-grid">
-      <div class="step-card">
-        <div class="step-icon">
-          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        </div>
-        <h3>Play any music</h3>
-        <p>Spotify, Apple Music, YouTube, a local file. Anything that makes sound on your device.</p>
-      </div>
-      <div class="step-card">
-        <div class="step-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        </div>
-        <h3>Grant mic access</h3>
-        <p>Your browser listens to what is playing. Nothing is recorded. Nothing leaves your device.</p>
-      </div>
-      <div class="step-card">
-        <div class="step-icon">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.93 19.07l1.41-1.41"/><path d="M17.66 6.34l1.41-1.41"/></svg>
-        </div>
-        <h3>Watch it react</h3>
-        <p>Particles bloom, contract, and swirl with every beat, every note, every silence.</p>
-      </div>
+  <section class="sims-section" id="simulations">
+    <div class="sims-header">
+      <h2>Every shape is a different universe</h2>
+      <span class="sims-count">25 simulations</span>
+    </div>
+    <div class="sims-grid">
+      <div class="sim-item"><span class="sim-name">Judy</span><span class="sim-desc">4D Hopf fibration stereographic projection</span></div>
+      <div class="sim-item"><span class="sim-name">Chladni Plate</span><span class="sim-desc">Acoustic resonance nodal patterns</span></div>
+      <div class="sim-item"><span class="sim-name">Kaballah</span><span class="sim-desc">Sacred geometry in particle space</span></div>
+      <div class="sim-item"><span class="sim-name">Binary Symbiote</span><span class="sim-desc">Lorenz vs Halvorsen attractor duality</span></div>
+      <div class="sim-item"><span class="sim-name">Sierpinski Flow</span><span class="sim-desc">Breathing fractal triangular recursion</span></div>
+      <div class="sim-item"><span class="sim-name">Living Pulsar</span><span class="sim-desc">Neutron star radiation beams</span></div>
+      <div class="sim-item"><span class="sim-name">Turing Morphogenesis</span><span class="sim-desc">Reaction-diffusion biological patterns</span></div>
+      <div class="sim-item"><span class="sim-name">Black Hole</span><span class="sim-desc">Schwarzschild plasma accretion</span></div>
+      <div class="sim-item"><span class="sim-name">QMatrix</span><span class="sim-desc">Photonic crystal band structure</span></div>
+      <div class="sim-item"><span class="sim-name">Storm</span><span class="sim-desc">Multi-layer atmospheric dynamics</span></div>
+      <div class="sim-item"><span class="sim-name">Rainbow Road</span><span class="sim-desc">Spatial highway with star field</span></div>
+      <div class="sim-item"><span class="sim-name">Solar System</span><span class="sim-desc">Orbital mechanics at particle scale</span></div>
+      <div class="sim-item"><span class="sim-name">Fractal Continuum</span><span class="sim-desc">Aperiodic three-system morph</span></div>
+      <div class="sim-item"><span class="sim-name">Bimerons</span><span class="sim-desc">Topological magnetic skyrmion lattice</span></div>
+      <div class="sim-item"><span class="sim-name">Anyons</span><span class="sim-desc">4D braiding statistics with flux tubes</span></div>
+      <div class="sim-item"><span class="sim-name">Chladni Resonance</span><span class="sim-desc">Vibrating plate with warp and ripple</span></div>
+      <div class="sim-item"><span class="sim-name">Geometrical Config</span><span class="sim-desc">Hyperspherical energy shell</span></div>
+      <div class="sim-item"><span class="sim-name">Cloud Formations</span><span class="sim-desc">Fractal atmospheric turbulence</span></div>
+      <div class="sim-item"><span class="sim-name">Quantum Lattice</span><span class="sim-desc">3D crystal wave propagation</span></div>
+      <div class="sim-item"><span class="sim-name">Spark of Life</span><span class="sim-desc">Genesis evolution animation</span></div>
+      <div class="sim-item"><span class="sim-name">Symbiote</span><span class="sim-desc">Iridescent chromatic entity</span></div>
+      <div class="sim-item"><span class="sim-name">Quantum Galaxy</span><span class="sim-desc">Spiral interference shell</span></div>
+      <div class="sim-item"><span class="sim-name">Attractor Bloom</span><span class="sim-desc">Golden-angle warp field</span></div>
+      <div class="sim-item"><span class="sim-name">Hookes Law</span><span class="sim-desc">Spring constant lattice oscillation</span></div>
     </div>
   </section>
 
-  <div class="sep"></div>
-
-  <!-- SIMULATIONS -->
-  <section id="simulations">
-    <p class="section-label fade-up">21 Simulations</p>
-    <h2 class="section-title fade-up">Choose your dimension</h2>
-    <p class="section-desc fade-up">Each simulation is a different mathematical universe. Switch freely, or let auto-shuffle surprise you.</p>
-    <div class="sim-grid">
-      <div class="sim-card" style="border-left-color: #7c6aff;">
-        <h3>Chladni Plate</h3>
-        <p>Acoustic resonance patterns that form standing wave geometry from your music's frequency content.</p>
-      </div>
-      <div class="sim-card" style="border-left-color: #ff6ac2;">
-        <h3>Kaballah</h3>
-        <p>Sacred geometry translated into particle space. Fibonacci spirals interlock with audio energy.</p>
-      </div>
-      <div class="sim-card" style="border-left-color: #6affda;">
-        <h3>Quantum Galaxy</h3>
-        <p>Orbital mechanics with audio-reactive gravity wells. Stars collapse and reform with each drop.</p>
-      </div>
-      <div class="sim-card" style="border-left-color: #ffd76a;">
-        <h3>Sierpinski Flow</h3>
-        <p>Fractal recursion in three dimensions. Triangular subdivision pulsing with bass frequency.</p>
-      </div>
-      <div class="sim-card" style="border-left-color: #ff8866;">
-        <h3>Turing Morphogenesis</h3>
-        <p>Reaction-diffusion fields that morph biological patterns in response to harmonic content.</p>
-      </div>
-      <div class="sim-card" style="border-left-color: #88ccff;">
-        <h3>Living Pulsar</h3>
-        <p>Neutron star radiation beams that sweep and intensify with rhythmic energy.</p>
-      </div>
-    </div>
-    <p style="text-align: center; margin-top: 2rem; font-size: 0.85rem; color: var(--text-muted);">Plus 15 more: Attractor Bloom, Binary Symbiote, Bimerons, Black Hole, Cloud Formations, Fractal Continuum, Hookes Law, Judy, QMatrix, QMatrix V2, Quantum Lattice, Rainbow Road, Solar System, Spark of Life, Storm</p>
-  </section>
-
-  <div class="sep"></div>
-
-  <!-- PARTICLE LYRICS -->
   <section class="lyrics-section">
-    <div class="lyrics-layout">
-      <div class="lyrics-canvas-wrap">
-        <canvas id="lyrics-demo-canvas"></canvas>
+    <canvas id="lyrics-demo-canvas" class="lyrics-canvas-full"></canvas>
+    <div class="lyrics-info">
+      <div>
+        <span class="pro-badge">Pro</span>
+        <h2>Lyrics formed from <em>particles</em></h2>
       </div>
-      <div class="lyrics-text">
-        <p class="section-label">Pro Feature</p>
-        <h2>Your lyrics,<br>written in <span class="gradient-text">light</span></h2>
-        <p>Particles scatter from the simulation and reassemble into the words being sung. Real lyrics, real-time, rendered as thousands of glowing points that drift and reform with each new line. Powered by lrclib.net.</p>
-      </div>
+      <p class="lyrics-detail">The app identifies what song is playing, finds synced lyrics, and pulls particles out of the simulation to form the words being sung. Each line scatters and reforms. During instrumental breaks, the particles return to the shape. Text inherits the visual style and color of the active simulation.</p>
     </div>
   </section>
 
-  <div class="sep"></div>
-
-  <!-- PRICING -->
-  <section id="pricing">
-    <p class="section-label fade-up" style="text-align: center;">Pricing</p>
-    <h2 class="section-title fade-up" style="text-align: center;">Start free. Upgrade when you want more.</h2>
-    <div class="pricing-toggle">
-      <span class="active" id="monthly-label">Monthly</span>
-      <div class="toggle-switch" id="billing-toggle" onclick="toggleBilling()"></div>
-      <span id="annual-label">Annual</span>
+  <section class="pricing-section" id="pricing">
+    <div class="pricing-header">
+      <h2>Two versions. Both are real.</h2>
+      <p>The free version is the full visualizer. Pro adds live lyrics.</p>
     </div>
-    <div class="pricing-grid">
-      <div class="pricing-card free">
-        <p class="pricing-tier">Free</p>
-        <p class="pricing-price">$0 <span class="per">/ forever</span></p>
-        <p class="pricing-note">&nbsp;</p>
-        <ul class="pricing-features">
-          <li>All 21 simulations</li>
-          <li>5 visual styles</li>
-          <li>Cinematic camera journeys</li>
-          <li>Auto-shuffle mode</li>
-          <li>Full parameter controls</li>
+    <div class="pricing-cols">
+      <div class="pricing-col">
+        <p class="pricing-tier-name">Free</p>
+        <p class="pricing-amount">$0</p>
+        <p class="pricing-period">No account needed</p>
+        <ul class="pricing-list">
+          <li>All 25 simulations</li>
+          <li>5 visual styles (Spark, Plasma, Glass, Ink, Steel)</li>
+          <li>Cinematic auto-camera</li>
+          <li>Auto-shuffle with cross-fade</li>
+          <li>Full audio controls</li>
+          <li>Camera speed and zoom controls</li>
         </ul>
-        <a href="/app" class="pricing-btn">Launch Visualizer</a>
+        <a href="/app" class="pricing-action">Open the app</a>
       </div>
-      <div class="pricing-card pro">
-        <p class="pricing-tier">Pro</p>
-        <p class="pricing-price" id="pro-price">$4.99 <span class="per">/ month</span></p>
-        <p class="pricing-note" id="pro-note">&nbsp;</p>
-        <ul class="pricing-features">
+      <div class="pricing-col">
+        <p class="pricing-tier-name">Pro</p>
+        <p class="pricing-amount" id="pro-price">$4.99</p>
+        <p class="pricing-period" id="pro-period">per month</p>
+        <ul class="pricing-list">
           <li>Everything in Free</li>
-          <li>Auto song detection</li>
+          <li>Automatic song detection</li>
           <li>Particle lyrics overlay</li>
-          <li>Sync correction</li>
-          <li>Silence re-detection</li>
+          <li>Time-synced to the music</li>
+          <li>Instrumental break detection</li>
+          <li>Song change re-detection</li>
         </ul>
-        <a href="/app" class="pricing-btn">Get Pro</a>
+        <a href="/app" class="pricing-action">Get Pro</a>
+        <p class="pricing-annual-note" onclick="toggleAnnual()">&uarr; Or $39/year ($3.25/mo)</p>
       </div>
     </div>
-    <p class="pricing-bottom">Free forever. No credit card to start.</p>
   </section>
 
-  <!-- FOOTER -->
   <footer>
-    <p class="footer-logo">Music<strong>Particle</strong></p>
-    <p class="footer-note">Lyrics powered by lrclib.net</p>
+    <span class="footer-left">MusicParticle</span>
+    <span class="footer-right">Lyrics via lrclib.net. Detection via audd.io.</span>
   </footer>
 
-  <!-- THREE.JS HERO PARTICLE SPHERE -->
+  <!-- ═══════════════════════════════════════════════
+       THREE.JS HERO
+  ═══════════════════════════════════════════════ -->
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Hero particle sphere ──
-    (function initHero() {
-      const canvas = document.getElementById('hero-canvas');
-      if (!canvas) return;
-
+    const canvas = document.getElementById('hero-canvas');
+    if (canvas) {
       const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x000000, 0);
 
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-      camera.position.z = 5;
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+      camera.position.set(0, 0, 4.5);
 
-      const COUNT = 5000;
+      const COUNT = 6000;
       const positions = new Float32Array(COUNT * 3);
       const colors = new Float32Array(COUNT * 3);
+      const ga = Math.PI * (3 - Math.sqrt(5));
 
-      // Fibonacci sphere distribution
-      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
       for (let i = 0; i < COUNT; i++) {
         const t = i / COUNT;
-        const inclination = Math.acos(1 - 2 * t);
-        const azimuth = goldenAngle * i;
-        const r = 1.6;
+        const incl = Math.acos(1 - 2 * t);
+        const az = ga * i;
 
-        positions[i * 3]     = r * Math.sin(inclination) * Math.cos(azimuth);
-        positions[i * 3 + 1] = r * Math.sin(inclination) * Math.sin(azimuth);
-        positions[i * 3 + 2] = r * Math.cos(inclination);
+        // Hopf-like projection for visual interest
+        const eta = t * Math.PI * 0.5;
+        const xi1 = az;
+        const xi2 = t * Math.PI * 6;
+        const x1 = Math.cos(xi1) * Math.sin(eta);
+        const x2 = Math.sin(xi1) * Math.sin(eta);
+        const x3 = Math.cos(xi2) * Math.cos(eta);
+        const x4 = Math.sin(xi2) * Math.cos(eta);
+        const d = Math.max(0.3, 1.15 - x4);
+        const scale = 1.8 / d;
 
-        // Color gradient: purple -> pink -> cyan
-        const hue = 0.7 + t * 0.45;
-        const color = new THREE.Color().setHSL(hue % 1, 0.6, 0.55);
-        colors[i * 3]     = color.r;
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
+        positions[i * 3]     = x1 * scale;
+        positions[i * 3 + 1] = x2 * scale;
+        positions[i * 3 + 2] = x3 * scale;
+
+        // Warm desaturated palette: cream, amber, faint rose
+        const hue = 0.08 + t * 0.06;
+        const sat = 0.15 + t * 0.2;
+        const lum = 0.45 + (x4 + 1) * 0.15;
+        const c = new THREE.Color().setHSL(hue, sat, lum);
+        colors[i * 3] = c.r; colors[i * 3+1] = c.g; colors[i * 3+2] = c.b;
       }
 
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-      const material = new THREE.PointsMaterial({
-        size: 0.018,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.85,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        sizeAttenuation: true
+      const mat = new THREE.PointsMaterial({
+        size: 0.012, vertexColors: true, transparent: true,
+        opacity: 0.7, blending: THREE.AdditiveBlending,
+        depthWrite: false, sizeAttenuation: true
       });
 
-      const points = new THREE.Points(geometry, material);
-      scene.add(points);
+      const pts = new THREE.Points(geo, mat);
+      scene.add(pts);
+
+      const basePos = new Float32Array(positions);
 
       function resize() {
-        const rect = canvas.parentElement.getBoundingClientRect();
-        const w = rect.width;
-        const h = rect.height;
+        const w = window.innerWidth, h = window.innerHeight;
         renderer.setSize(w, h);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
       }
-
       resize();
       window.addEventListener('resize', resize);
-
-      const posAttr = geometry.getAttribute('position');
-      const basePositions = new Float32Array(positions);
 
       function animate(time) {
         requestAnimationFrame(animate);
         const t = time * 0.001;
+        pts.rotation.y = t * 0.06;
+        pts.rotation.x = Math.sin(t * 0.04) * 0.12;
 
-        // Slow rotation
-        points.rotation.y = t * 0.12;
-        points.rotation.x = Math.sin(t * 0.08) * 0.15;
-
-        // Gentle breathing / pulse
-        const pulse = 1 + Math.sin(t * 0.8) * 0.04;
+        const posAttr = geo.getAttribute('position');
+        const pulse = 1 + Math.sin(t * 0.7) * 0.03;
         for (let i = 0; i < COUNT; i++) {
           const i3 = i * 3;
-          const bx = basePositions[i3];
-          const by = basePositions[i3 + 1];
-          const bz = basePositions[i3 + 2];
-
-          // Radial pulse
-          posAttr.array[i3]     = bx * pulse;
-          posAttr.array[i3 + 1] = by * pulse;
-          posAttr.array[i3 + 2] = bz * pulse;
-
-          // Subtle wave displacement
-          const dist = Math.sqrt(bx * bx + by * by + bz * bz);
-          const wave = Math.sin(dist * 3 + t * 1.2) * 0.02;
-          posAttr.array[i3]     += bx * wave;
-          posAttr.array[i3 + 1] += by * wave;
-          posAttr.array[i3 + 2] += bz * wave;
+          const wave = Math.sin(Math.sqrt(
+            basePos[i3]**2 + basePos[i3+1]**2 + basePos[i3+2]**2
+          ) * 2.5 + t) * 0.015;
+          posAttr.array[i3]     = basePos[i3]     * (pulse + wave);
+          posAttr.array[i3 + 1] = basePos[i3 + 1] * (pulse + wave);
+          posAttr.array[i3 + 2] = basePos[i3 + 2] * (pulse + wave);
         }
         posAttr.needsUpdate = true;
-
         renderer.render(scene, camera);
       }
-
       animate(0);
-    })();
+    }
   </script>
 
   <!-- PARTICLE LYRICS DEMO -->
   <script>
-    (function initLyricsDemo() {
+    (function() {
       const canvas = document.getElementById('lyrics-demo-canvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      const WORDS = ['dream', 'sing', 'glow', 'feel', 'move'];
+      const WORDS = ['feel', 'sound', 'light', 'pulse', 'drift'];
       let wordIdx = 0;
       let particles = [];
       let targets = [];
       let w, h;
-      const PARTICLE_COUNT = 2000;
+      const N = 2400;
 
       function resize() {
         const rect = canvas.parentElement.getBoundingClientRect();
         w = rect.width * window.devicePixelRatio;
-        h = rect.height * window.devicePixelRatio;
-        canvas.width = w;
-        canvas.height = h;
+        h = Math.max(rect.height, 300) * window.devicePixelRatio;
+        canvas.width = w; canvas.height = h;
         canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
+        canvas.style.height = Math.max(rect.height, 300) + 'px';
       }
-
       resize();
       window.addEventListener('resize', resize);
 
-      function sampleWord(word) {
-        const offscreen = document.createElement('canvas');
-        offscreen.width = w;
-        offscreen.height = h;
-        const oc = offscreen.getContext('2d');
-        oc.fillStyle = '#fff';
-        oc.textAlign = 'center';
-        oc.textBaseline = 'middle';
-        let fontSize = Math.min(w * 0.22, 160);
-        oc.font = `600 ${fontSize}px "Outfit", sans-serif`;
-        let metrics = oc.measureText(word);
-        while (metrics.width > w * 0.85 && fontSize > 20) {
-          fontSize -= 4;
-          oc.font = `600 ${fontSize}px "Outfit", sans-serif`;
-          metrics = oc.measureText(word);
-        }
-        oc.fillText(word, w / 2, h / 2);
-
-        const imageData = oc.getImageData(0, 0, w, h);
-        const pixels = imageData.data;
+      function sample(word) {
+        const oc = document.createElement('canvas');
+        oc.width = w; oc.height = h;
+        const c = oc.getContext('2d');
+        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        let fs = Math.min(w * 0.2, 180);
+        c.font = `italic 400 ${fs}px "Instrument Serif", serif`;
+        let m = c.measureText(word);
+        while (m.width > w * 0.8 && fs > 20) { fs -= 4; c.font = `italic 400 ${fs}px "Instrument Serif", serif`; m = c.measureText(word); }
+        c.fillText(word, w / 2, h / 2);
+        const img = c.getImageData(0, 0, w, h).data;
         const filled = [];
-        const step = Math.max(2, Math.floor(w / 400));
-        for (let y = 0; y < h; y += step) {
-          for (let x = 0; x < w; x += step) {
-            const idx = (y * w + x) * 4;
-            if (pixels[idx + 3] > 128) {
-              filled.push({ x, y });
-            }
-          }
-        }
-
+        const step = Math.max(3, Math.floor(w / 350));
+        for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) if (img[(y * w + x) * 4 + 3] > 128) filled.push({x, y});
         targets = [];
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-          if (filled.length === 0) {
-            targets.push({ x: w / 2, y: h / 2 });
-          } else {
-            targets.push(filled[Math.floor(Math.random() * filled.length)]);
-          }
-        }
+        for (let i = 0; i < N; i++) targets.push(filled.length ? filled[Math.floor(Math.random() * filled.length)] : {x: w/2, y: h/2});
       }
 
-      // Initialize particles scattered
-      function initParticles() {
+      function init() {
         particles = [];
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-          particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            vx: 0,
-            vy: 0,
-            size: 1 + Math.random() * 1.5,
-            hue: 260 + Math.random() * 60
-          });
-        }
+        for (let i = 0; i < N; i++) particles.push({x: Math.random()*w, y: Math.random()*h, vx: 0, vy: 0});
       }
+      init(); sample(WORDS[0]);
 
-      initParticles();
-
-      let phase = 'forming'; // forming, holding, scattering
-      let phaseTimer = 0;
-      const FORM_DURATION = 90;
-      const HOLD_DURATION = 80;
-      const SCATTER_DURATION = 40;
-
-      sampleWord(WORDS[0]);
+      let phase = 'forming', timer = 0;
 
       function animate() {
         requestAnimationFrame(animate);
-        ctx.fillStyle = 'rgba(6, 6, 12, 0.15)';
-        ctx.fillRect(0, 0, w, h);
-
-        phaseTimer++;
+        ctx.fillStyle = 'rgba(6,6,12,0.12)'; ctx.fillRect(0,0,w,h);
+        timer++;
 
         if (phase === 'forming') {
-          for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const p = particles[i];
-            const t = targets[i];
-            const ease = 0.04;
-            p.vx += (t.x - p.x) * ease;
-            p.vy += (t.y - p.y) * ease;
-            p.vx *= 0.88;
-            p.vy *= 0.88;
-            p.x += p.vx;
-            p.y += p.vy;
+          for (let i = 0; i < N; i++) {
+            const p = particles[i], t = targets[i];
+            p.vx += (t.x - p.x) * 0.035; p.vy += (t.y - p.y) * 0.035;
+            p.vx *= 0.87; p.vy *= 0.87;
+            p.x += p.vx; p.y += p.vy;
           }
-          if (phaseTimer > FORM_DURATION) {
-            phase = 'holding';
-            phaseTimer = 0;
-          }
+          if (timer > 100) { phase = 'holding'; timer = 0; }
         } else if (phase === 'holding') {
-          for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const p = particles[i];
-            const t = targets[i];
-            p.x += (t.x - p.x) * 0.1;
-            p.y += (t.y - p.y) * 0.1;
-            // Tiny jitter
-            p.x += (Math.random() - 0.5) * 0.8;
-            p.y += (Math.random() - 0.5) * 0.8;
+          for (let i = 0; i < N; i++) {
+            const p = particles[i], t = targets[i];
+            p.x += (t.x - p.x) * 0.08; p.y += (t.y - p.y) * 0.08;
+            p.x += (Math.random() - 0.5) * 0.6; p.y += (Math.random() - 0.5) * 0.6;
           }
-          if (phaseTimer > HOLD_DURATION) {
-            phase = 'scattering';
-            phaseTimer = 0;
+          if (timer > 90) { phase = 'scattering'; timer = 0; }
+        } else {
+          for (let i = 0; i < N; i++) {
+            const p = particles[i], a = Math.random() * Math.PI * 2;
+            p.vx += Math.cos(a) * 0.4; p.vy += Math.sin(a) * 0.4;
+            p.vx *= 0.97; p.vy *= 0.97;
+            p.x += p.vx; p.y += p.vy;
           }
-        } else if (phase === 'scattering') {
-          for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const p = particles[i];
-            const angle = Math.random() * Math.PI * 2;
-            const force = 2 + Math.random() * 4;
-            p.vx += Math.cos(angle) * force * 0.15;
-            p.vy += Math.sin(angle) * force * 0.15;
-            p.vx *= 0.96;
-            p.vy *= 0.96;
-            p.x += p.vx;
-            p.y += p.vy;
-          }
-          if (phaseTimer > SCATTER_DURATION) {
-            phase = 'forming';
-            phaseTimer = 0;
-            wordIdx = (wordIdx + 1) % WORDS.length;
-            sampleWord(WORDS[wordIdx]);
-          }
+          if (timer > 50) { phase = 'forming'; timer = 0; wordIdx = (wordIdx+1)%WORDS.length; sample(WORDS[wordIdx]); }
         }
 
-        // Draw particles
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
+        for (let i = 0; i < N; i++) {
           const p = particles[i];
-          const alpha = phase === 'scattering' ? 0.3 : 0.65;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${p.hue}, 70%, 70%, ${alpha})`;
-          ctx.fill();
+          const a = phase === 'scattering' ? 0.2 : 0.5;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 1.2, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(200, 168, 130, ${a})`; ctx.fill();
         }
       }
 
-      // Only start when visible
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            animate();
-            observer.disconnect();
-          }
-        });
-      }, { threshold: 0.2 });
-      observer.observe(canvas);
+      const obs = new IntersectionObserver(e => { if (e[0].isIntersecting) { animate(); obs.disconnect(); } }, {threshold: 0.1});
+      obs.observe(canvas);
     })();
   </script>
 
-  <!-- SCROLL ANIMATIONS + BILLING TOGGLE -->
+  <!-- SCROLL ANIMATIONS -->
   <script>
-    // IntersectionObserver for fade-up elements
-    const fadeObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-        }
-      });
-    }, { threshold: 0.15 });
-
-    document.querySelectorAll('.fade-up, .step-card, .sim-card, .pricing-card, .lyrics-text').forEach(el => {
-      fadeObserver.observe(el);
+    const obs = new IntersectionObserver(e => e.forEach(x => { if (x.isIntersecting) x.target.classList.add('visible'); }), {threshold: 0.12});
+    document.querySelectorAll('.how-item, .sim-item').forEach((el, i) => {
+      el.style.transitionDelay = `${(i % 6) * 0.06}s`;
+      obs.observe(el);
     });
 
-    // Stagger step cards
-    document.querySelectorAll('.step-card').forEach((card, i) => {
-      card.style.transitionDelay = `${i * 0.12}s`;
-    });
-
-    document.querySelectorAll('.sim-card').forEach((card, i) => {
-      card.style.transitionDelay = `${i * 0.08}s`;
-    });
-
-    document.querySelectorAll('.pricing-card').forEach((card, i) => {
-      card.style.transitionDelay = `${i * 0.1}s`;
-    });
-
-    // Billing toggle
-    let isAnnual = false;
-
-    function toggleBilling() {
-      isAnnual = !isAnnual;
-      const toggle = document.getElementById('billing-toggle');
-      const price = document.getElementById('pro-price');
-      const note = document.getElementById('pro-note');
-      const mLabel = document.getElementById('monthly-label');
-      const aLabel = document.getElementById('annual-label');
-
-      toggle.classList.toggle('annual', isAnnual);
-      mLabel.classList.toggle('active', !isAnnual);
-      aLabel.classList.toggle('active', isAnnual);
-
-      if (isAnnual) {
-        price.innerHTML = '$3.25 <span class="per">/ month</span>';
-        note.textContent = 'Billed annually at $39/year';
+    function toggleAnnual() {
+      const p = document.getElementById('pro-price');
+      const d = document.getElementById('pro-period');
+      if (p.textContent.includes('4.99')) {
+        p.textContent = '$3.25'; d.textContent = 'per month, billed annually at $39';
       } else {
-        price.innerHTML = '$4.99 <span class="per">/ month</span>';
-        note.innerHTML = '&nbsp;';
+        p.textContent = '$4.99'; d.textContent = 'per month';
       }
     }
   </script>
-
 </body>
 </html>
