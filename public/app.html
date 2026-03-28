@@ -4811,10 +4811,21 @@ function updateLyrics() {
   if (isInBreak) {
     lyricBlendTarget = 0;
   } else if (currentIdx !== lastLyricIdx) {
+    const prevIdx = lastLyricIdx;
     lastLyricIdx = currentIdx;
     sampleTextPositions(currentLine.text);
-    lyricBlendTarget = 0;
-    setTimeout(() => { lyricBlendTarget = 1; }, 300);
+
+    // Only scatter if there was a long gap (>3s) since the last line (verse break, chorus change)
+    // For rapid consecutive lines, just swap the text directly without scatter
+    const timeSincePrev = prevIdx >= 0 ? (currentLine.time - lyricsData[prevIdx].time) : 999;
+    if (timeSincePrev > 3.0) {
+      // Long gap: scatter then reform (dramatic transition)
+      lyricBlendTarget = 0;
+      setTimeout(() => { lyricBlendTarget = 1; }, 250);
+    } else {
+      // Quick line change: keep blend high, just swap targets
+      lyricBlendTarget = 1;
+    }
   } else {
     // Same line, keep showing it
     lyricBlendTarget = 1;
