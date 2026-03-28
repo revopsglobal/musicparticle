@@ -12,13 +12,13 @@
   /* ── Overlay ── */
   #overlay {
     position: fixed; inset: 0; z-index: 200;
-    background: #06060c;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    cursor: pointer; transition: opacity 0.8s ease;
+    background: rgba(6,6,12,0.6);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding-bottom: 3rem;
+    cursor: pointer; transition: opacity 0.5s ease;
+    backdrop-filter: blur(2px);
   }
   #overlay.hidden { opacity: 0; pointer-events: none; }
-  #overlay h1 { font-size: 2rem; font-weight: 200; color: #d0d0f0; letter-spacing: 0.15em; margin-bottom: 0.8rem; }
-  #overlay p { font-size: 0.8rem; color: #5a5a7a; letter-spacing: 0.12em; }
   .pulse-ring {
     width: 100px; height: 100px; border-radius: 50%;
     border: 1px solid rgba(120, 130, 255, 0.25);
@@ -295,9 +295,7 @@
 <body>
 
 <div id="overlay">
-  <div class="pulse-ring"></div>
-  <h1>VISUALIZER</h1>
-  <p>TAP TO BEGIN</p>
+  <p style="font-size:0.7rem; color:rgba(255,255,255,0.3); letter-spacing:0.15em; text-transform:uppercase">Tap anywhere to enable audio</p>
 </div>
 
 <div id="hud-info">
@@ -4121,21 +4119,21 @@ const helpBtn = document.getElementById('help-btn');
 const helpTooltip = document.getElementById('help-tooltip');
 let started = false;
 
+// Start the simulation immediately (no audio yet, just visuals)
+loadSim(0);
+
 overlay.addEventListener('click', async () => {
   if (started) return;
   started = true;
   overlay.classList.add('hidden');
   await initAudio();
-  loadSim(0);
   // Auto-detect song after mic is warmed up
-  // Use 5s delay to ensure mic stream is fully active
   setTimeout(async () => {
     await checkProStatus();
     if (!hasAutoDetected && micStream) {
       hasAutoDetected = true;
-      // Show subtle indicator that detection is running
       if (detectStatus) detectStatus.textContent = 'Listening...';
-      autoDetectSong(false); // NOT silent, so we see what happens
+      autoDetectSong(false);
     }
   }, 5000);
 });
