@@ -4352,10 +4352,10 @@ overlay.addEventListener('click', async () => {
   overlay.classList.add('hidden');
   await initAudio();
   loadSim(0);
-  // Auto-detect song after mic is warmed up (Pro users only)
+  // Auto-detect song after mic is warmed up
   setTimeout(async () => {
     await checkProStatus();
-    if (isPro && !hasAutoDetected) {
+    if (!hasAutoDetected) {
       hasAutoDetected = true;
       autoDetectSong(true);
     }
@@ -4820,18 +4820,6 @@ function showProPrompt() {
 
 async function autoDetectSong(silent) {
   if (isDetecting) return;
-
-  // Pro check: detection requires Pro subscription
-  if (!isPro) {
-    if (!silent) showProPrompt();
-    return;
-  }
-
-  if (!userSession) {
-    if (!silent) detectStatus.textContent = 'Sign in to use song detection';
-    return;
-  }
-
   isDetecting = true;
 
   if (!silent) {
@@ -4843,21 +4831,43 @@ async function autoDetectSong(silent) {
     const audioBlob = await recordAudioClip(5000);
     if (!silent) detectStatus.textContent = 'Identifying...';
 
-    // Send raw audio blob to our server proxy (AudD key stays server-side)
-    const res = await fetch('/api/detect', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userSession.access_token}`,
-        'Content-Type': 'audio/webm',
-      },
-      body: audioBlob,
-    });
+    let data;
 
-    const data = await res.json();
+    // If logged in as Pro, use server proxy. Otherwise, use direct AudD call.
+    if (isPro && userSession) {
+      const res = await fetch('/api/detect', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userSession.access_token}`,
+          'Content-Type': 'audio/webm',
+        },
+        body: audioBlob,
+      });
+      data = await res.json();
+    } else {
+      // Direct AudD call (fallback for proof-of-concept / non-logged-in users)
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'sample.webm');
+      formData.append('api_token', '6902dfd2fce255afbcb79a469379b85b');
+      formData.append('return', 'timecode');
 
-    if (data.error === 'pro_required') {
-      showProPrompt();
-      return;
+      const auddRes = await fetch('https://api.audd.io/', { method: 'POST', body: formData });
+      const auddData = await auddRes.json();
+
+      if (auddData.status === 'success' && auddData.result) {
+        // Fetch lyrics from LRCLIB
+        const { title, artist, timecode } = auddData.result;
+        let lyrics = null;
+        try {
+          const lrcRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(title + ' ' + artist)}`);
+          const lrcData = await lrcRes.json();
+          const synced = lrcData.find(t => t.syncedLyrics);
+          if (synced) lyrics = synced;
+        } catch (e) {}
+        data = { song: { title, artist, timecode }, lyrics };
+      } else {
+        data = { song: null, lyrics: null };
+      }
     }
 
     if (data.song) {
@@ -4869,7 +4879,6 @@ async function autoDetectSong(silent) {
         return;
       }
 
-      // Server already fetched lyrics for us
       if (data.lyrics && data.lyrics.syncedLyrics) {
         pendingLyricsTrack = data.lyrics;
         pendingTimecode = detectedSeconds;
@@ -4913,7 +4922,7 @@ function enablePendingLyrics() {
 
 // Silence detection: if audio goes quiet for ~5 seconds, re-detect (song probably changed)
 function checkForSilence(currentRms) {
-  if (!isPro || isDetecting) return;
+  if (isDetecting) return;
 
   if (currentRms < SILENCE_THRESHOLD) {
     silenceFrames++;
