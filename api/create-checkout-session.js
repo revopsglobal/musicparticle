@@ -33,9 +33,7 @@ export default async function handler(req, res) {
 
   const priceId = plan === 'monthly' ? STRIPE_PRICE_MONTHLY : STRIPE_PRICE_ANNUAL;
 
-  const stripe = new Stripe(STRIPE_SECRET_KEY, {
-    httpClient: Stripe.createFetchHttpClient(),
-  });
+  const stripe = new Stripe(STRIPE_SECRET_KEY);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -62,7 +60,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ url: session.url, session_id: session.id });
   } catch (err) {
-    console.error('Stripe checkout error:', err);
-    return res.status(500).json({ error: 'Failed to create checkout session' });
+    console.error('Stripe checkout error:', err.message);
+    return res.status(500).json({ error: 'Failed to create checkout session', detail: err.message });
   }
 }
