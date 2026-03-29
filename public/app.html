@@ -5389,7 +5389,7 @@ if (document.fullscreenEnabled) {
 
 // ── BPM Sync ──
 const bpmSyncBtn = document.getElementById('bpm-sync-btn');
-const BASE_BPM = 120; // reference BPM that maps to simSpeed 1.0
+const BASE_BPM = 240; // reference BPM that maps to simSpeed 1.0 (halved ratio)
 
 bpmSyncBtn.addEventListener('click', (e) => {
   e.stopPropagation();
