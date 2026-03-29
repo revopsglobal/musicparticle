@@ -7,13 +7,86 @@
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #000000; margin: 0; padding: 0; }
+  body { overflow: hidden; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
+  canvas { display: block; }
+  video { display: none; }
+
+  /* -- WebGPU canvas (behind particles) -- */
+  #webgpu-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+  #font-atlas-canvas, #test-canvas { display: none; }
+
+  /* -- Mode bar (top center) -- */
+  #mode-bar {
+    position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 150;
+    display: flex; gap: 2px; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; padding: 3px; backdrop-filter: blur(12px);
+  }
+  .mode-btn {
+    padding: 6px 14px; border: none; border-radius: 4px;
+    background: transparent; color: rgba(255,255,255,0.3); font-family: 'Helvetica Neue', -apple-system, sans-serif; font-size: 0.6rem;
+    letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+  }
+  .mode-btn:hover { color: rgba(255,255,255,0.6); }
+  .mode-btn.active { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+
+  /* -- Controls panel (right side) -- */
+  #sidebar {
+    position: fixed; top: 0; right: -320px; bottom: 0; z-index: 100;
+    width: 300px; padding: 20px 18px;
+    background: rgba(0, 0, 0, 0.95);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(16px);
+    overflow-y: auto; overflow-x: hidden;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #sidebar.open { right: 0; }
+  #sidebar::-webkit-scrollbar { width: 3px; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  #sidebar h2 { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #444; padding: 8px 0; margin: 0; }
+
+  /* -- InDesign-style effect stack rows -- */
+  .fx-row { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+  .fx-row:hover { background: rgba(255,255,255,0.02); }
+  .fx-header { display: flex; align-items: center; gap: 8px; padding: 7px 0; cursor: pointer; }
+  .fx-toggle { width: 16px; height: 16px; border: 1px solid rgba(255,255,255,0.15); border-radius: 3px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; transition: all 0.15s; flex-shrink: 0; }
+  .fx-toggle.on { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: #fff; }
+  .fx-name { font-size: 12px; color: #555; flex: 1; user-select: none; transition: color 0.15s; }
+  .fx-row.active .fx-name { color: #ccc; }
+  .fx-expand { font-size: 10px; color: #333; transition: transform 0.2s, color 0.15s; }
+  .fx-row.expanded .fx-expand { transform: rotate(90deg); color: #555; }
+  .fx-params { max-height: 0; overflow: hidden; transition: max-height 0.25s ease-out; padding: 0; }
+  .fx-row.expanded .fx-params { max-height: 300px; padding: 4px 0 10px; }
+  .param-row { margin-bottom: 5px; }
+  .param-row label { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #444; margin-bottom: 2px; }
+  .param-row input[type="range"] { width: 100%; accent-color: #555; height: 2px; }
+
+  /* -- Preset buttons -- */
+  .src-btn {
+    padding: 5px 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 3px;
+    background: rgba(255,255,255,0.04); color: #666; font-family: inherit; font-size: 11px;
+    cursor: pointer; transition: all 0.15s; margin-right: 3px; margin-bottom: 3px;
+  }
+  .src-btn:hover { background: rgba(255,255,255,0.08); color: #aaa; }
+  .src-btn.active { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
+
+  /* -- Blend control (hybrid mode) -- */
+  #blend-control {
+    position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%); z-index: 60;
+    display: none; align-items: center; gap: 10px;
+    background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 6px 14px; backdrop-filter: blur(12px);
+  }
+  #blend-control label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+  #blend-control input { width: 120px; accent-color: #666; }
+
+  #no-webgpu { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 16px; color: #f44; text-align: center; z-index: 100; display: none; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #000000; margin: 0; padding: 0; }
   body { overflow: hidden; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
@@ -398,8 +471,27 @@
     #lyrics-clear-btn { font-size: 0.68rem; }
   }
 </style>
+</style>
 </head>
 <body>
+
+<div id="no-webgpu">WebGPU not supported in this browser.<br>Please use Chrome 113+ or Edge 113+.</div>
+
+<!-- WebGPU canvas (video effects, behind particles) -->
+<canvas id="webgpu-canvas"></canvas>
+<video id="src-video" loop muted playsinline>
+  <source src="/videos/mountains.mp4" type="video/mp4">
+</video>
+<canvas id="font-atlas-canvas" style="display:none"></canvas>
+<canvas id="test-canvas" style="display:none"></canvas>
+
+<!-- Mode tabs -->
+<div id="mode-bar">
+  <button class="mode-btn active" data-mode="particles">Particles</button>
+  <button class="mode-btn" data-mode="input">Input</button>
+  <button class="mode-btn" data-mode="hybrid">Hybrid</button>
+</div>
+
 
 <div id="overlay">
   <canvas id="overlay-canvas"></canvas>
@@ -417,7 +509,6 @@
     <p style="font-size:0.7rem; color:rgba(255,255,255,0.35); letter-spacing:0.2em; text-transform:uppercase; margin-top:0.5rem;">Tap to start</p>
   </div>
 </div>
-
 <div id="hud-info">
   <div id="hud-title"></div>
   <div id="hud-desc"></div>
@@ -442,10 +533,25 @@
   <button class="nav-btn" id="auto-fx-btn" title="Auto FX (G)" style="font-size:0.4rem;letter-spacing:0.03em">AFX</button>
 <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
-
 <button id="toggle-sidebar" title="Controls">+</button>
-
 <div id="sidebar">
+  <h2 id="stack-label">Effect Stack</h2>
+  <div id="presets-bar" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;"></div>
+  <div id="fx-stack"></div>
+  <div id="source-section" style="display:none">
+    <h3 style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#444;margin:8px 0 6px;">Source</h3>
+    <div style="margin-bottom:12px;">
+      <button class="src-btn active" data-src="test">Mountains</button>
+      <button class="src-btn" data-src="camera">Camera</button>
+      <button class="src-btn" data-src="upload">Upload</button>
+    </div>
+  </div>
+
+  <!-- Advanced section: production sidebar content -->
+  <details id="advanced-details" style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
+    <summary style="font-size:0.6rem;color:rgba(255,255,255,0.25);cursor:pointer;letter-spacing:0.12em;text-transform:uppercase;padding:4px 0;">Advanced</summary>
+    <div id="advanced-content" style="margin-top:8px;">
+
   <div class="section-title">Camera</div>
   <div class="ctrl-slider">
     <label>Travel Speed <span id="val-cam-speed">1.0</span></label>
@@ -557,7 +663,14 @@
   <div class="section-title">Simulation Controls</div>
   <div id="sim-controls"></div>
 </div>
-
+    </div>
+  </details>
+</div>
+<div id="blend-control">
+  <label>Particles</label>
+  <input type="range" id="blend-slider" min="0" max="1" value="0.5" step="0.05">
+  <label>Video FX</label>
+</div>
 <div id="lyrics-track-info"></div>
 <div id="mic-prompt">
   <span>Play music and let particles react</span>
@@ -589,7 +702,6 @@
   <div><kbd>F</kbd> Fullscreen</div>
   <div><kbd>Click</kbd> Next simulation</div>
 </div>
-
 <script>
 // ── Overlay animation: orbiting particle constellation ──
 (function() {
@@ -668,7 +780,6 @@
   observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
 })();
 </script>
-
 <script type="importmap">
 {
   "imports": {
@@ -684,6 +795,10 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ================================================================
+// SECTION 1: Three.js Post-Processing Shaders (from production)
+// ================================================================
 
 // ── Post-Processing Shaders ───────────────────────────────
 const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
@@ -992,9 +1107,6 @@ const FRACTAL_BACKDROPS = {
   mandelbox: MandelboxBackdropFrag,
   hybrid: HybridLandscapeFrag,
 };
-let activeBackdropMesh = null;
-let activeBackdropName = null;
-
 // ── FX Mode Presets ───────────────────────────────────────
 const FX_MODES = {
   clean:       { chromatic: 0, feedback: 0, hueSpeed: 0, drift: 0, grain: 0, radialBlur: 0, kaleidoSegments: 0, scanlines: 0 },
@@ -1010,7 +1122,1299 @@ let currentFxMode = 'clean';
 const fxModeNames = Object.keys(FX_MODES);
 
 // ── Simulations Library ────────────────────────────────────
-// Each sim has audio vars injected: bass, mids, highs, rms (0-1 range, pre-scaled by sensitivity)
+
+// ================================================================
+// SECTION 2: WebGPU Video Effects Pipeline
+// ================================================================
+
+let webgpuAvailable = false;
+let device, gpuCanvas, gpuCtx, gpuFormat;
+let videoTexture = null;
+let sampler, atlasSampler;
+const video = document.getElementById('src-video');
+const testCanvas = document.getElementById('test-canvas');
+const testCtx = testCanvas.getContext('2d');
+testCanvas.width = 1280; testCanvas.height = 720;
+
+// Effect stack: independent for particles and input modes
+const EFFECT_NAMES = ['ascii', 'dithering', 'halftone', 'dots', 'edge', 'blockify', 'threshold', 'contour', 'voronoi', 'vhs', 'matrix', 'emoji'];
+
+function cloneParams(params) {
+  return params.map(p => ({ ...p, _value: p.value }));
+}
+
+function createStack() {
+  if (!webgpuAvailable) return [];
+  return EFFECT_NAMES.map(name => ({
+    name, enabled: false,
+    params: cloneParams(EFFECTS[name].params),
+  }));
+}
+
+let particleEffectStack = [];
+let inputEffectStack = [];
+
+let currentFx = 'none';
+let currentSource = 'test';
+let cameraStream = null;
+let useVideo = false;
+
+const PRESETS = {
+  'None':          { effects: {} },
+  'Terminal':      { effects: { ascii: { cellSize: 10, useOriginalColors: 0 } } },
+  'Binary':        { effects: { ascii: { cellSize: 12, charset: 3, useOriginalColors: 2 } }, charsetSwitch: 'binary' },
+  'Katakana':      { effects: { ascii: { cellSize: 14, charset: 6, useOriginalColors: 0 } }, charsetSwitch: 'katakana' },
+  'Newsprint':     { effects: { halftone: {} } },
+  'Sketch':        { effects: { edge: { threshold: 0.08 } } },
+  'Neon Sketch':   { effects: { edge: { threshold: 0.06 }, vhs: {} } },
+  'Pixel Art':     { effects: { blockify: { cellSize: 8 } } },
+  'VHS Tape':      { effects: { vhs: {} } },
+  'Dot Matrix':    { effects: { dots: {} } },
+  'Surveillance':  { effects: { edge: { threshold: 0.1 }, dithering: {} } },
+  'Matrix':        { effects: { matrix: { speed: 1.5, trailLength: 30 } } },
+  'Contour Map':   { effects: { contour: { levels: 8 } } },
+  'Stained Glass': { effects: { voronoi: { cellSize: 40 } } },
+  'Retro CRT':     { effects: { ascii: { cellSize: 6, useOriginalColors: 1 }, vhs: {} } },
+};
+
+function applyPreset(presetName, stack) {
+  const preset = PRESETS[presetName];
+  if (!preset) return;
+
+  // Reset all effects in the stack
+  for (const entry of stack) {
+    entry.enabled = false;
+    // Reset params to defaults
+    const defaults = EFFECTS[entry.name].params;
+    for (let j = 0; j < entry.params.length; j++) {
+      entry.params[j]._value = defaults[j].value;
+    }
+  }
+
+  // Enable and configure the preset's effects
+  for (const [fxName, overrides] of Object.entries(preset.effects)) {
+    const entry = stack.find(e => e.name === fxName);
+    if (!entry) continue;
+    entry.enabled = true;
+    if (overrides) {
+      for (const [paramName, val] of Object.entries(overrides)) {
+        const p = entry.params.find(pp => pp.name === paramName);
+        if (p) p._value = val;
+      }
+    }
+  }
+
+  // Handle charset switch if needed
+  if (preset.charsetSwitch) {
+    switchCharset(preset.charsetSwitch);
+  }
+
+  buildStackPanel();
+  updateBottomBar();
+}
+
+function getActiveEffects(stack) {
+  return stack.filter(e => e.enabled).map(e => e.name);
+}
+
+// Find a stack entry's params for a given effect name
+function getStackParams(stack, fxName) {
+  const entry = stack.find(e => e.name === fxName);
+  return entry ? entry.params : null;
+const CHARSETS = {
+  standard:  { label: 'Standard', chars: ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$' },
+  blocks:    { label: 'Blocks', chars: ' .,:-=+*#%@' },
+  minimal:   { label: 'Minimal', chars: ' .-:=+*#@' },
+  binary:    { label: 'Binary', chars: '01' },
+  hex:       { label: 'Hex', chars: '0123456789ABCDEF' },
+  braille:   { label: 'Braille', chars: ' \u2801\u2803\u2807\u280F\u281F\u283F\u287F\u28FF' },
+  katakana:  { label: 'Katakana', chars: '\u30A0\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u30CF\u30D2\u30D5\u30D8\u30DB\u30DE\u30DF\u30E0\u30E1\u30E2\u30E4\u30E6\u30E8\u30E9\u30EA\u30EB\u30EC\u30ED\u30EF\u30F2\u30F3' },
+  math:      { label: 'Math', chars: ' \u2219\u00B1\u2211\u220F\u221A\u221E\u2248\u2260\u2264\u2265\u2202\u222B\u0394\u03A9\u03C0\u03B8\u03BB' },
+  arrows:    { label: 'Arrows', chars: ' \u2190\u2191\u2192\u2193\u2194\u2195\u21B0\u21B1\u21BA\u21BB\u27A1\u2B06\u2B07\u2B05' },
+};
+let currentCharset = 'standard';
+let ASCII_CHARSET = CHARSETS.standard.chars;
+const FONT_SIZE = 32;
+
+function createFontAtlas(charset) {
+  charset = charset || ASCII_CHARSET;
+  const atlasCanvas = document.getElementById('font-atlas-canvas');
+  const ctx = atlasCanvas.getContext('2d');
+
+  // Use a font that handles unicode well
+  const fontFamily = charset === CHARSETS.katakana?.chars ? 'monospace' : 'monospace';
+  ctx.font = `${FONT_SIZE}px ${fontFamily}`;
+  const metrics = ctx.measureText('M');
+  const charW = Math.ceil(metrics.width);
+  const charH = Math.ceil(FONT_SIZE * 1.3);
+
+  const cols = Math.ceil(Math.sqrt(charset.length));
+  const rows = Math.ceil(charset.length / cols);
+
+  atlasCanvas.width = cols * charW;
+  atlasCanvas.height = rows * charH;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+
+  ctx.font = `${FONT_SIZE}px ${fontFamily}`;
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  for (let i = 0; i < charset.length; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    ctx.fillText(charset[i], col * charW, row * charH);
+  }
+
+  return { canvas: atlasCanvas, charW, charH, cols, rows, charset };
+}
+
+let fontAtlas = createFontAtlas();
+
+function switchCharset(name) {
+  if (!CHARSETS[name]) return;
+  if (!device || !atlasTexture) return;
+  currentCharset = name;
+  ASCII_CHARSET = CHARSETS[name].chars;
+  fontAtlas = createFontAtlas(ASCII_CHARSET);
+  // Recreate atlas texture at new size and re-upload
+  atlasTexture.destroy();
+  atlasTexture = device.createTexture({
+    size: [fontAtlas.canvas.width, fontAtlas.canvas.height],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture(
+    { source: fontAtlas.canvas },
+    { texture: atlasTexture },
+    [fontAtlas.canvas.width, fontAtlas.canvas.height]
+  );
+}
+
+// Upload font atlas to GPU texture
+// [deferred] let atlasTexture = device.createTexture({
+// [deferred]   size: [fontAtlas.canvas.width, fontAtlas.canvas.height],
+// [deferred]   format: 'rgba8unorm',
+// [deferred]   usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+// [deferred] });
+// [deferred] device.queue.copyExternalImageToTexture(
+// [deferred]   { source: fontAtlas.canvas },
+// [deferred]   { texture: atlasTexture },
+// [deferred]   [fontAtlas.canvas.width, fontAtlas.canvas.height]
+// [deferred] );
+
+// ═══════════════════════════════════════════════════
+// EMOJI ATLAS (color glyphs, separate from ASCII)
+// ═══════════════════════════════════════════════════
+
+const EMOJI_CHARSET = Array.from('\u{1F311}\u{1F30A}\u{1F332}\u{1F30D}\u{1F525}\u{2B50}\u{1F31F}\u{1F4A5}\u{2764}\u{1F7E0}\u{1F7E1}\u{1F7E2}\u{1F535}\u{1F7E3}\u{26AA}\u{2B1C}');
+const EMOJI_SIZE = 48;
+
+function createEmojiAtlas() {
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  const charW = EMOJI_SIZE, charH = EMOJI_SIZE;
+  const cols = Math.ceil(Math.sqrt(EMOJI_CHARSET.length));
+  const rows = Math.ceil(EMOJI_CHARSET.length / cols);
+  c.width = cols * charW; c.height = rows * charH;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.font = `${EMOJI_SIZE - 4}px serif`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  for (let i = 0; i < EMOJI_CHARSET.length; i++) {
+    ctx.fillText(EMOJI_CHARSET[i], (i % cols) * charW + 2, Math.floor(i / cols) * charH + 2);
+  }
+  return { canvas: c, charW, charH, cols, rows, charset: EMOJI_CHARSET };
+}
+
+const emojiAtlas = createEmojiAtlas();
+// [deferred] let emojiAtlasTexture = device.createTexture({
+// [deferred]   size: [emojiAtlas.canvas.width, emojiAtlas.canvas.height],
+// [deferred]   format: 'rgba8unorm',
+// [deferred]   usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+// [deferred] });
+// [deferred] device.queue.copyExternalImageToTexture(
+// [deferred]   { source: emojiAtlas.canvas },
+// [deferred]   { texture: emojiAtlasTexture },
+// [deferred]   [emojiAtlas.canvas.width, emojiAtlas.canvas.height]
+// [deferred] );
+// ═══════════════════════════════════════════════════
+// VIDEO SOURCE TEXTURE
+// ═══════════════════════════════════════════════════
+
+// [deferred] let videoTexture = null;
+// [deferred] let sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+// [deferred] let atlasSampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+
+function updateVideoTexture(source) {
+  // Destroy old texture
+  if (videoTexture) videoTexture.destroy();
+
+  const w = source.width || source.videoWidth || 1280;
+  const h = source.height || source.videoHeight || 720;
+
+  videoTexture = device.createTexture({
+    size: [w, h],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+
+  device.queue.copyExternalImageToTexture(
+    { source, flipY: false },
+    { texture: videoTexture },
+    [w, h]
+  );
+}
+
+
+// ================================================================
+// SECTION 3: WGSL Shaders + EFFECTS Object
+// ================================================================
+
+const WGSL_UTILS = `
+fn luminance(c: vec3f) -> f32 {
+  return dot(c, vec3f(0.299, 0.587, 0.114));
+}
+
+fn applyBrightnessContrast(color: vec3f, brightness: f32, contrast: f32) -> vec3f {
+  var c = color + brightness / 255.0;
+  if (contrast != 0.0) {
+    let factor = (259.0 * (contrast + 255.0)) / (255.0 * (259.0 - contrast));
+    c = clamp((c - 0.5) * factor + 0.5, vec3f(0.0), vec3f(1.0));
+  }
+  return c;
+}
+
+fn applyGamma(color: vec3f, gamma: f32) -> vec3f {
+  return pow(clamp(color, vec3f(0.001), vec3f(1.0)), vec3f(1.0 / gamma));
+}
+
+fn hash(p: vec2f) -> f32 {
+  return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453);
+}
+
+fn hash2(p: vec2f) -> vec2f {
+  let pp = vec2f(dot(p, vec2f(127.1, 311.7)), dot(p, vec2f(269.5, 183.3)));
+  return fract(sin(pp) * 43758.5453);
+}
+`;
+
+// ═══════════════════════════════════════════════════
+// FULLSCREEN QUAD VERTEX SHADER (shared by all effects)
+// ═══════════════════════════════════════════════════
+
+const VERTEX_SHADER = `
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) texCoord: vec2f,
+}
+
+@vertex
+fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  // Fullscreen triangle pair
+  let pos = array<vec2f, 6>(
+    vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(-1.0, 1.0),
+    vec2f(-1.0, 1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0)
+  );
+  let uv = array<vec2f, 6>(
+    vec2f(0.0, 1.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0),
+    vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(1.0, 0.0)
+  );
+
+  var output: VertexOutput;
+  output.position = vec4f(pos[vertexIndex], 0.0, 1.0);
+  output.texCoord = uv[vertexIndex];
+  return output;
+}
+`;
+
+// ═══════════════════════════════════════════════════
+// EFFECT SHADERS (WGSL)
+// ═══════════════════════════════════════════════════
+
+const EFFECTS = {
+  none: {
+    params: [],
+    uniformStruct: `struct Uniforms { resolution: vec2f, _padA: f32, _padB: f32, }`,
+    uniformSize: 16,
+    fragment: `
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  return textureSample(inputTexture, texSampler, texCoord);
+}`
+  },
+
+  ascii: {
+    params: [
+      { name: 'cellSize', label: 'Cell Size', min: 4, max: 32, value: 12, step: 1 },
+      { name: 'charset', label: 'Characters', min: 0, max: Object.keys(CHARSETS).length - 1, value: 0, step: 1, isCharset: true, uiOnly: true },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1, hidden: true },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1, hidden: true },
+      { name: 'useOriginalColors', label: 'Color (0=Green 1=Original 2=B&W)', min: 0, max: 2, value: 1, step: 1 },
+      { name: 'invert', label: 'Invert', min: 0, max: 1, value: 0, step: 1 },
+    ],
+    // ASCII needs font atlas bindings
+    useFontAtlas: true,
+    uniformStruct: `struct Uniforms {
+  resX: f32, resY: f32,
+  cellSize: f32,
+  brightness: f32,
+  contrast: f32,
+  useOriginalColors: f32,
+  invert: f32,
+  charsetLength: f32,
+  atlasSizeX: f32, atlasSizeY: f32,
+  atlasCharSizeX: f32, atlasCharSizeY: f32,
+  atlasCols: f32,
+  _pad1: f32, _pad2: f32, _pad3: f32,
+}`,
+    uniformSize: 64,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+@group(0) @binding(3) var atlasSampler: sampler;
+@group(0) @binding(4) var fontAtlas: texture_2d<f32>;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let res = vec2f(uniforms.resX, uniforms.resY);
+  let pixelCoord = texCoord * res;
+  let cs = max(uniforms.cellSize, 4.0);
+
+  // Which cell are we in?
+  let cell = floor(pixelCoord / cs);
+  let cellUV = fract(pixelCoord / cs);
+
+  // Sample source at cell center
+  let cellCenter = (cell + 0.5) * cs / res;
+  let sourceColor = textureSample(inputTexture, texSampler, cellCenter);
+
+  // Apply image processing
+  var processed = applyBrightnessContrast(sourceColor.rgb, uniforms.brightness, uniforms.contrast);
+
+  // Get luminance for character selection
+  var lum = luminance(processed);
+  if (uniforms.invert > 0.5) { lum = 1.0 - lum; }
+
+  // Map luminance to character index (0 = darkest, charsetLength-1 = brightest)
+  let maxIdx = u32(uniforms.charsetLength) - 1u;
+  let charIdx = clamp(u32(lum * uniforms.charsetLength), 0u, maxIdx);
+
+  // Calculate UV into font atlas
+  let atlasCols = u32(uniforms.atlasCols);
+  let atlasCol = f32(charIdx % atlasCols);
+  let atlasRow = f32(charIdx / atlasCols);
+  let atlasCharSize = vec2f(uniforms.atlasCharSizeX, uniforms.atlasCharSizeY);
+  let atlasSize = vec2f(uniforms.atlasSizeX, uniforms.atlasSizeY);
+  let atlasUV = (vec2f(atlasCol, atlasRow) + cellUV) * atlasCharSize / atlasSize;
+
+  // Sample the font atlas to get the glyph shape
+  let glyphAlpha = textureSample(fontAtlas, atlasSampler, atlasUV).r;
+
+  // Color the glyph
+  var glyphColor: vec3f;
+  if (uniforms.useOriginalColors > 1.5) {
+    // B&W mode
+    glyphColor = vec3f(lum);
+  } else if (uniforms.useOriginalColors > 0.5) {
+    glyphColor = processed;
+  } else {
+    glyphColor = vec3f(0.0, 1.0, 0.3); // green terminal
+  }
+
+  return vec4f(glyphColor * glyphAlpha, 1.0);
+}`
+  },
+
+  dithering: {
+    params: [
+      { name: 'matrixSize', label: 'Matrix (0=2 1=4 2=8)', min: 0, max: 2, value: 2, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'colorMode', label: 'Color (0=BW 1=RGB)', min: 0, max: 1, value: 1, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  matrixSize: f32,
+  brightness: f32,
+  contrast: f32,
+  colorMode: f32,
+  _padA: f32, _padB: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+fn bayer2(p: vec2f) -> f32 {
+  let m = array<f32, 4>(0.0, 2.0, 3.0, 1.0);
+  let x = u32(p.x) % 2u;
+  let y = u32(p.y) % 2u;
+  return m[x + y * 2u] / 4.0;
+}
+
+fn bayer4(p: vec2f) -> f32 {
+  let m = array<f32, 16>(
+    0.0, 8.0, 2.0, 10.0,
+    12.0, 4.0, 14.0, 6.0,
+    3.0, 11.0, 1.0, 9.0,
+    15.0, 7.0, 13.0, 5.0
+  );
+  let x = u32(p.x) % 4u;
+  let y = u32(p.y) % 4u;
+  return m[x + y * 4u] / 16.0;
+}
+
+fn bayer8(p: vec2f) -> f32 {
+  let m = array<f32, 64>(
+    0.0, 32.0, 8.0, 40.0, 2.0, 34.0, 10.0, 42.0,
+    48.0, 16.0, 56.0, 24.0, 50.0, 18.0, 58.0, 26.0,
+    12.0, 44.0, 4.0, 36.0, 14.0, 46.0, 6.0, 38.0,
+    60.0, 28.0, 52.0, 20.0, 62.0, 30.0, 54.0, 22.0,
+    3.0, 35.0, 11.0, 43.0, 1.0, 33.0, 9.0, 41.0,
+    51.0, 19.0, 59.0, 27.0, 49.0, 17.0, 57.0, 25.0,
+    15.0, 47.0, 7.0, 39.0, 13.0, 45.0, 5.0, 37.0,
+    63.0, 31.0, 55.0, 23.0, 61.0, 29.0, 53.0, 21.0
+  );
+  let x = u32(p.x) % 8u;
+  let y = u32(p.y) % 8u;
+  return m[x + y * 8u] / 64.0;
+}
+
+fn dither(val: f32, coord: vec2f, matSize: f32) -> f32 {
+  var threshold: f32;
+  if (matSize < 0.5) { threshold = bayer2(coord); }
+  else if (matSize < 1.5) { threshold = bayer4(coord); }
+  else { threshold = bayer8(coord); }
+  return select(0.0, 1.0, val > threshold);
+}
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let color = textureSample(inputTexture, texSampler, texCoord);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+  let coord = texCoord * uniforms.resolution;
+
+  if (uniforms.colorMode > 0.5) {
+    return vec4f(
+      dither(processed.r, coord, uniforms.matrixSize),
+      dither(processed.g, coord, uniforms.matrixSize),
+      dither(processed.b, coord, uniforms.matrixSize),
+      1.0
+    );
+  } else {
+    let lum = luminance(processed);
+    let d = dither(lum, coord, uniforms.matrixSize);
+    return vec4f(vec3f(d), 1.0);
+  }
+}`
+  },
+
+  halftone: {
+    params: [
+      { name: 'dotScale', label: 'Dot Scale', min: 0.5, max: 2.0, value: 1.0, step: 0.05 },
+      { name: 'spacing', label: 'Spacing', min: 4, max: 20, value: 8, step: 1 },
+      { name: 'angle', label: 'Angle', min: 0, max: 3.14, value: 0.4, step: 0.05 },
+      { name: 'shape', label: 'Shape (0=Circle 1=Square 2=Diamond)', min: 0, max: 2, value: 0, step: 1 },
+      { name: 'colorMode', label: 'Color (0=BW 1=Color 2=CMYK)', min: 0, max: 2, value: 1, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  dotScale: f32,
+  spacing: f32,
+  angle: f32,
+  shape: f32,
+  colorMode: f32,
+  brightness: f32,
+  contrast: f32,
+  _pad1: f32, _pad2: f32, _pad3: f32,
+}`,
+    uniformSize: 48,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+fn rotate2D(p: vec2f, angle: f32) -> vec2f {
+  let c = cos(angle);
+  let s = sin(angle);
+  return vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
+}
+
+fn aastep(threshold: f32, value: f32) -> f32 {
+  let afwidth = 0.7 * length(vec2f(dpdx(value), dpdy(value)));
+  return smoothstep(threshold - afwidth, threshold + afwidth, value);
+}
+
+fn halftonePattern(coord: vec2f, lum: f32, shape: f32) -> f32 {
+  let gridUV = fract(coord) - 0.5;
+  let radius = (1.0 - lum) * 0.5 * uniforms.dotScale;
+
+  if (shape < 0.5) {
+    // Circle
+    return 1.0 - aastep(radius, length(gridUV));
+  } else if (shape < 1.5) {
+    // Square
+    let d = max(abs(gridUV.x), abs(gridUV.y));
+    return 1.0 - aastep(radius, d);
+  } else {
+    // Diamond
+    let d = abs(gridUV.x) + abs(gridUV.y);
+    return 1.0 - aastep(radius, d);
+  }
+}
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let color = textureSample(inputTexture, texSampler, texCoord);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+  let pixelCoord = texCoord * uniforms.resolution;
+
+  if (uniforms.colorMode < 0.5) {
+    // BW halftone
+    let rotated = rotate2D(pixelCoord, uniforms.angle) / uniforms.spacing;
+    let lum = luminance(processed);
+    let dot = halftonePattern(rotated, lum, uniforms.shape);
+    return vec4f(vec3f(dot), 1.0);
+  } else if (uniforms.colorMode < 1.5) {
+    // Single-layer color
+    let rotated = rotate2D(pixelCoord, uniforms.angle) / uniforms.spacing;
+    let lum = luminance(processed);
+    let dot = halftonePattern(rotated, lum, uniforms.shape);
+    return vec4f(processed * dot, 1.0);
+  } else {
+    // CMYK halftone - 4 rotated layers
+    let angles = array<f32, 4>(0.261, 1.309, 0.0, 0.785); // C, M, Y, K angles
+    let cmy = vec3f(1.0) - processed;
+    let k = min(cmy.r, min(cmy.g, cmy.b));
+    let c = (cmy.r - k) / (1.0 - k + 0.001);
+    let m = (cmy.g - k) / (1.0 - k + 0.001);
+    let y = (cmy.b - k) / (1.0 - k + 0.001);
+
+    let cDot = halftonePattern(rotate2D(pixelCoord, angles[0]) / uniforms.spacing, 1.0 - c, uniforms.shape);
+    let mDot = halftonePattern(rotate2D(pixelCoord, angles[1]) / uniforms.spacing, 1.0 - m, uniforms.shape);
+    let yDot = halftonePattern(rotate2D(pixelCoord, angles[2]) / uniforms.spacing, 1.0 - y, uniforms.shape);
+    let kDot = halftonePattern(rotate2D(pixelCoord, angles[3]) / uniforms.spacing, 1.0 - k, uniforms.shape);
+
+    let result = vec3f(1.0 - c * (1.0 - cDot), 1.0 - m * (1.0 - mDot), 1.0 - y * (1.0 - yDot)) * (1.0 - k * (1.0 - kDot));
+    return vec4f(result, 1.0);
+  }
+}`
+  },
+
+  dots: {
+    params: [
+      { name: 'sizeMultiplier', label: 'Size', min: 0.5, max: 2.0, value: 1.0, step: 0.05 },
+      { name: 'spacing', label: 'Spacing', min: 3, max: 16, value: 6, step: 0.5 },
+      { name: 'shape', label: 'Shape (0=Circle 1=Square 2=Diamond)', min: 0, max: 2, value: 0, step: 1 },
+      { name: 'gridType', label: 'Grid (0=Square 1=Hex)', min: 0, max: 1, value: 0, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  sizeMultiplier: f32,
+  spacing: f32,
+  shape: f32,
+  gridType: f32,
+  brightness: f32,
+  contrast: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let pixelCoord = texCoord * uniforms.resolution;
+  let sp = max(uniforms.spacing, 2.0);
+
+  var gridCoord: vec2f;
+  if (uniforms.gridType > 0.5) {
+    // Hex grid
+    var p = pixelCoord / sp;
+    let row = floor(p.y);
+    if (u32(row) % 2u == 1u) { p.x += 0.5; }
+    gridCoord = floor(p);
+    let cellCenter = (gridCoord + 0.5) * sp;
+    if (u32(row) % 2u == 1u) { gridCoord.x -= 0.5; }
+    let centerUV = cellCenter / uniforms.resolution;
+    let color = textureSample(inputTexture, texSampler, centerUV);
+    let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+    let lum = luminance(processed);
+    let radius = lum * sp * 0.5 * uniforms.sizeMultiplier;
+    let dist = length(pixelCoord - cellCenter);
+    let dot = smoothstep(radius + 0.5, radius - 0.5, dist);
+    return vec4f(processed * dot, 1.0);
+  } else {
+    // Square grid
+    let cell = floor(pixelCoord / sp);
+    let cellCenter = (cell + 0.5) * sp;
+    let centerUV = cellCenter / uniforms.resolution;
+    let color = textureSample(inputTexture, texSampler, centerUV);
+    let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+    let lum = luminance(processed);
+    let radius = lum * sp * 0.5 * uniforms.sizeMultiplier;
+    let diff = pixelCoord - cellCenter;
+
+    var dist: f32;
+    if (uniforms.shape < 0.5) {
+      dist = length(diff); // circle
+    } else if (uniforms.shape < 1.5) {
+      dist = max(abs(diff.x), abs(diff.y)); // square
+    } else {
+      dist = abs(diff.x) + abs(diff.y); // diamond
+    }
+
+    let dot = smoothstep(radius + 0.5, radius - 0.5, dist);
+    return vec4f(processed * dot, 1.0);
+  }
+}`
+  },
+
+  edge: {
+    params: [
+      { name: 'threshold', label: 'Threshold', min: 0.01, max: 0.5, value: 0.15, step: 0.01 },
+      { name: 'lineWidth', label: 'Line Width', min: 0.5, max: 4.0, value: 1.0, step: 0.1 },
+      { name: 'algorithm', label: 'Algorithm (0=Sobel 1=Prewitt 2=Laplacian)', min: 0, max: 2, value: 0, step: 1 },
+      { name: 'colorMode', label: 'Color (0=Custom 1=Original)', min: 0, max: 1, value: 1, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  threshold: f32,
+  lineWidth: f32,
+  algorithm: f32,
+  colorMode: f32,
+  brightness: f32,
+  contrast: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+fn sampleLum(uv: vec2f) -> f32 {
+  return luminance(textureSample(inputTexture, texSampler, uv).rgb);
+}
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let px = uniforms.lineWidth / uniforms.resolution;
+  let color = textureSample(inputTexture, texSampler, texCoord);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+
+  let tl = sampleLum(texCoord + vec2f(-px.x, px.y));
+  let t  = sampleLum(texCoord + vec2f(0.0, px.y));
+  let tr = sampleLum(texCoord + vec2f(px.x, px.y));
+  let l  = sampleLum(texCoord + vec2f(-px.x, 0.0));
+  let r  = sampleLum(texCoord + vec2f(px.x, 0.0));
+  let bl = sampleLum(texCoord + vec2f(-px.x, -px.y));
+  let b  = sampleLum(texCoord + vec2f(0.0, -px.y));
+  let br = sampleLum(texCoord + vec2f(px.x, -px.y));
+
+  var edge: f32;
+  if (uniforms.algorithm < 0.5) {
+    // Sobel
+    let gx = -tl - 2.0*l - bl + tr + 2.0*r + br;
+    let gy = -tl - 2.0*t - tr + bl + 2.0*b + br;
+    edge = sqrt(gx*gx + gy*gy);
+  } else if (uniforms.algorithm < 1.5) {
+    // Prewitt
+    let gx = -tl - l - bl + tr + r + br;
+    let gy = -tl - t - tr + bl + b + br;
+    edge = sqrt(gx*gx + gy*gy);
+  } else {
+    // Laplacian
+    let center = sampleLum(texCoord);
+    edge = abs(-4.0 * center + t + l + r + b);
+  }
+
+  let edgeMask = smoothstep(uniforms.threshold, uniforms.threshold + 0.05, edge);
+
+  if (uniforms.colorMode > 0.5) {
+    return vec4f(processed * edgeMask * 2.0, 1.0);
+  } else {
+    return vec4f(vec3f(edgeMask), 1.0);
+  }
+}`
+  },
+
+  blockify: {
+    params: [
+      { name: 'blockSize', label: 'Block Size', min: 4, max: 32, value: 8, step: 1 },
+      { name: 'style', label: 'Style (0=Full 1=Shaded 2=Outline)', min: 0, max: 2, value: 0, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  blockSize: f32,
+  style: f32,
+  brightness: f32,
+  contrast: f32,
+  _padA: f32, _padB: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let pixelCoord = texCoord * uniforms.resolution;
+  let bs = max(uniforms.blockSize, 2.0);
+  let cell = floor(pixelCoord / bs);
+  let cellCenter = (cell + 0.5) * bs / uniforms.resolution;
+  let cellUV = fract(pixelCoord / bs);
+
+  let color = textureSample(inputTexture, texSampler, cellCenter);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+
+  if (uniforms.style < 0.5) {
+    // Full block - flat color
+    return vec4f(processed, 1.0);
+  } else if (uniforms.style < 1.5) {
+    // Shaded - subtle gradient within block
+    let shade = 0.85 + 0.15 * (1.0 - length(cellUV - 0.5) * 1.4);
+    return vec4f(processed * shade, 1.0);
+  } else {
+    // Outline
+    let edge = max(
+      smoothstep(0.0, 0.08, min(cellUV.x, 1.0 - cellUV.x)),
+      smoothstep(0.0, 0.08, min(cellUV.y, 1.0 - cellUV.y))
+    );
+    let borderMask = 1.0 - max(
+      step(0.95, cellUV.x) + step(cellUV.x, 0.05),
+      step(0.95, cellUV.y) + step(cellUV.y, 0.05)
+    );
+    return vec4f(processed * clamp(borderMask, 0.1, 1.0), 1.0);
+  }
+}`
+  },
+
+  threshold: {
+    params: [
+      { name: 'threshold', label: 'Threshold', min: 0.0, max: 1.0, value: 0.5, step: 0.01 },
+      { name: 'softness', label: 'Softness', min: 0.0, max: 0.3, value: 0.05, step: 0.01 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  threshold: f32,
+  softness: f32,
+  brightness: f32,
+  contrast: f32,
+  _padA: f32, _padB: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let color = textureSample(inputTexture, texSampler, texCoord);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+  let lum = luminance(processed);
+  let t = smoothstep(uniforms.threshold - uniforms.softness, uniforms.threshold + uniforms.softness, lum);
+  return vec4f(vec3f(t), 1.0);
+}`
+  },
+
+  contour: {
+    params: [
+      { name: 'levels', label: 'Levels', min: 3, max: 20, value: 8, step: 1 },
+      { name: 'lineThickness', label: 'Line Width', min: 0.5, max: 3.0, value: 1.5, step: 0.1 },
+      { name: 'fillMode', label: 'Fill (0=Bands 1=Lines Only)', min: 0, max: 1, value: 0, step: 1 },
+      { name: 'colorMode', label: 'Color (0=Custom 1=Original)', min: 0, max: 1, value: 1, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  levels: f32,
+  lineThickness: f32,
+  fillMode: f32,
+  colorMode: f32,
+  brightness: f32,
+  contrast: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let px = uniforms.lineThickness / uniforms.resolution;
+  let color = textureSample(inputTexture, texSampler, texCoord);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+
+  let lum = luminance(processed);
+  let quantized = floor(lum * uniforms.levels) / uniforms.levels;
+
+  // Sample neighbors to detect contour edges
+  let lumR = luminance(textureSample(inputTexture, texSampler, texCoord + vec2f(px.x, 0.0)).rgb);
+  let lumD = luminance(textureSample(inputTexture, texSampler, texCoord + vec2f(0.0, px.y)).rgb);
+
+  let qR = floor(lumR * uniforms.levels) / uniforms.levels;
+  let qD = floor(lumD * uniforms.levels) / uniforms.levels;
+
+  let isEdge = select(0.0, 1.0, abs(quantized - qR) > 0.001 || abs(quantized - qD) > 0.001);
+
+  if (uniforms.fillMode > 0.5) {
+    // Lines only
+    if (uniforms.colorMode > 0.5) {
+      return vec4f(processed * isEdge, 1.0);
+    }
+    return vec4f(vec3f(isEdge), 1.0);
+  } else {
+    // Filled bands with contour lines
+    let bandColor = vec3f(quantized + 0.5 / uniforms.levels);
+    if (uniforms.colorMode > 0.5) {
+      let blended = mix(processed * (quantized * 0.5 + 0.5), vec3f(1.0), isEdge * 0.5);
+      return vec4f(blended, 1.0);
+    }
+    return vec4f(mix(bandColor, vec3f(1.0), isEdge * 0.8), 1.0);
+  }
+}`
+  },
+
+  voronoi: {
+    params: [
+      { name: 'cellSize', label: 'Cell Size', min: 10, max: 100, value: 30, step: 1 },
+      { name: 'edgeWidth', label: 'Edge Width', min: 0, max: 1, value: 0.3, step: 0.05 },
+      { name: 'randomize', label: 'Randomness', min: 0, max: 1, value: 0.8, step: 0.05 },
+      { name: 'colorMode', label: 'Color (0=Average 1=Center 2=Gradient)', min: 0, max: 2, value: 1, step: 1 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 0, step: 1 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  cellSize: f32,
+  edgeWidth: f32,
+  randomize: f32,
+  colorMode: f32,
+  brightness: f32,
+  contrast: f32,
+}`,
+    uniformSize: 32,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let pixelCoord = texCoord * uniforms.resolution;
+  let cs = max(uniforms.cellSize, 4.0);
+  let st = pixelCoord / cs;
+  let cellId = floor(st);
+  let cellUV = fract(st);
+
+  var minDist: f32 = 10.0;
+  var secondDist: f32 = 10.0;
+  var closestCell = vec2f(0.0);
+
+  for (var y: i32 = -1; y <= 1; y++) {
+    for (var x: i32 = -1; x <= 1; x++) {
+      let neighbor = vec2f(f32(x), f32(y));
+      let point = hash2(cellId + neighbor) * uniforms.randomize + (1.0 - uniforms.randomize) * 0.5;
+      let diff = neighbor + point - cellUV;
+      let dist = length(diff);
+
+      if (dist < minDist) {
+        secondDist = minDist;
+        minDist = dist;
+        closestCell = cellId + neighbor;
+      } else if (dist < secondDist) {
+        secondDist = dist;
+      }
+    }
+  }
+
+  let sampleUV = (closestCell + 0.5) * cs / uniforms.resolution;
+  let sampleUVClamped = clamp(sampleUV, vec2f(0.0), vec2f(1.0));
+  let color = textureSample(inputTexture, texSampler, sampleUVClamped);
+  let processed = applyBrightnessContrast(color.rgb, uniforms.brightness, uniforms.contrast);
+
+  let edgeDist = secondDist - minDist;
+  let edge = 1.0 - smoothstep(0.0, uniforms.edgeWidth * 0.1, edgeDist);
+
+  let result = processed * (1.0 - edge * 0.8) + vec3f(edge * 0.15);
+  return vec4f(result, 1.0);
+}`
+  },
+
+  vhs: {
+    params: [
+      { name: 'crtAmount', label: 'CRT Distortion', min: 0, max: 1, value: 0.3, step: 0.05 },
+      { name: 'chromaticOffset', label: 'Chromatic Aberration', min: 0, max: 10, value: 3, step: 0.5 },
+      { name: 'scanlinesOpacity', label: 'Scanlines', min: 0, max: 1, value: 0.3, step: 0.05 },
+      { name: 'grainIntensity', label: 'Grain', min: 0, max: 0.5, value: 0.1, step: 0.01 },
+      { name: 'vignetteIntensity', label: 'Vignette', min: 0, max: 1, value: 0.5, step: 0.05 },
+    ],
+    uniformStruct: `struct Uniforms {
+  resolution: vec2f,
+  time: f32,
+  crtAmount: f32,
+  chromaticOffset: f32,
+  scanlinesOpacity: f32,
+  grainIntensity: f32,
+  vignetteIntensity: f32,
+}`,
+    uniformSize: 32,
+    needsTime: true,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+fn crtDistort(uv: vec2f, amount: f32) -> vec2f {
+  let centered = uv * 2.0 - 1.0;
+  let r2 = dot(centered, centered);
+  let distorted = centered * (1.0 + amount * r2);
+  return distorted * 0.5 + 0.5;
+}
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  var uv = crtDistort(texCoord, uniforms.crtAmount * 0.2);
+
+  // Chromatic aberration
+  let offset = uniforms.chromaticOffset / uniforms.resolution.x;
+  let r = textureSample(inputTexture, texSampler, uv + vec2f(offset, 0.0)).r;
+  let g = textureSample(inputTexture, texSampler, uv).g;
+  let b = textureSample(inputTexture, texSampler, uv - vec2f(offset, 0.0)).b;
+  var color = vec3f(r, g, b);
+
+  // Scanlines
+  let scanline = sin(uv.y * uniforms.resolution.y * 3.14159) * 0.5 + 0.5;
+  color *= 1.0 - uniforms.scanlinesOpacity * (1.0 - scanline);
+
+  // Film grain
+  let grain = hash(uv + uniforms.time) * 2.0 - 1.0;
+  color += grain * uniforms.grainIntensity;
+
+  // VHS tracking glitch
+  let trackLine = step(0.995, hash(vec2f(floor(uv.y * 40.0), floor(uniforms.time * 3.0))));
+  let glitchUV = uv + vec2f(trackLine * 0.03, 0.0);
+  color = mix(color, textureSample(inputTexture, texSampler, glitchUV).rgb, trackLine);
+
+  // Vignette
+  let vignette = smoothstep(0.9, 0.3, length(texCoord - 0.5));
+  color *= mix(1.0, vignette, uniforms.vignetteIntensity);
+
+  // Warm color shift
+  color *= vec3f(1.05, 0.98, 0.92);
+
+  return vec4f(clamp(color, vec3f(0.0), vec3f(1.0)), 1.0);
+}`
+  },
+
+  matrix: {
+    params: [
+      { name: 'density', label: 'Density', min: 0.5, max: 3, value: 1, step: 0.1 },
+      { name: 'blend', label: 'Video Blend', min: 0, max: 1, value: 0.3, step: 0.05 },
+      { name: 'speed', label: 'Speed', min: 0.5, max: 4, value: 1.5, step: 0.1 },
+      { name: 'trailLength', label: 'Trail Length', min: 5, max: 50, value: 25, step: 1 },
+    ],
+    useFontAtlas: true,
+    uniformStruct: `struct Uniforms {
+  resX: f32, resY: f32,
+  time: f32,
+  density: f32,
+  blend: f32,
+  speed: f32,
+  trailLength: f32,
+  charsetLength: f32,
+  atlasSizeX: f32, atlasSizeY: f32,
+  atlasCharSizeX: f32, atlasCharSizeY: f32,
+  atlasCols: f32,
+  _pad1: f32, _pad2: f32, _pad3: f32,
+}`,
+    uniformSize: 64,
+    needsTime: true,
+    // Custom uniform writer (same pattern as ASCII)
+    customUniforms: true,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+@group(0) @binding(3) var atlasSampler: sampler;
+@group(0) @binding(4) var fontAtlas: texture_2d<f32>;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let res = vec2f(uniforms.resX, uniforms.resY);
+  let cellSize = max(16.0 / uniforms.density, 6.0);
+  let pixelCoord = texCoord * res;
+  let cell = floor(pixelCoord / cellSize);
+  let localUV = fract(pixelCoord / cellSize);
+  let numCols = floor(res.x / cellSize);
+  let numRows = floor(res.y / cellSize);
+
+  // Per-column properties: speed, offset, brightness (depth)
+  let colHash1 = hash(vec2f(cell.x * 0.173, 1.7));
+  let colHash2 = hash(vec2f(cell.x * 0.317, 3.1));
+  let colSpeed = (1.5 + colHash1 * 5.0) * uniforms.speed;
+  let colOffset = colHash2 * numRows * 2.0;
+  let colBrightness = 0.4 + colHash1 * 0.6; // depth: some columns dimmer
+
+  // Scrolling head position (falls top to bottom, wraps)
+  let totalLen = numRows + uniforms.trailLength;
+  let scrollPos = (uniforms.time * colSpeed + colOffset) % (totalLen * 1.5);
+
+  // Distance from the leading edge (head of the rain drop)
+  let cellRow = cell.y;
+  let distFromHead = scrollPos - cellRow;
+
+  // Trail: exponential decay behind the head
+  var trail = 0.0;
+  if (distFromHead > 0.0 && distFromHead < uniforms.trailLength) {
+    trail = exp(-distFromHead * 3.0 / uniforms.trailLength);
+  }
+
+  // Character selection: changes periodically per cell, faster near head
+  let charChangeRate = select(3.0, 12.0, distFromHead < 3.0);
+  let charSeed = hash(cell + floor(vec2f(uniforms.time * charChangeRate, 0.0)));
+  let charIdx = u32(charSeed * uniforms.charsetLength) % u32(uniforms.charsetLength);
+
+  // Font atlas lookup
+  let atlasCols = u32(uniforms.atlasCols);
+  let atlasCol = f32(charIdx % atlasCols);
+  let atlasRow = f32(charIdx / atlasCols);
+  let atlasCharSize = vec2f(uniforms.atlasCharSizeX, uniforms.atlasCharSizeY);
+  let atlasSize = vec2f(uniforms.atlasSizeX, uniforms.atlasSizeY);
+  let atlasUV = (vec2f(atlasCol, atlasRow) + localUV) * atlasCharSize / atlasSize;
+  let glyphAlpha = textureSample(fontAtlas, atlasSampler, atlasUV).r;
+
+  // Per-character brightness variation within the trail
+  let charBrightVar = 0.7 + hash(cell * 0.97) * 0.3;
+
+  // Color: leading edge is white, trail fades to green
+  var matrixCol = vec3f(0.0);
+  if (trail > 0.01) {
+    let headProximity = exp(-distFromHead * 2.0);
+    // White at head, transitioning to green
+    let headColor = vec3f(0.85, 1.0, 0.9);
+    let trailColor = vec3f(0.0, 0.8, 0.2) * charBrightVar;
+    let rainColor = mix(trailColor, headColor, headProximity);
+    matrixCol = rainColor * glyphAlpha * trail * colBrightness;
+
+    // Subtle glow bleed around characters
+    let glowRadius = 1.0 - length(localUV - 0.5) * 1.5;
+    let glow = max(glowRadius, 0.0) * trail * 0.08;
+    matrixCol += vec3f(0.0, glow * colBrightness, glow * colBrightness * 0.3);
+  }
+
+  // Blend with source video
+  let tex = textureSample(inputTexture, texSampler, texCoord);
+  let videoContrib = tex.rgb * uniforms.blend;
+  // Video shows through where rain is active (tinted green)
+  let vidGreen = dot(tex.rgb, vec3f(0.299, 0.587, 0.114)) * vec3f(0.0, 0.4, 0.1);
+  let final_color = matrixCol + mix(vec3f(0.0), vidGreen, uniforms.blend * (1.0 - trail * 0.5));
+
+  return vec4f(final_color, 1.0);
+}`
+  },
+
+  emoji: {
+    params: [
+      { name: 'cellSize', label: 'Cell Size', min: 16, max: 64, value: 32, step: 2 },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1 },
+    ],
+    useEmojiAtlas: true,
+    uniformStruct: `struct Uniforms {
+  resX: f32, resY: f32,
+  cellSize: f32,
+  brightness: f32,
+  contrast: f32,
+  charsetLength: f32,
+  atlasSizeX: f32, atlasSizeY: f32,
+  atlasCharSizeX: f32, atlasCharSizeY: f32,
+  atlasCols: f32,
+  _pad1: f32, _pad2: f32, _pad3: f32, _pad4: f32, _pad5: f32,
+}`,
+    uniformSize: 64,
+    customUniforms: true,
+    fragment: `
+${WGSL_UTILS}
+
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTexture: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+@group(0) @binding(3) var atlasSampler: sampler;
+@group(0) @binding(4) var emojiAtlas: texture_2d<f32>;
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let res = vec2f(uniforms.resX, uniforms.resY);
+  let cs = max(uniforms.cellSize, 8.0);
+  let pixelCoord = texCoord * res;
+
+  // Which cell
+  let cell = floor(pixelCoord / cs);
+  let cellUV = fract(pixelCoord / cs);
+
+  // Sample source at cell center
+  let cellCenter = (cell + 0.5) * cs / res;
+  let sourceColor = textureSample(inputTexture, texSampler, cellCenter);
+  let processed = applyBrightnessContrast(sourceColor.rgb, uniforms.brightness, uniforms.contrast);
+
+  // Map luminance to emoji index (dark emojis for dark areas, bright for bright)
+  let lum = luminance(processed);
+  let maxIdx = u32(uniforms.charsetLength) - 1u;
+  let charIdx = clamp(u32(lum * uniforms.charsetLength), 0u, maxIdx);
+
+  // Calculate UV into emoji atlas
+  let atlasCols = u32(uniforms.atlasCols);
+  let atlasCol = f32(charIdx % atlasCols);
+  let atlasRow = f32(charIdx / atlasCols);
+  let atlasCharSize = vec2f(uniforms.atlasCharSizeX, uniforms.atlasCharSizeY);
+  let atlasSize = vec2f(uniforms.atlasSizeX, uniforms.atlasSizeY);
+  let atlasUV = (vec2f(atlasCol, atlasRow) + cellUV) * atlasCharSize / atlasSize;
+
+  // Sample emoji atlas -- full RGBA (color emojis)
+  let emojiColor = textureSample(emojiAtlas, atlasSampler, atlasUV);
+
+  // If emoji pixel is near-black (background), show nothing
+  let emojiLum = luminance(emojiColor.rgb);
+  if (emojiLum < 0.05) {
+    return vec4f(0.0, 0.0, 0.0, 1.0);
+  }
+
+  return vec4f(emojiColor.rgb, 1.0);
+}`
+  },
+};
+// ═══════════════════════════════════════════════════
+// WEBGPU PIPELINE CREATION
+// ═══════════════════════════════════════════════════
+
+const pipelines = {};
+const uniformBuffers = {};
+const bindGroups = {};
+
+function createPipeline(effectName) {
+  const effect = EFFECTS[effectName];
+  const fullCode = effect.uniformStruct + '\n' + VERTEX_SHADER + '\n' + effect.fragment;
+
+  const shaderModule = device.createShaderModule({ code: fullCode });
+
+  // Determine bind group layout based on whether effect uses font atlas
+  const entries = [
+    { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+    { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+  ];
+
+  if (effect.useFontAtlas || effect.useEmojiAtlas) {
+    entries.push(
+      { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+      { binding: 4, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+    );
+  }
+
+  const bindGroupLayout = device.createBindGroupLayout({ entries });
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: { module: shaderModule, entryPoint: 'vertexMain' },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fragmentMain',
+      targets: [{ format: gpuFormat }],
+    },
+    primitive: { topology: 'triangle-list' },
+  });
+
+  // Create uniform buffer (padded to 16-byte alignment)
+  const bufSize = Math.max(effect.uniformSize, 16);
+  const alignedSize = Math.ceil(bufSize / 16) * 16;
+  const uniformBuffer = device.createBuffer({
+    size: alignedSize,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  pipelines[effectName] = pipeline;
+  uniformBuffers[effectName] = uniformBuffer;
+
+  return { pipeline, uniformBuffer, bindGroupLayout, useFontAtlas: !!effect.useFontAtlas, useEmojiAtlas: !!effect.useEmojiAtlas };
+}
+
+// [deferred to initWebGPU] // Create all pipelines
+// [deferred to initWebGPU] const pipelineData = {};
+// [deferred to initWebGPU] for (const name of Object.keys(EFFECTS)) {
+// [deferred to initWebGPU]   pipelineData[name] = createPipeline(name);
+// [deferred to initWebGPU] }
+
+// [deferred to initWebGPU] // Ping-pong render targets for multi-effect stacking
+// [deferred to initWebGPU] let ppTextures = [null, null];
+// [deferred to initWebGPU] let ppViews = [null, null];
+// [deferred to initWebGPU] let ppCurrentW = 0, ppCurrentH = 0;
+// [deferred to initWebGPU] 
+function ensurePingPong(w, h) {
+  if (ppCurrentW === w && ppCurrentH === h && ppTextures[0]) return;
+  ppTextures.forEach(t => { if (t) t.destroy(); });
+  for (let i = 0; i < 2; i++) {
+    ppTextures[i] = device.createTexture({
+      size: [w, h], format: format, // must match pipeline target format (bgra8unorm)
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    ppViews[i] = ppTextures[i].createView();
+  }
+  ppCurrentW = w; ppCurrentH = h;
+}
+
+// ================================================================
+// SECTION 4: SIMULATIONS (all 35, verbatim from production)
+// ================================================================
+
 const SIMULATIONS = [
 
   // ═══════════════════════════════════════════════════════════
@@ -5183,6 +6587,10 @@ color.setHSL(hue, 0.6 + highs * 0.2, 0.05 + surface * 0.3 + rms * 0.1);
 // ── End of simulations ──
 ];
 
+// ================================================================
+// SECTION 5: Production Engine (state, scene, particles, audio, lyrics, camera, UI)
+// ================================================================
+
 let currentSimIndex = 0;
 
 // ── State ──────────────────────────────────────────────────
@@ -6814,6 +8222,618 @@ function animate() {
 }
 
 animate();
+
+// ================================================================
+// SECTION 6: WebGPU Rendering + Mode Management + Effect Stack UI
+// ================================================================
+
+let currentMode = 'particles';
+let hybridBlend = 0.5;
+
+// Initialize WebGPU if available
+async function initWebGPU() {
+  if (!navigator.gpu) {
+    document.getElementById('no-webgpu').style.display = 'block';
+    console.warn('WebGPU not supported, running in particles-only mode');
+    return;
+  }
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    device = await adapter.requestDevice();
+    gpuCanvas = document.getElementById('webgpu-canvas');
+    gpuCtx = gpuCanvas.getContext('webgpu');
+    gpuFormat = navigator.gpu.getPreferredCanvasFormat();
+    gpuCtx.configure({ device, format: gpuFormat, alphaMode: 'premultiplied' });
+
+    sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+    atlasSampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+
+    // Create font atlas
+    fontAtlas = createFontAtlas();
+    atlasTexture = device.createTexture({
+      size: [fontAtlas.canvas.width, fontAtlas.canvas.height],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    device.queue.copyExternalImageToTexture(
+      { source: fontAtlas.canvas }, { texture: atlasTexture },
+      [fontAtlas.canvas.width, fontAtlas.canvas.height]
+    );
+
+    // Create emoji atlas
+    const ea = createEmojiAtlas();
+    emojiAtlasTexture = device.createTexture({
+      size: [ea.canvas.width, ea.canvas.height],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    device.queue.copyExternalImageToTexture(
+      { source: ea.canvas }, { texture: emojiAtlasTexture },
+      [ea.canvas.width, ea.canvas.height]
+    );
+
+    // Create all pipelines
+    for (const name of Object.keys(EFFECTS)) {
+      pipelineData[name] = createPipeline(name);
+    }
+
+    webgpuAvailable = true;
+    particleEffectStack = createStack();
+    inputEffectStack = createStack();
+
+    console.log('WebGPU initialized successfully');
+  } catch (e) {
+    console.warn('WebGPU init failed:', e);
+  }
+}
+
+function getActiveEffects(stack) {
+  return stack.filter(e => e.enabled).map(e => e.name);
+}
+
+function getStackParams(stack, fxName) {
+  const entry = stack.find(e => e.name === fxName);
+  return entry ? entry.params : null;
+}
+
+// Pipelines and buffers (populated by initWebGPU)
+const pipelines = {};
+const uniformBuffers = {};
+const bindGroups = {};
+const pipelineData = {};
+let ppTextures = [null, null];
+let ppViews = [null, null];
+let ppCurrentW = 0, ppCurrentH = 0;
+let fontAtlas = null;
+let atlasTexture = null;
+let emojiAtlasTexture = null;
+const emojiAtlas = { canvas: null, charW: 0, charH: 0, cols: 0, rows: 0, charset: [] };
+
+function ensurePingPong(w, h) {
+  if (!device) return;
+  if (ppCurrentW === w && ppCurrentH === h && ppTextures[0]) return;
+  ppTextures.forEach(t => { if (t) t.destroy(); });
+  for (let i = 0; i < 2; i++) {
+    ppTextures[i] = device.createTexture({
+      size: [w, h], format: gpuFormat,
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    ppViews[i] = ppTextures[i].createView();
+  }
+  ppCurrentW = w; ppCurrentH = h;
+}
+
+function drawTestPattern(time) {
+  const w = testCanvas.width, h = testCanvas.height, ctx = testCtx, t = time;
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, `hsl(${(t*30)%360}, 70%, 15%)`);
+  grad.addColorStop(0.5, `hsl(${(t*30+120)%360}, 60%, 25%)`);
+  grad.addColorStop(1, `hsl(${(t*30+240)%360}, 70%, 15%)`);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 12; i++) {
+    const a = (i/12)*Math.PI*2+t*0.5, r = 80+Math.sin(t*2+i)*40;
+    const cx = w/2+Math.cos(a)*(w*0.25), cy = h/2+Math.sin(a)*(h*0.25);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${(i*30+t*60)%360}, 80%, 55%, 0.6)`; ctx.fill();
+  }
+}
+
+// Write uniforms for a specific effect
+function writeEffectUniforms(fxName, t, stack) {
+  if (!device) return;
+  const effect = EFFECTS[fxName];
+  const pd = pipelineData[fxName];
+  if (!pd || !effect) return;
+  const stackParams = stack ? getStackParams(stack, fxName) : effect.params;
+  const params = stackParams || effect.params;
+  const uniformData = new ArrayBuffer(Math.ceil(effect.uniformSize / 16) * 16);
+  const f32 = new Float32Array(uniformData);
+  f32[0] = gpuCanvas.width; f32[1] = gpuCanvas.height;
+
+  let offset = 2;
+  for (const p of params) { if (!p.uiOnly) f32[offset++] = p._value !== undefined ? p._value : p.value; }
+
+  if (effect.needsTime) {
+    f32[2] = t; offset = 3;
+    for (const p of params) { if (!p.uiOnly) f32[offset++] = p._value !== undefined ? p._value : p.value; }
+  }
+
+  if (fxName === 'ascii' || fxName === 'matrix') {
+    f32[0] = gpuCanvas.width; f32[1] = gpuCanvas.height;
+    let o = 2;
+    if (effect.needsTime) { f32[o++] = t; }
+    for (const p of params) { if (!p.uiOnly) f32[o++] = p._value ?? p.value; }
+    if (fontAtlas) {
+      f32[o++] = fontAtlas.charset.length;
+      f32[o++] = fontAtlas.canvas.width; f32[o++] = fontAtlas.canvas.height;
+      f32[o++] = fontAtlas.charW; f32[o++] = fontAtlas.charH;
+      f32[o++] = fontAtlas.cols;
+    }
+  }
+
+  device.queue.writeBuffer(pd.uniformBuffer, 0, uniformData);
+}
+
+function renderVideoFX(t) {
+  if (!device || !gpuCanvas || !gpuCtx) return;
+  const dpr = window.devicePixelRatio;
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  if (gpuCanvas.width !== w || gpuCanvas.height !== h) {
+    gpuCanvas.width = w; gpuCanvas.height = h;
+    gpuCanvas.style.width = window.innerWidth + 'px';
+    gpuCanvas.style.height = window.innerHeight + 'px';
+  }
+
+  let source;
+  if (currentSource === 'camera' && video.srcObject && video.readyState >= video.HAVE_CURRENT_DATA) {
+    source = video;
+  } else if (video.readyState >= video.HAVE_CURRENT_DATA) {
+    source = video;
+  } else {
+    drawTestPattern(t);
+    source = testCanvas;
+  }
+
+  if (videoTexture) videoTexture.destroy();
+  const srcW = source.width || source.videoWidth || 1280;
+  const srcH = source.height || source.videoHeight || 720;
+  videoTexture = device.createTexture({
+    size: [srcW, srcH], format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture({ source, flipY: false }, { texture: videoTexture }, [srcW, srcH]);
+
+  const activeEffects = getActiveEffects(inputEffectStack);
+
+  if (activeEffects.length === 0) {
+    const pd = pipelineData['none'];
+    if (!pd) return;
+    writeEffectUniforms('none', t);
+    const bindGroup = device.createBindGroup({
+      layout: pd.pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: sampler },
+        { binding: 1, resource: videoTexture.createView() },
+        { binding: 2, resource: { buffer: pd.uniformBuffer } },
+      ],
+    });
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{ view: gpuCtx.getCurrentTexture().createView(), clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+    });
+    pass.setPipeline(pd.pipeline); pass.setBindGroup(0, bindGroup); pass.draw(6); pass.end();
+    device.queue.submit([encoder.finish()]);
+    return;
+  }
+
+  ensurePingPong(gpuCanvas.width, gpuCanvas.height);
+  const screenView = gpuCtx.getCurrentTexture().createView();
+  let currentInput = videoTexture.createView();
+
+  for (let i = 0; i < activeEffects.length; i++) {
+    const fxName = activeEffects[i];
+    const pd = pipelineData[fxName];
+    const effect = EFFECTS[fxName];
+    if (!pd || !effect) continue;
+    writeEffectUniforms(fxName, t, inputEffectStack);
+    const isLast = (i === activeEffects.length - 1);
+    const writeTarget = isLast ? screenView : ppViews[i % 2];
+    const bgEntries = [
+      { binding: 0, resource: sampler },
+      { binding: 1, resource: currentInput },
+      { binding: 2, resource: { buffer: pd.uniformBuffer } },
+    ];
+    if (pd.useFontAtlas && atlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: atlasTexture.createView() });
+    } else if (pd.useEmojiAtlas && emojiAtlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: emojiAtlasTexture.createView() });
+    }
+    const bindGroup = device.createBindGroup({ layout: pd.pipeline.getBindGroupLayout(0), entries: bgEntries });
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{ view: writeTarget, clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+    });
+    pass.setPipeline(pd.pipeline); pass.setBindGroup(0, bindGroup); pass.draw(6); pass.end();
+    device.queue.submit([encoder.finish()]);
+    if (!isLast) currentInput = ppViews[i % 2];
+  }
+}
+
+function renderParticlesThroughFX(t) {
+  if (!device || !gpuCanvas || !gpuCtx) return;
+  const pCanvas = renderer.domElement;
+  const dpr = window.devicePixelRatio;
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  if (gpuCanvas.width !== w || gpuCanvas.height !== h) {
+    gpuCanvas.width = w; gpuCanvas.height = h;
+    gpuCanvas.style.width = window.innerWidth + 'px';
+    gpuCanvas.style.height = window.innerHeight + 'px';
+  }
+
+  if (videoTexture) videoTexture.destroy();
+  const srcW = pCanvas.width;
+  const srcH = pCanvas.height;
+  videoTexture = device.createTexture({
+    size: [srcW, srcH], format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture({ source: pCanvas, flipY: false }, { texture: videoTexture }, [srcW, srcH]);
+
+  const activeEffects = getActiveEffects(particleEffectStack);
+  if (activeEffects.length === 0) return;
+
+  ensurePingPong(gpuCanvas.width, gpuCanvas.height);
+  const screenView = gpuCtx.getCurrentTexture().createView();
+  let currentInput = videoTexture.createView();
+
+  for (let i = 0; i < activeEffects.length; i++) {
+    const fxName = activeEffects[i];
+    const pd = pipelineData[fxName];
+    const effect = EFFECTS[fxName];
+    if (!pd || !effect) continue;
+    writeEffectUniforms(fxName, t, particleEffectStack);
+    const isLast = (i === activeEffects.length - 1);
+    const writeTarget = isLast ? screenView : ppViews[i % 2];
+    const bgEntries = [
+      { binding: 0, resource: sampler },
+      { binding: 1, resource: currentInput },
+      { binding: 2, resource: { buffer: pd.uniformBuffer } },
+    ];
+    if (pd.useFontAtlas && atlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: atlasTexture.createView() });
+    } else if (pd.useEmojiAtlas && emojiAtlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: emojiAtlasTexture.createView() });
+    }
+    const bindGroup = device.createBindGroup({ layout: pd.pipeline.getBindGroupLayout(0), entries: bgEntries });
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{ view: writeTarget, clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+    });
+    pass.setPipeline(pd.pipeline); pass.setBindGroup(0, bindGroup); pass.draw(6); pass.end();
+    device.queue.submit([encoder.finish()]);
+    if (!isLast) currentInput = ppViews[i % 2];
+  }
+
+  pCanvas.style.display = 'none';
+  gpuCanvas.style.display = 'block';
+  gpuCanvas.style.zIndex = '3';
+}
+
+// ================================================================
+// SECTION 7: Effect Stack Panel UI
+// ================================================================
+
+const EFFECT_LABELS = {
+  ascii: 'ASCII', dithering: 'Dithering', halftone: 'Halftone', dots: 'Dots',
+  edge: 'Edge Detection', blockify: 'Blockify', threshold: 'Threshold',
+  contour: 'Contour', voronoi: 'Voronoi', vhs: 'VHS / CRT', matrix: 'Matrix Rain',
+  emoji: 'Emoji'
+};
+
+function buildStackSection(container, stack, sectionLabel) {
+  if (!webgpuAvailable || !stack || stack.length === 0) return;
+  if (sectionLabel) {
+    const label = document.createElement('h2');
+    label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#444;padding:8px 0 4px;margin:0;';
+    label.textContent = sectionLabel;
+    container.appendChild(label);
+  }
+  const charsetNames = Object.keys(CHARSETS);
+  for (const entry of stack) {
+    const effect = EFFECTS[entry.name];
+    if (!effect) continue;
+    const row = document.createElement('div');
+    row.className = 'fx-row' + (entry.enabled ? ' active' : '');
+    const header = document.createElement('div');
+    header.className = 'fx-header';
+    const toggle = document.createElement('button');
+    toggle.className = 'fx-toggle' + (entry.enabled ? ' on' : '');
+    toggle.innerHTML = entry.enabled ? '&#10003;' : '';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      entry.enabled = !entry.enabled;
+      toggle.classList.toggle('on', entry.enabled);
+      toggle.innerHTML = entry.enabled ? '&#10003;' : '';
+      row.classList.toggle('active', entry.enabled);
+    });
+    const name = document.createElement('span');
+    name.className = 'fx-name';
+    name.textContent = EFFECT_LABELS[entry.name] || entry.name;
+    const expand = document.createElement('span');
+    expand.className = 'fx-expand';
+    expand.textContent = '\u25B8';
+    header.appendChild(toggle);
+    header.appendChild(name);
+    header.appendChild(expand);
+    const params = document.createElement('div');
+    params.className = 'fx-params';
+    for (const p of entry.params) {
+      if (p._value === undefined) p._value = p.value;
+      if (p.hidden) continue;
+      const paramRow = document.createElement('div');
+      paramRow.className = 'param-row';
+      const valId = `sv-${sectionLabel || 'fx'}-${entry.name}-${p.name}`;
+      if (p.isCharset) {
+        const displayLabel = CHARSETS[charsetNames[Math.round(p._value)]]?.label || 'Standard';
+        paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${displayLabel}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
+        params.appendChild(paramRow);
+        paramRow.querySelector('input').addEventListener('input', (ev) => {
+          const idx = Math.round(parseFloat(ev.target.value));
+          p._value = idx;
+          const csName = charsetNames[idx] || 'standard';
+          document.getElementById(valId).textContent = CHARSETS[csName]?.label || csName;
+          switchCharset(csName);
+        });
+      } else {
+        paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${p._value}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
+        params.appendChild(paramRow);
+        paramRow.querySelector('input').addEventListener('input', (ev) => {
+          p._value = parseFloat(ev.target.value);
+          document.getElementById(valId).textContent = p._value;
+        });
+      }
+    }
+    header.addEventListener('click', () => { row.classList.toggle('expanded'); });
+    row.appendChild(header);
+    row.appendChild(params);
+    container.appendChild(row);
+  }
+}
+
+function buildPresetsBar(targetStack) {
+  if (!webgpuAvailable) return;
+  const bar = document.getElementById('presets-bar');
+  bar.innerHTML = '';
+  for (const name of Object.keys(PRESETS)) {
+    const btn = document.createElement('button');
+    btn.className = 'src-btn';
+    btn.textContent = name;
+    btn.style.fontSize = '9px';
+    btn.style.padding = '3px 7px';
+    btn.addEventListener('click', () => {
+      applyPreset(name, targetStack);
+      bar.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    bar.appendChild(btn);
+  }
+}
+
+function buildStackPanel() {
+  const container = document.getElementById('fx-stack');
+  container.innerHTML = '';
+  if (!webgpuAvailable) {
+    container.innerHTML = '<p style="font-size:0.6rem;color:rgba(255,255,255,0.2);padding:8px 0;">WebGPU effects unavailable</p>';
+    return;
+  }
+  const sourceSection = document.getElementById('source-section');
+  if (currentMode === 'particles') {
+    buildPresetsBar(particleEffectStack);
+    buildStackSection(container, particleEffectStack, null);
+    if (sourceSection) sourceSection.style.display = 'none';
+  } else if (currentMode === 'input') {
+    buildPresetsBar(inputEffectStack);
+    buildStackSection(container, inputEffectStack, null);
+    if (sourceSection) sourceSection.style.display = 'block';
+  } else if (currentMode === 'hybrid') {
+    buildPresetsBar(inputEffectStack);
+    buildStackSection(container, particleEffectStack, 'Particles Effects');
+    const divider = document.createElement('div');
+    divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+    container.appendChild(divider);
+    buildStackSection(container, inputEffectStack, 'Input Effects');
+    if (sourceSection) sourceSection.style.display = 'block';
+  }
+}
+
+// ================================================================
+// SECTION 8: Mode Switching
+// ================================================================
+
+function setMode(mode) {
+  currentMode = mode;
+  const pCanvas = renderer.domElement;
+  const vCanvas = document.getElementById('webgpu-canvas');
+  const blendCtrl = document.getElementById('blend-control');
+
+  if (mode === 'particles') {
+    pCanvas.style.display = 'block';
+    pCanvas.style.visibility = 'visible';
+    pCanvas.style.opacity = '1';
+    vCanvas.style.display = 'none';
+    vCanvas.style.zIndex = '-1';
+    if (blendCtrl) blendCtrl.style.display = 'none';
+    renderer.setClearColor(0x000000, 1);
+    document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name;
+  } else if (mode === 'input') {
+    pCanvas.style.display = 'none';
+    vCanvas.style.display = 'block';
+    vCanvas.style.zIndex = '1';
+    if (blendCtrl) blendCtrl.style.display = 'none';
+  } else if (mode === 'hybrid') {
+    pCanvas.style.display = 'block';
+    pCanvas.style.visibility = 'visible';
+    pCanvas.style.opacity = '1';
+    vCanvas.style.display = 'block';
+    vCanvas.style.zIndex = '-1';
+    if (blendCtrl) blendCtrl.style.display = 'flex';
+    renderer.setClearColor(0x000000, 0);
+    document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name + ' + FX';
+  }
+  buildStackPanel();
+}
+
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setMode(btn.dataset.mode);
+  });
+});
+
+// Blend slider
+document.getElementById('blend-slider')?.addEventListener('input', (e) => {
+  hybridBlend = parseFloat(e.target.value);
+});
+
+// Source buttons
+document.querySelectorAll('[data-src]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.querySelectorAll('[data-src]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSource = btn.dataset.src;
+    if (currentSource === 'camera') {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'environment' } });
+        video.srcObject = cameraStream;
+        await video.play();
+      } catch(e) { currentSource = 'test'; }
+    } else {
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      video.srcObject = null;
+      video.src = '/videos/mountains.mp4';
+      video.play();
+    }
+  });
+});
+
+// Number keys for mode switching
+document.addEventListener('keydown', e => {
+  if (e.key === '1') document.querySelector('[data-mode="particles"]')?.click();
+  else if (e.key === '2') document.querySelector('[data-mode="input"]')?.click();
+  else if (e.key === '3') document.querySelector('[data-mode="hybrid"]')?.click();
+});
+
+// Drag and drop video
+document.body.addEventListener('dragover', e => e.preventDefault());
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (file && file.type.startsWith('video/')) {
+    video.src = URL.createObjectURL(file);
+    video.play();
+    useVideo = true;
+    currentSource = 'upload';
+    document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('active', b.dataset.src === 'upload'));
+  }
+});
+
+// Toggle controls panel (replaces production sidebar toggle)
+const toggleBtn = document.getElementById('toggle-sidebar');
+const controlsPanel = document.getElementById('sidebar');
+toggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  controlsPanel.classList.toggle('open');
+  toggleBtn.textContent = controlsPanel.classList.contains('open') ? 'x' : '+';
+});
+
+// WebGPU resize
+window.addEventListener('resize', () => {
+  if (gpuCanvas) {
+    const dpr = window.devicePixelRatio;
+    gpuCanvas.width = Math.floor(window.innerWidth * dpr);
+    gpuCanvas.height = Math.floor(window.innerHeight * dpr);
+    gpuCanvas.style.width = window.innerWidth + 'px';
+    gpuCanvas.style.height = window.innerHeight + 'px';
+  }
+});
+
+// ================================================================
+// SECTION 9: Override Animation Loop for Mode Support
+// ================================================================
+
+// Patch the existing animate() to handle modes
+const _origAnimate = animate;
+function animate_consolidated() {
+  // The production animate() handles particles, audio, lyrics, camera, FX, etc.
+  // We just need to also handle WebGPU rendering for input/hybrid modes
+  
+  // In particles mode: production animate() handles everything
+  // In input mode: we render video through WebGPU instead
+  // In hybrid mode: both run
+  
+  if (currentMode === 'input') {
+    // Skip particle rendering, do WebGPU video effects
+    requestAnimationFrame(animate_consolidated);
+    updateAudio();
+    const elapsed = clock.getElapsedTime() * simSpeed;
+    renderVideoFX(elapsed);
+    // Still update lyrics and audio bars
+    const bass = audio.sBass * audioSensitivity;
+    const mids = audio.sMids * audioSensitivity;
+    const rms = audio.sRms * audioSensitivity;
+    if (typeof barBassEl !== 'undefined') {
+      barBassEl.style.height = (2 + bass * 18) + 'px';
+      barMidEl.style.height = (2 + mids * 18) + 'px';
+      barHighEl.style.height = (2 + rms * 18) + 'px';
+    }
+    return;
+  }
+  
+  if (currentMode === 'hybrid') {
+    // Render video effects on WebGPU canvas
+    const elapsed = clock.getElapsedTime() * simSpeed;
+    renderVideoFX(elapsed);
+    renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
+  }
+  
+  // Run standard production animate for particles
+  _origAnimate();
+  
+  // After particles render, check if we need to process through WebGPU effects
+  if (currentMode === 'particles' && webgpuAvailable) {
+    const activeFx = getActiveEffects(particleEffectStack);
+    if (activeFx.length > 0) {
+      const elapsed = clock.getElapsedTime() * simSpeed;
+      renderer.domElement.style.visibility = 'hidden';
+      renderer.domElement.style.display = 'block';
+      document.getElementById('webgpu-canvas').style.display = 'block';
+      document.getElementById('webgpu-canvas').style.zIndex = '3';
+      renderParticlesThroughFX(elapsed);
+    } else {
+      renderer.domElement.style.visibility = 'visible';
+      document.getElementById('webgpu-canvas').style.display = 'none';
+      document.getElementById('webgpu-canvas').style.zIndex = '-1';
+    }
+  }
+}
+
+// Initialize WebGPU, build initial stack panel, start video
+initWebGPU().then(() => {
+  buildStackPanel();
+  video.play().catch(() => {
+    document.addEventListener('click', () => video.play(), { once: true });
+  });
+});
+
+// The production code already calls animate() at the end.
+// We just need to hook into it for mode support.
+// Since production animate() uses requestAnimationFrame internally,
+// we need to replace it before it starts.
+
 </script>
 </body>
 </html>
