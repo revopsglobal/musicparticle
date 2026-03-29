@@ -6480,11 +6480,12 @@ function animate() {
       fy = fy * invLb + finalTy * lb;
       fz = fz * invLb + finalTz * lb;
 
-      // Brighten text particles strongly for legibility
-      const boost = 2.8 + 0.3 * Math.sin(elapsed * 3 + i * 0.01);
-      const tr = Math.min(1.0, cr * boost);
-      const tg = Math.min(1.0, cg * boost);
-      const tb = Math.min(1.0, cb * boost);
+      // Brighten text particles with a minimum floor so they're always visible
+      const boost = 3.0 + 0.3 * Math.sin(elapsed * 3 + i * 0.01);
+      const floor = 0.45;
+      const tr = Math.min(1.0, Math.max(floor, cr * boost));
+      const tg = Math.min(1.0, Math.max(floor, cg * boost));
+      const tb = Math.min(1.0, Math.max(floor, cb * boost));
 
       cr = cr * invLb + tr * lb;
       cg = cg * invLb + tg * lb;
