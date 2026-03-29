@@ -437,8 +437,7 @@
   <div id="sim-name">HOPF FIBRATION</div>
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
   <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
-  <button class="nav-btn" id="bpm-sync-btn" title="BPM Sync (B)" style="font-size:0.45rem;letter-spacing:0.02em;min-width:42px">BPM</button>
-  <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
+<button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
 
 <button id="toggle-sidebar" title="Controls">+</button>
@@ -583,7 +582,6 @@
   <div><kbd>A</kbd> Auto shuffle mode</div>
   <div><kbd>L</kbd> Toggle lyrics</div>
   <div><kbd>S</kbd> Toggle audio reactivity</div>
-  <div><kbd>B</kbd> BPM sync (speed to beat)</div>
   <div><kbd>I</kbd> Toggle info card</div>
   <div><kbd>F</kbd> Fullscreen</div>
   <div><kbd>Click</kbd> Next simulation</div>
@@ -5093,53 +5091,6 @@ let analyser = null;
 let freqData = null;
 const SMOOTH = 0.65;
 
-// ── Beat / BPM detection ──
-let detectedBPM = 0;
-let bpmSyncEnabled = false;
-const beatTimes = []; // timestamps of detected beats
-let lastBassLevel = 0;
-let beatThreshold = 0.15;
-let lastBeatTime = 0;
-const MIN_BEAT_GAP = 0.2; // min seconds between beats (300 BPM cap)
-
-function detectBeat() {
-  const now = performance.now() / 1000;
-  const bassRise = audio.bass - lastBassLevel;
-  lastBassLevel = audio.bass;
-
-  // Onset: bass rising sharply above threshold
-  if (bassRise > beatThreshold && audio.bass > 0.12 && (now - lastBeatTime) > MIN_BEAT_GAP) {
-    lastBeatTime = now;
-    beatTimes.push(now);
-
-    // Keep last 16 beats
-    while (beatTimes.length > 16) beatTimes.shift();
-
-    // Need at least 4 beats to estimate BPM
-    if (beatTimes.length >= 4) {
-      // Average interval between beats
-      let totalInterval = 0;
-      let count = 0;
-      for (let j = 1; j < beatTimes.length; j++) {
-        const gap = beatTimes[j] - beatTimes[j - 1];
-        // Only count reasonable gaps (40-200 BPM range)
-        if (gap > 0.3 && gap < 1.5) {
-          totalInterval += gap;
-          count++;
-        }
-      }
-      if (count >= 3) {
-        const avgInterval = totalInterval / count;
-        const rawBPM = 60 / avgInterval;
-        // Smooth BPM to avoid jitter
-        detectedBPM = detectedBPM === 0 ? rawBPM : detectedBPM * 0.7 + rawBPM * 0.3;
-      }
-    }
-
-    // Adaptive threshold
-    beatThreshold = Math.max(0.08, beatThreshold * 0.95 + bassRise * 0.05);
-  }
-}
 
 // ── Three.js Setup ─────────────────────────────────────────
 const scene = new THREE.Scene();
@@ -5393,35 +5344,6 @@ if (document.fullscreenEnabled) {
   fullscreenBtn.style.display = 'none';
 }
 
-// ── BPM Sync ──
-const bpmSyncBtn = document.getElementById('bpm-sync-btn');
-const BASE_BPM = 240; // reference BPM that maps to simSpeed 1.0 (halved ratio)
-
-bpmSyncBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  bpmSyncEnabled = !bpmSyncEnabled;
-  bpmSyncBtn.classList.toggle('active', bpmSyncEnabled);
-  if (!bpmSyncEnabled) {
-    // Restore manual speed
-    simSpeed = parseFloat(document.getElementById('ctrl-speed').value);
-    bpmSyncBtn.textContent = 'BPM';
-  }
-  saveSettings();
-});
-
-function updateBpmSync() {
-  if (!bpmSyncEnabled || detectedBPM < 40) return;
-  // Map BPM to sim speed: 120 BPM = 1.0x, 60 BPM = 0.5x, 180 BPM = 1.5x
-  const targetSpeed = Math.max(0.2, Math.min(3.0, detectedBPM / BASE_BPM));
-  // Smooth transition
-  simSpeed += (targetSpeed - simSpeed) * 0.05;
-  // Update UI
-  const bpmRounded = Math.round(detectedBPM);
-  bpmSyncBtn.textContent = bpmRounded + '';
-  document.getElementById('ctrl-speed').value = simSpeed;
-  document.getElementById('val-speed').textContent = simSpeed.toFixed(1);
-}
-
 function annotate() {} // no-op for now
 
 function compileSim(code) {
@@ -5493,7 +5415,6 @@ function updateAudio() {
   audio.sHighs += (audio.highs - audio.sHighs) * SMOOTH;
   audio.sRms   += (audio.rms   - audio.sRms)   * SMOOTH;
 
-  detectBeat();
 }
 
 // ── UI Wiring ──────────────────────────────────────────────
@@ -5559,7 +5480,6 @@ document.addEventListener('keydown', (e) => {
   }
   else if (e.key === 'i' || e.key === 'I') { toggleHud(); }
   else if (e.key === 's' || e.key === 'S') { reactToggleBtn.click(); }
-  else if (e.key === 'b' || e.key === 'B') { bpmSyncBtn.click(); }
   else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
@@ -5676,7 +5596,6 @@ function saveSettings() {
     visualStyle: visualStyle,
     shuffleInterval: autoRotateIntervalOverride,
     reactivity: reactivityEnabled,
-    bpmSync: bpmSyncEnabled
   }));
 }
 
@@ -5692,7 +5611,6 @@ function loadSettings() {
     if (s.visualStyle) { visualStyle = s.visualStyle; document.querySelectorAll('.style-option').forEach(o => o.classList.toggle('active', o.dataset.style === s.visualStyle)); }
     if (s.shuffleInterval != null) { autoRotateIntervalOverride = s.shuffleInterval; document.getElementById('ctrl-shuffle-interval').value = s.shuffleInterval; document.getElementById('val-shuffle-interval').textContent = s.shuffleInterval; }
     if (s.reactivity === false) { reactivityEnabled = false; savedSensitivity = s.sensitivity || 1.0; audioSensitivity = 0; document.getElementById('ctrl-sensitivity').value = 0; document.getElementById('val-sensitivity').textContent = '0.0'; reactToggleBtn.classList.remove('active'); }
-    if (s.bpmSync === true) { bpmSyncEnabled = true; bpmSyncBtn.classList.add('active'); }
   } catch (e) {}
 }
 
@@ -6508,7 +6426,6 @@ function animate() {
 
   // Auto-rotate between sims
   updateAutoRotate(dt);
-  updateBpmSync();
   const fadeOpacity = getCrossfadeOpacity();
 
   // Update audio bars
