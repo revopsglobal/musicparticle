@@ -439,6 +439,7 @@
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
   <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
   <button class="nav-btn" id="fx-mode-btn" title="FX Mode (V)" style="font-size:0.45rem;letter-spacing:0.03em">FX</button>
+  <button class="nav-btn" id="auto-fx-btn" title="Auto FX (G)" style="font-size:0.4rem;letter-spacing:0.03em">AFX</button>
 <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
 
@@ -5710,6 +5711,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
   else if (e.key === 'v' || e.key === 'V') { cycleFxMode(); }
   else if (e.key === 'b' || e.key === 'B') { cycleBackdrop(); }
+  else if (e.key === 'g' || e.key === 'G') { toggleAutoFx(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
     if (lyricsActive) {
@@ -5739,6 +5741,18 @@ function cycleFxMode() {
   fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
 }
 fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
+
+// Auto FX toggle
+const autoFxBtn = document.getElementById('auto-fx-btn');
+function toggleAutoFx() {
+  autoFxEnabled = !autoFxEnabled;
+  autoFxBtn.classList.toggle('active', autoFxEnabled);
+  if (!autoFxEnabled) {
+    applyFxMode('clean');
+    fxModeBtn.classList.remove('active');
+  }
+}
+autoFxBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleAutoFx(); });
 
 // Backdrop cycling
 const backdropNames = [null, 'mandelbulb', 'mandelbox', 'hybrid'];
@@ -6601,7 +6615,18 @@ function triggerAutoTransition() {
   const newStyle = styles[Math.floor(Math.random() * styles.length)];
   visualStyle = newStyle;
   document.querySelectorAll('.style-option').forEach(o => o.classList.toggle('active', o.dataset.style === newStyle));
+
+  // Auto FX: pick a random FX mode on every sim transition
+  if (autoFxEnabled) {
+    const modes = fxModeNames.filter(m => m !== 'clean');
+    const newFx = modes[Math.floor(Math.random() * modes.length)];
+    applyFxMode(newFx);
+    fxModeBtn.classList.add('active');
+  }
 }
+
+// ── Auto FX ───────────────────────────────────────────────
+let autoFxEnabled = false;
 
 function updateAutoRotate(dt) {
   if (!autoRotateEnabled) return;
