@@ -6016,6 +6016,8 @@ function showProPrompt() {
   lyricsNotify.classList.add('visible');
 }
 
+let detectRecordStart = 0; // timestamp when recording began
+
 async function autoDetectSong(silent) {
   isDetecting = true;
 
@@ -6025,6 +6027,7 @@ async function autoDetectSong(silent) {
   }
 
   try {
+    detectRecordStart = performance.now() / 1000;
     const audioBlob = await recordAudioClip(5000);
     if (!silent) detectStatus.textContent = 'Identifying...';
 
@@ -6074,7 +6077,7 @@ async function autoDetectSong(silent) {
       if (title === lastDetectedTitle && lyricsActive) {
         // Re-sync timing for the same song (may have restarted)
         const detectedNow = parseTimecode(timecode);
-        const processingDelay = 7;
+        const processingDelay = performance.now() / 1000 - detectRecordStart;
         lyricsOffset = detectedNow + processingDelay;
         lyricsStartTime = performance.now() / 1000;
         if (!silent) detectStatus.textContent = `Re-synced "${title}"`;
@@ -6118,7 +6121,7 @@ function enablePendingLyrics() {
   if (!pendingLyricsTrack) return;
   loadTrackLyrics(pendingLyricsTrack);
 
-  const processingDelay = 7;
+  const processingDelay = performance.now() / 1000 - detectRecordStart;
   lyricsOffset = pendingTimecode + processingDelay;
   lyricsStartTime = performance.now() / 1000;
   document.getElementById('lyrics-offset-val').textContent = '0.0s';
