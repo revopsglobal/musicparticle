@@ -437,6 +437,7 @@
   <div id="sim-name">HOPF FIBRATION</div>
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
   <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
+  <button class="nav-btn" id="fx-mode-btn" title="FX Mode (V)" style="font-size:0.45rem;letter-spacing:0.03em">FX</button>
 <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
 
@@ -680,6 +681,186 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ── Post-Processing Shaders ───────────────────────────────
+const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+const ChromaticAberrationShader = {
+  uniforms: { tDiffuse: { value: null }, uIntensity: { value: 0.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uIntensity; varying vec2 vUv;
+    void main() {
+      vec2 fromCenter = vUv - 0.5;
+      float dist = length(fromCenter);
+      vec2 dir = normalize(fromCenter + 0.0001) * uIntensity * dist;
+      float r = texture2D(tDiffuse, vUv + dir).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - dir).b;
+      gl_FragColor = vec4(r, g, b, texture2D(tDiffuse, vUv).a);
+    }`,
+};
+
+const HueRotateShader = {
+  uniforms: { tDiffuse: { value: null }, uHueShift: { value: 0.0 }, uSatBoost: { value: 1.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uHueShift; uniform float uSatBoost; varying vec2 vUv;
+    vec3 rgb2hsv(vec3 c) {
+      vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+      vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+      vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+      float d = q.x - min(q.w, q.y); float e = 1.0e-10;
+      return vec3(abs(q.z + (q.w - q.y) / (6.0*d+e)), d/(q.x+e), q.x);
+    }
+    vec3 hsv2rgb(vec3 c) {
+      vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+      vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+      return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      vec3 hsv = rgb2hsv(color.rgb);
+      hsv.x = fract(hsv.x + uHueShift / 6.2831853);
+      hsv.y = clamp(hsv.y * uSatBoost, 0.0, 1.0);
+      gl_FragColor = vec4(hsv2rgb(hsv), color.a);
+    }`,
+};
+
+const FilmGrainShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0.0 }, uIntensity: { value: 0.0 }, uResolution: { value: new THREE.Vector2(1920, 1080) } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uIntensity; uniform vec2 uResolution; varying vec2 vUv;
+    float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx)*0.1031); p3 += dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      float n = hash(vUv * uResolution / 1.5 + fract(uTime * 17.13)) - 0.5;
+      float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      float mask = 1.0 - abs(lum - 0.5) * 2.0;
+      color.rgb += n * uIntensity * mask;
+      gl_FragColor = vec4(clamp(color.rgb, 0.0, 1.0), color.a);
+    }`,
+};
+
+const RadialBlurShader = {
+  uniforms: { tDiffuse: { value: null }, uIntensity: { value: 0.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uIntensity; varying vec2 vUv;
+    void main() {
+      vec2 dir = vUv - 0.5; vec4 color = vec4(0.0); float total = 0.0;
+      for (int i = 0; i < 16; i++) {
+        float t = float(i) / 15.0; float w = 1.0 - t;
+        color += texture2D(tDiffuse, vUv - dir * t * uIntensity) * w;
+        total += w;
+      }
+      gl_FragColor = color / total;
+    }`,
+};
+
+const KaleidoscopeShader = {
+  uniforms: { tDiffuse: { value: null }, uSegments: { value: 6.0 }, uRotation: { value: 0.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    #define PI 3.14159265359
+    uniform sampler2D tDiffuse; uniform float uSegments; uniform float uRotation; varying vec2 vUv;
+    void main() {
+      vec2 uv = vUv - 0.5;
+      float angle = atan(uv.y, uv.x) + uRotation;
+      float radius = length(uv);
+      float seg = PI * 2.0 / uSegments;
+      angle = mod(angle, seg);
+      if (angle > seg * 0.5) angle = seg - angle;
+      vec2 kaleidUv = vec2(cos(angle), sin(angle)) * radius + 0.5;
+      gl_FragColor = texture2D(tDiffuse, clamp(kaleidUv, 0.0, 1.0));
+    }`,
+};
+
+const UVDriftShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0.0 }, uIntensity: { value: 0.0 }, uFrequency: { value: 3.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uIntensity; uniform float uFrequency; varying vec2 vUv;
+    vec3 mod289v3(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+    vec2 mod289v2(vec2 x){return x-floor(x*(1.0/289.0))*289.0;}
+    vec3 permute(vec3 x){return mod289v3(((x*34.0)+1.0)*x);}
+    float snoise(vec2 v){
+      const vec4 C=vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+      vec2 i=floor(v+dot(v,C.yy)); vec2 x0=v-i+dot(i,C.xx);
+      vec2 i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);
+      vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1; i=mod289v2(i);
+      vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+      vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0);
+      m=m*m; m=m*m;
+      vec3 x=2.0*fract(p*C.www)-1.0; vec3 h=abs(x)-0.5;
+      vec3 ox=floor(x+0.5); vec3 a0=x-ox;
+      m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+      vec3 g; g.x=a0.x*x0.x+h.x*x0.y; g.yz=a0.yz*x12.xz+h.yz*x12.yw;
+      return 130.0*dot(m,g);
+    }
+    void main() {
+      float t = uTime * 0.5;
+      vec2 uv = vUv;
+      uv += vec2(snoise(vUv*uFrequency+vec2(t,0.0)), snoise(vUv*uFrequency+vec2(0.0,t+31.7))) * uIntensity;
+      gl_FragColor = texture2D(tDiffuse, uv);
+    }`,
+};
+
+const CRTShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0.0 }, uScanlineIntensity: { value: 0.0 }, uScanlineCount: { value: 400.0 }, uBarrel: { value: 0.02 }, uVignette: { value: 0.4 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    #define PI 3.14159265359
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uScanlineIntensity;
+    uniform float uScanlineCount; uniform float uBarrel; uniform float uVignette; varying vec2 vUv;
+    vec2 barrel(vec2 uv, float amt) { vec2 cc = uv - 0.5; return uv + cc * dot(cc,cc) * amt; }
+    void main() {
+      vec2 uv = barrel(vUv, uBarrel);
+      if (uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0) { gl_FragColor=vec4(0,0,0,1); return; }
+      vec3 color = texture2D(tDiffuse, uv).rgb;
+      float scanline = sin(uv.y * uScanlineCount * PI * 2.0) * 0.5 + 0.5;
+      color *= 1.0 - uScanlineIntensity * (1.0 - pow(scanline, 1.5));
+      color *= 1.0 - 0.03 * sin(uTime * 15.0);
+      vec2 vig = vUv * (1.0 - vUv.yx); color *= pow(vig.x * vig.y * 15.0, uVignette);
+      color *= vec3(0.95, 1.0, 0.92);
+      gl_FragColor = vec4(color, 1.0);
+    }`,
+};
+
+const FeedbackBlendShader = {
+  uniforms: { tNew: { value: null }, tOld: { value: null }, uDecay: { value: 0.0 }, uDrift: { value: 0.0 } },
+  vertexShader: VERT,
+  fragmentShader: `
+    uniform sampler2D tNew; uniform sampler2D tOld; uniform float uDecay; uniform float uDrift; varying vec2 vUv;
+    void main() {
+      vec2 offset = (vUv - 0.5) * uDrift;
+      vec4 newC = texture2D(tNew, vUv);
+      vec4 oldC = texture2D(tOld, vUv - offset);
+      gl_FragColor = max(newC, oldC * uDecay);
+    }`,
+};
+
+const ScreenBlitShader = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: VERT,
+  fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv; void main() { gl_FragColor = texture2D(tDiffuse, vUv); }`,
+};
+
+// ── FX Mode Presets ───────────────────────────────────────
+const FX_MODES = {
+  clean:       { chromatic: 0, feedback: 0, hueSpeed: 0, drift: 0, grain: 0, radialBlur: 0, kaleidoSegments: 0, scanlines: 0 },
+  psychedelic: { chromatic: 0.008, feedback: 0.85, hueSpeed: 0.3, drift: 0.03, grain: 0.05, radialBlur: 0, kaleidoSegments: 0, scanlines: 0 },
+  retro:       { chromatic: 0.005, feedback: 0, hueSpeed: 0, drift: 0, grain: 0.1, radialBlur: 0, kaleidoSegments: 0, scanlines: 0.3 },
+  cosmic:      { chromatic: 0, feedback: 0.7, hueSpeed: 0.1, drift: 0, grain: 0, radialBlur: 0.05, kaleidoSegments: 6, scanlines: 0 },
+  void:        { chromatic: 0.015, feedback: 0.92, hueSpeed: 0, drift: 0.04, grain: 0.08, radialBlur: 0, kaleidoSegments: 0, scanlines: 0 },
+  fractal:     { chromatic: 0.003, feedback: 0.6, hueSpeed: 0.05, drift: 0, grain: 0, radialBlur: 0, kaleidoSegments: 8, scanlines: 0 },
+  prism:       { chromatic: 0.012, feedback: 0.5, hueSpeed: 0.6, drift: 0.01, grain: 0.03, radialBlur: 0.02, kaleidoSegments: 0, scanlines: 0 },
+  deep_space:  { chromatic: 0.004, feedback: 0.88, hueSpeed: 0.02, drift: 0.02, grain: 0.04, radialBlur: 0.03, kaleidoSegments: 0, scanlines: 0 },
+};
+let currentFxMode = 'clean';
+const fxModeNames = Object.keys(FX_MODES);
 
 // ── Simulations Library ────────────────────────────────────
 // Each sim has audio vars injected: bass, mids, highs, rms (0-1 range, pre-scaled by sensitivity)
@@ -4553,6 +4734,305 @@ if (i === 0) {
 `
   },
 
+// ── Fractal Simulations ──
+
+  {
+    name: 'MANDELBULB',
+    cam: [8, 15, 25],
+    code: `
+if (i === 0) setInfo("Mandelbulb", "3D fractal surface. Particles trace the boundary of the Mandelbulb set, where power and iteration respond to bass energy.");
+
+const power = 8.0 + bass * 4.0;
+const maxIter = 6 + Math.floor(rms * 4);
+const t = i / count;
+const golden = 2.399963229728653;
+const theta = Math.acos(1 - 2 * t);
+const phi = golden * i;
+
+let px = Math.sin(theta) * Math.cos(phi) * 1.2;
+let py = Math.sin(theta) * Math.sin(phi) * 1.2;
+let pz = Math.cos(theta) * 1.2;
+
+let zx = 0, zy = 0, zz = 0;
+let dr = 1.0;
+let r = 0;
+let escapeIter = maxIter;
+
+for (let n = 0; n < maxIter; n++) {
+  r = Math.sqrt(zx*zx + zy*zy + zz*zz);
+  if (r > 2.0) { escapeIter = n; break; }
+  const th = Math.acos(zz / (r + 0.0001));
+  const ph = Math.atan2(zy, zx);
+  dr = Math.pow(r, power - 1.0) * power * dr + 1.0;
+  const zr = Math.pow(r, power);
+  const newTh = th * power;
+  const newPh = ph * power;
+  zx = zr * Math.sin(newTh) * Math.cos(newPh) + px;
+  zy = zr * Math.sin(newTh) * Math.sin(newPh) + py;
+  zz = zr * Math.cos(newTh) + pz;
+}
+
+const dist = 0.5 * Math.log(r) * r / dr;
+const scale = 6.0 + mids * 2.0;
+const nudge = Math.max(0, 1.0 - dist * 20.0);
+target.set(px * scale * nudge, py * scale * nudge, pz * scale * nudge);
+
+const hue = (escapeIter / maxIter * 0.6 + time * 0.05) % 1.0;
+const sat = 0.6 + highs * 0.3;
+const lit = 0.05 + nudge * 0.35 + bass * 0.1;
+color.setHSL(hue, sat, lit);
+`
+  },
+
+  {
+    name: 'SIERPINSKI PYRAMID',
+    cam: [3, 8, 15],
+    code: `
+if (i === 0) setInfo("Sierpinski Pyramid", "Iterated function system fractal. Particles fold through tetrahedral symmetry, driven by audio energy.");
+
+const t = i / count;
+const golden = 2.399963229728653;
+let px = (Math.sin(Math.acos(1-2*t)) * Math.cos(golden*i)) * 2;
+let py = (Math.sin(Math.acos(1-2*t)) * Math.sin(golden*i)) * 2;
+let pz = (Math.cos(Math.acos(1-2*t))) * 2;
+
+const iters = 8 + Math.floor(rms * 4);
+const rot = time * 0.2 + highs * 0.5;
+const cr = Math.cos(rot), sr = Math.sin(rot);
+
+const v0x=1, v0y=1, v0z=1;
+const v1x=-1, v1y=-1, v1z=1;
+const v2x=-1, v2y=1, v2z=-1;
+const v3x=1, v3y=-1, v3z=-1;
+
+let foldCount = 0;
+for (let n = 0; n < iters; n++) {
+  let d0 = (px-v0x)*(px-v0x)+(py-v0y)*(py-v0y)+(pz-v0z)*(pz-v0z);
+  let d1 = (px-v1x)*(px-v1x)+(py-v1y)*(py-v1y)+(pz-v1z)*(pz-v1z);
+  let d2 = (px-v2x)*(px-v2x)+(py-v2y)*(py-v2y)+(pz-v2z)*(pz-v2z);
+  let d3 = (px-v3x)*(px-v3x)+(py-v3y)*(py-v3y)+(pz-v3z)*(pz-v3z);
+
+  let vx = v0x, vy = v0y, vz = v0z;
+  let md = d0;
+  if (d1 < md) { vx=v1x; vy=v1y; vz=v1z; md=d1; foldCount++; }
+  if (d2 < md) { vx=v2x; vy=v2y; vz=v2z; md=d2; foldCount++; }
+  if (d3 < md) { vx=v3x; vy=v3y; vz=v3z; foldCount++; }
+
+  px = px * 0.5 + vx * 0.5;
+  py = py * 0.5 + vy * 0.5;
+  pz = pz * 0.5 + vz * 0.5;
+}
+
+const scale = 3.5 + bass * 1.5;
+const rx = px * cr - pz * sr;
+const rz = px * sr + pz * cr;
+target.set(rx * scale, py * scale, rz * scale);
+
+const hue = (foldCount * 0.07 + time * 0.03) % 1.0;
+color.setHSL(hue, 0.7, 0.1 + 0.3 * (foldCount / (iters * 3)) + bass * 0.15);
+`
+  },
+
+  {
+    name: 'MENGER SPONGE',
+    cam: [4, 10, 18],
+    code: `
+if (i === 0) setInfo("Menger Sponge", "Fractal cube built from recursive cross-folds. Bass drives the scale factor, mids rotate the structure.");
+
+const t = i / count;
+const side = Math.cbrt(count);
+const xi = (i % side) / side - 0.5;
+const yi = (Math.floor(i / side) % side) / side - 0.5;
+const zi = Math.floor(i / (side * side)) / side - 0.5;
+
+let px = xi * 3, py = yi * 3, pz = zi * 3;
+const scale = 3.0 + bass * 0.5;
+const iters = 4 + Math.floor(rms * 2);
+const rot = time * 0.15 + mids;
+const cr = Math.cos(rot), sr = Math.sin(rot);
+
+let trapped = false;
+for (let n = 0; n < iters; n++) {
+  px = Math.abs(px);
+  py = Math.abs(py);
+  pz = Math.abs(pz);
+
+  if (px < py) { let tmp = px; px = py; py = tmp; }
+  if (px < pz) { let tmp = px; px = pz; pz = tmp; }
+  if (py < pz) { let tmp = py; py = pz; pz = tmp; }
+
+  px = px * scale - (scale - 1.0);
+  py = py * scale - (scale - 1.0);
+  pz = pz * scale;
+
+  if (pz > 0.5 * (scale - 1.0)) pz -= (scale - 1.0);
+
+  const r = px*px + py*py + pz*pz;
+  if (r > 100) { trapped = true; break; }
+}
+
+const finalScale = 2.5;
+const rx = px * cr - pz * sr;
+const rz = px * sr + pz * cr;
+const s = Math.pow(scale, -iters) * finalScale;
+target.set(rx * s, py * s, rz * s);
+
+const dist = Math.sqrt(px*px+py*py+pz*pz);
+const hue = (0.55 + dist * 0.01 + time * 0.02) % 1.0;
+const lit = trapped ? 0.02 : (0.1 + 0.25 * Math.min(1, 1.0 / (dist * 0.1 + 1)) + highs * 0.1);
+color.setHSL(hue, 0.5 + mids * 0.3, lit);
+`
+  },
+
+  {
+    name: 'FRACTAL TERRAIN',
+    cam: [15, 30, 50],
+    code: `
+if (i === 0) setInfo("Fractal Terrain", "Layered noise landscape. Bass shapes the mountains, mids carve the valleys, highs add surface detail.");
+
+const gridW = Math.ceil(Math.sqrt(count));
+const gx = (i % gridW) / gridW - 0.5;
+const gz = Math.floor(i / gridW) / gridW - 0.5;
+
+const x = gx * 40;
+const z = gz * 40 + time * 1.5;
+
+// fBm with audio-reactive octaves
+let y = 0;
+let amp = 4.0 + bass * 3.0;
+let freq = 0.15;
+for (let oct = 0; oct < 6; oct++) {
+  const nx = Math.sin(x * freq + z * freq * 0.7) * Math.cos(z * freq * 1.3 + x * freq * 0.4);
+  y += nx * amp;
+  amp *= 0.5;
+  freq *= 2.0;
+  if (oct < 2) amp += bass * 0.5;
+  else if (oct < 4) amp += mids * 0.2;
+  else amp += highs * 0.1;
+}
+
+target.set(gx * 40, y, (Math.floor(i / gridW) / gridW - 0.5) * 40);
+
+const altitude = (y + 5) / 12;
+let hue, sat, lit;
+if (altitude < 0.2) { hue = 0.6; sat = 0.7; lit = 0.1 + altitude; }
+else if (altitude < 0.5) { hue = 0.33; sat = 0.6; lit = 0.15 + altitude * 0.3; }
+else if (altitude < 0.75) { hue = 0.12; sat = 0.4; lit = 0.2 + altitude * 0.2; }
+else { hue = 0.0; sat = 0.0; lit = 0.5 + altitude * 0.3; }
+color.setHSL(hue, sat + rms * 0.2, lit + highs * 0.05);
+`
+  },
+
+  {
+    name: 'JULIA ORBIT',
+    cam: [5, 12, 20],
+    code: `
+if (i === 0) setInfo("Julia Orbit", "3D Julia set orbits. Particles trace iteration paths through complex space, with the seed modulated by audio.");
+
+const t = i / count;
+const golden = 2.399963229728653;
+const theta = Math.acos(1 - 2 * t);
+const phi = golden * i;
+
+let zx = Math.sin(theta) * Math.cos(phi) * 1.5;
+let zy = Math.sin(theta) * Math.sin(phi) * 1.5;
+let zz = Math.cos(theta) * 1.5;
+
+const cx = -0.7 + Math.sin(time * 0.3) * 0.2 + bass * 0.15;
+const cy = 0.27015 + Math.cos(time * 0.2) * 0.1 + mids * 0.1;
+const cz = Math.sin(time * 0.15) * 0.3;
+
+const maxIter = 8;
+let escapeIter = maxIter;
+let r2 = 0;
+
+for (let n = 0; n < maxIter; n++) {
+  r2 = zx*zx + zy*zy + zz*zz;
+  if (r2 > 4.0) { escapeIter = n; break; }
+
+  const r = Math.sqrt(r2);
+  const th = Math.acos(zz / (r + 0.0001));
+  const ph = Math.atan2(zy, zx);
+  const zr = r * r;
+  const newTh = th * 2.0;
+  const newPh = ph * 2.0;
+
+  zx = zr * Math.sin(newTh) * Math.cos(newPh) + cx;
+  zy = zr * Math.sin(newTh) * Math.sin(newPh) + cy;
+  zz = zr * Math.cos(newTh) + cz;
+}
+
+const trapped = escapeIter === maxIter;
+const scale = 4.0;
+target.set(zx * scale * 0.5, zy * scale * 0.5, zz * scale * 0.5);
+
+const hue = trapped ? (0.6 + time * 0.02) % 1.0 : (escapeIter / maxIter * 0.8 + 0.05) % 1.0;
+const sat = trapped ? 0.8 : 0.5;
+const lit = trapped ? (0.2 + bass * 0.2) : (0.03 + escapeIter / maxIter * 0.1);
+color.setHSL(hue, sat, lit);
+`
+  },
+
+  {
+    name: 'MANDELBOX',
+    cam: [5, 12, 20],
+    code: `
+if (i === 0) setInfo("Mandelbox", "Box-fold fractal with infinite detail. The fold limit and scale breathe with the music.");
+
+const t = i / count;
+const golden = 2.399963229728653;
+const theta = Math.acos(1 - 2 * t);
+const phi = golden * i;
+
+let px = Math.sin(theta) * Math.cos(phi) * 2.0;
+let py = Math.sin(theta) * Math.sin(phi) * 2.0;
+let pz = Math.cos(theta) * 2.0;
+
+const ox = px, oy = py, oz = pz;
+const scale = -1.5 - bass * 0.5;
+const foldLimit = 1.0 + mids * 0.3;
+const minR2 = 0.25;
+const fixedR2 = 1.0;
+const iters = 8;
+let dr = 1.0;
+
+for (let n = 0; n < iters; n++) {
+  // Box fold
+  if (px > foldLimit) px = 2*foldLimit - px;
+  else if (px < -foldLimit) px = -2*foldLimit - px;
+  if (py > foldLimit) py = 2*foldLimit - py;
+  else if (py < -foldLimit) py = -2*foldLimit - py;
+  if (pz > foldLimit) pz = 2*foldLimit - pz;
+  else if (pz < -foldLimit) pz = -2*foldLimit - pz;
+
+  // Ball fold
+  let r2 = px*px + py*py + pz*pz;
+  if (r2 < minR2) {
+    const f = fixedR2 / minR2;
+    px *= f; py *= f; pz *= f; dr *= f;
+  } else if (r2 < fixedR2) {
+    const f = fixedR2 / r2;
+    px *= f; py *= f; pz *= f; dr *= f;
+  }
+
+  px = px * scale + ox;
+  py = py * scale + oy;
+  pz = pz * scale + oz;
+  dr = dr * Math.abs(scale) + 1.0;
+}
+
+const r = Math.sqrt(px*px + py*py + pz*pz);
+const de = r / Math.abs(dr);
+const sizeScale = 3.0;
+const surface = Math.max(0, 1.0 - de * 15);
+
+target.set(ox * sizeScale * surface, oy * sizeScale * surface, oz * sizeScale * surface);
+
+const hue = (Math.abs(px + py) * 0.1 + time * 0.03) % 1.0;
+color.setHSL(hue, 0.6 + highs * 0.2, 0.05 + surface * 0.3 + rms * 0.1);
+`
+  },
+
 // ── End of simulations ──
 ];
 
@@ -4594,6 +5074,65 @@ const bloomPass = new UnrealBloomPass(
   glowIntensity, 0.2, 0.92
 );
 composer.addPass(bloomPass);
+
+// ── Post-Processing FX Chain ──────────────────────────────
+const chromaPass = new ShaderPass(ChromaticAberrationShader);
+chromaPass.enabled = false;
+composer.addPass(chromaPass);
+
+const huePass = new ShaderPass(HueRotateShader);
+huePass.enabled = false;
+composer.addPass(huePass);
+
+const grainPass = new ShaderPass(FilmGrainShader);
+grainPass.enabled = false;
+grainPass.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+composer.addPass(grainPass);
+
+const radialBlurPass = new ShaderPass(RadialBlurShader);
+radialBlurPass.enabled = false;
+composer.addPass(radialBlurPass);
+
+const kaleidPass = new ShaderPass(KaleidoscopeShader);
+kaleidPass.enabled = false;
+composer.addPass(kaleidPass);
+
+const driftPass = new ShaderPass(UVDriftShader);
+driftPass.enabled = false;
+composer.addPass(driftPass);
+
+const crtPass = new ShaderPass(CRTShader);
+crtPass.enabled = false;
+composer.addPass(crtPass);
+
+// Feedback (ping-pong buffers, rendered outside composer)
+const fbRtParams = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.HalfFloatType };
+let fbRtA = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, fbRtParams);
+let fbRtB = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, fbRtParams);
+const fbMaterial = new THREE.ShaderMaterial(FeedbackBlendShader);
+const fbQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fbMaterial);
+const fbScene = new THREE.Scene(); fbScene.add(fbQuad);
+const fbCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const screenMat = new THREE.ShaderMaterial(ScreenBlitShader);
+const screenQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), screenMat);
+const screenScene = new THREE.Scene(); screenScene.add(screenQuad);
+let feedbackEnabled = false;
+
+function applyFxMode(modeName) {
+  currentFxMode = modeName;
+  const m = FX_MODES[modeName] || FX_MODES.clean;
+  chromaPass.enabled = m.chromatic > 0;
+  huePass.enabled = m.hueSpeed > 0;
+  grainPass.enabled = m.grain > 0;
+  radialBlurPass.enabled = m.radialBlur > 0;
+  kaleidPass.enabled = m.kaleidoSegments > 0;
+  driftPass.enabled = m.drift > 0;
+  crtPass.enabled = m.scanlines > 0;
+  feedbackEnabled = m.feedback > 0;
+  if (kaleidPass.enabled) kaleidPass.uniforms.uSegments.value = m.kaleidoSegments;
+  // When feedback is on, composer renders to buffer not screen
+  composer.renderToScreen = !feedbackEnabled;
+}
 
 // ── Visual Style Textures ──────────────────────────────────
 // Hard-edged circle with minimal falloff = crisp like Casberry
@@ -4986,6 +5525,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'i' || e.key === 'I') { toggleHud(); }
   else if (e.key === 's' || e.key === 'S') { reactToggleBtn.click(); }
   else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
+  else if (e.key === 'v' || e.key === 'V') { cycleFxMode(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
     if (lyricsActive) {
@@ -5006,6 +5546,22 @@ document.getElementById('auto-rotate-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
 });
+
+// FX mode button
+const fxModeBtn = document.getElementById('fx-mode-btn');
+const fxNameEl = document.getElementById('sim-name');
+let fxLabelTimer = null;
+function cycleFxMode() {
+  const idx = (fxModeNames.indexOf(currentFxMode) + 1) % fxModeNames.length;
+  applyFxMode(fxModeNames[idx]);
+  fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
+  // Flash the mode name briefly in the sim name display
+  const origName = SIMULATIONS[currentSimIndex].name;
+  fxNameEl.textContent = 'FX: ' + currentFxMode.toUpperCase().replace('_', ' ');
+  clearTimeout(fxLabelTimer);
+  fxLabelTimer = setTimeout(() => { fxNameEl.textContent = origName; }, 1500);
+}
+fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
 
 // Click canvas no longer advances sim (this is a listening app)
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -5205,6 +5761,9 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
+  fbRtA.setSize(window.innerWidth, window.innerHeight);
+  fbRtB.setSize(window.innerWidth, window.innerHeight);
+  grainPass.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
   fixCanvasStyle();
 });
 
@@ -6009,7 +6568,52 @@ function animate() {
   // Dynamic bloom
   bloomPass.strength = glowIntensity + rms * glowIntensity * 0.3;
 
-  composer.render();
+  // ── Update FX uniforms ──────────────────────────────────
+  const fxMode = FX_MODES[currentFxMode] || FX_MODES.clean;
+  const perfNow = performance.now() * 0.001;
+
+  if (chromaPass.enabled) {
+    chromaPass.uniforms.uIntensity.value = fxMode.chromatic + bass * fxMode.chromatic * 1.5;
+  }
+  if (huePass.enabled) {
+    huePass.uniforms.uHueShift.value = (perfNow * fxMode.hueSpeed) % (Math.PI * 2);
+    huePass.uniforms.uSatBoost.value = 1.0 + mids * 0.4;
+  }
+  if (grainPass.enabled) {
+    grainPass.uniforms.uTime.value = perfNow;
+    grainPass.uniforms.uIntensity.value = fxMode.grain + rms * fxMode.grain * 0.5;
+  }
+  if (radialBlurPass.enabled) {
+    radialBlurPass.uniforms.uIntensity.value = fxMode.radialBlur * bass;
+  }
+  if (kaleidPass.enabled) {
+    kaleidPass.uniforms.uRotation.value += 0.003 + mids * 0.01;
+  }
+  if (driftPass.enabled) {
+    driftPass.uniforms.uTime.value = perfNow;
+    driftPass.uniforms.uIntensity.value = fxMode.drift + mids * fxMode.drift;
+  }
+  if (crtPass.enabled) {
+    crtPass.uniforms.uTime.value = perfNow;
+    crtPass.uniforms.uScanlineIntensity.value = fxMode.scanlines + bass * 0.05;
+  }
+
+  // ── Render with or without feedback ─────────────────────
+  if (feedbackEnabled) {
+    composer.render();
+    fbMaterial.uniforms.tNew.value = composer.readBuffer.texture;
+    fbMaterial.uniforms.tOld.value = fbRtB.texture;
+    fbMaterial.uniforms.uDecay.value = fxMode.feedback + rms * 0.05;
+    fbMaterial.uniforms.uDrift.value = bass * 0.002;
+    renderer.setRenderTarget(fbRtA);
+    renderer.render(fbScene, fbCamera);
+    renderer.setRenderTarget(null);
+    screenMat.uniforms.tDiffuse.value = fbRtA.texture;
+    renderer.render(screenScene, fbCamera);
+    [fbRtA, fbRtB] = [fbRtB, fbRtA];
+  } else {
+    composer.render();
+  }
 }
 
 animate();
