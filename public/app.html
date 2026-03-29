@@ -6472,24 +6472,21 @@ function animate() {
     let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
     let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
 
-    // Particle text blending -- billboard lyrics that always face the camera
+    // Particle text blending -- slowly rotating text plane in 3D space
     if (doLyrics && i < lyricParticleCount) {
       const i3 = i * 3;
       const rawTx = textTargets[i3];
       const rawTy = textTargets[i3 + 1];
 
-      // Billboard: use the camera's own right and up vectors from its matrix.
-      // This is the correct way to billboard -- no manual cross products.
-      const m = camera.matrixWorld.elements;
-      // Camera right = column 0 of matrixWorld
-      const rxN = m[0], ryN = m[1], rzN = m[2];
-      // Camera up = column 1 of matrixWorld
-      const uxN = m[4], uyN = m[5], uzN = m[6];
+      // Slow Y-axis rotation so camera passes through the text plane
+      const rotSpeed = 0.15;
+      const rotAngle = elapsed * rotSpeed;
+      const cosA = Math.cos(rotAngle);
+      const sinA = Math.sin(rotAngle);
 
-      // Project 2D text coords onto the camera-facing plane
-      let finalTx = rawTx * rxN + rawTy * uxN;
-      let finalTy = rawTx * ryN + rawTy * uyN;
-      let finalTz = rawTx * rzN + rawTy * uzN;
+      let finalTx = rawTx * cosA;
+      let finalTy = rawTy;
+      let finalTz = rawTx * sinA;
 
       // Every 5th particle orbits around the text for a floating/rotating feel
       if (i % 5 === 0) {
