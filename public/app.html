@@ -5762,12 +5762,12 @@ function updateCinematicCamera(t, bass, rms) {
 }
 
 // ── Text-to-Particle Sampling ──────────────────────────────
-const LYRIC_PARTICLE_RATIO = 0.35;
+const LYRIC_PARTICLE_RATIO = 0.55;
 let lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
 const textCanvas = document.createElement('canvas');
 const textCtx = textCanvas.getContext('2d', { willReadFrequently: true });
-textCanvas.width = 512;
-textCanvas.height = 128;
+textCanvas.width = 800;
+textCanvas.height = 200;
 
 let textTargets = new Float32Array(lyricParticleCount * 3);
 let lyricBlend = 0; // 0 = all sim, 1 = all text
@@ -5784,12 +5784,12 @@ function sampleTextPositions(text) {
   textCtx.textAlign = 'center';
   textCtx.textBaseline = 'middle';
 
-  let fontSize = 64;
-  textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
+  let fontSize = 100;
+  textCtx.font = `700 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
   let metrics = textCtx.measureText(text);
-  while (metrics.width > w * 0.9 && fontSize > 16) {
+  while (metrics.width > w * 0.9 && fontSize > 20) {
     fontSize -= 2;
-    textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
+    textCtx.font = `700 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
     metrics = textCtx.measureText(text);
   }
 
@@ -5798,11 +5798,12 @@ function sampleTextPositions(text) {
   const imageData = textCtx.getImageData(0, 0, w, h);
   const pixels = imageData.data;
   const filledPixels = [];
-  for (let y = 0; y < h; y += 2) {
-    for (let x = 0; x < w; x += 2) {
+  // Sample every pixel for maximum sharpness
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
       const idx = (y * w + x) * 4;
       if (pixels[idx + 3] > 128) {
-        filledPixels.push([(x - w / 2) * 0.18, -(y - h / 2) * 0.18]);
+        filledPixels.push([(x - w / 2) * 0.12, -(y - h / 2) * 0.12]);
       }
     }
   }
@@ -5814,9 +5815,10 @@ function sampleTextPositions(text) {
     }
     const pi = i % filledPixels.length;
     const px = filledPixels[pi];
-    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.12;
-    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.12;
-    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
+    // Minimal jitter for crisp letter edges
+    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.04;
+    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.04;
+    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
   }
 }
 
