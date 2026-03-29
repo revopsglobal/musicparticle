@@ -6546,19 +6546,34 @@ function animate() {
     let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
     let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
 
-    // Particle text blending -- sim-flavored lyrics
-    // Each sim's own particle motion bleeds through the text, so CHLADNI text
-    // vibrates, DNA HELIX text spirals, STORM text drifts, etc.
+    // Particle text blending -- billboard lyrics that always face the camera
     if (doLyrics && i < lyricParticleCount) {
       const i3 = i * 3;
-      let finalTx = textTargets[i3];
-      let finalTy = textTargets[i3 + 1];
-      let finalTz = textTargets[i3 + 2];
+      const rawTx = textTargets[i3];
+      const rawTy = textTargets[i3 + 1];
 
-      // Blend the sim's own spatial motion into the text positions.
-      // This makes each sim's lyrics look unique -- the text inherits
-      // the sim's geometry as a living perturbation.
-      const simBleed = 0.05;
+      // Billboard: rotate text plane to face camera.
+      // Camera looks at origin, so the text plane normal = camera direction.
+      const cpx = camera.position.x, cpy = camera.position.y, cpz = camera.position.z;
+      const cdist = Math.sqrt(cpx * cpx + cpy * cpy + cpz * cpz) || 1;
+      // Forward vector (camera to origin)
+      const fwdX = -cpx / cdist, fwdY = -cpy / cdist, fwdZ = -cpz / cdist;
+      // Right vector (cross product of fwd and world up [0,1,0])
+      const rightX = fwdZ, rightZ = -fwdX;
+      const rightLen = Math.sqrt(rightX * rightX + rightZ * rightZ) || 1;
+      const rxN = rightX / rightLen, rzN = rightZ / rightLen;
+      // Up vector (cross product of right and fwd)
+      const upX = fwdY * rzN;
+      const upY = -(fwdX * rzN - fwdZ * rxN);
+      const upZ = -fwdY * rxN;
+
+      // Project 2D text coords onto the billboard plane
+      let finalTx = rawTx * rxN + rawTy * upX;
+      let finalTy = rawTy * upY;
+      let finalTz = rawTx * rzN + rawTy * upZ;
+
+      // Subtle sim bleed for per-sim character
+      const simBleed = 0.03;
       finalTx += fx * simBleed;
       finalTy += fy * simBleed;
       finalTz += fz * simBleed;
@@ -6567,16 +6582,10 @@ function animate() {
       fy = fy * invLb + finalTy * lb;
       fz = fz * invLb + finalTz * lb;
 
-      // Brighten text particles with a minimum floor so they're always visible
-      const boost = 3.0 + 0.3 * Math.sin(elapsed * 3 + i * 0.01);
-      const floor = 0.45;
-      const tr = Math.min(1.0, Math.max(floor, cr * boost));
-      const tg = Math.min(1.0, Math.max(floor, cg * boost));
-      const tb = Math.min(1.0, Math.max(floor, cb * boost));
-
-      cr = cr * invLb + tr * lb;
-      cg = cg * invLb + tg * lb;
-      cb = cb * invLb + tb * lb;
+      // Text color: consistent readable white-grey, not dependent on sim colors
+      cr = cr * invLb + 0.6 * lb;
+      cg = cg * invLb + 0.6 * lb;
+      cb = cb * invLb + 0.65 * lb;
     }
 
     const i3 = i * 3;
