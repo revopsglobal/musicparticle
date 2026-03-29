@@ -4698,104 +4698,6 @@ function buildParticleSystem() {
 
 buildParticleSystem();
 
-// ── Inner Energy Core ────────────────────────────────────────
-const coreMat = new THREE.MeshBasicMaterial({
-  color: 0xffa040,
-  transparent: true,
-  opacity: 0.0,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-});
-const coreGeo = new THREE.IcosahedronGeometry(1.2, 2);
-const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-scene.add(coreMesh);
-
-// Outer halo (softer, larger)
-const haloMat = new THREE.MeshBasicMaterial({
-  color: 0xff6020,
-  transparent: true,
-  opacity: 0.12,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-});
-const haloMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.0, 1), haloMat);
-scene.add(haloMesh);
-
-// ── Shockwave Rings ──────────────────────────────────────────
-const RING_POOL_SIZE = 4;
-const shockwaveRings = [];
-for (let r = 0; r < RING_POOL_SIZE; r++) {
-  const ringGeo = new THREE.RingGeometry(0.8, 1.2, 64);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: 0xffa060,
-    transparent: true,
-    opacity: 0,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-  ringMesh.userData = { active: false, age: 0, axis: new THREE.Vector3(0, 1, 0) };
-  scene.add(ringMesh);
-  shockwaveRings.push(ringMesh);
-}
-
-let lastBeatTime = 0;
-let prevBass = 0;
-const BEAT_THRESHOLD = 0.35;
-const BEAT_COOLDOWN = 0.4; // seconds between rings
-
-function spawnShockwave(bass) {
-  const now = performance.now() / 1000;
-  if (now - lastBeatTime < BEAT_COOLDOWN) return;
-  lastBeatTime = now;
-
-  // Find an inactive ring
-  let ring = null;
-  for (let r = 0; r < RING_POOL_SIZE; r++) {
-    if (!shockwaveRings[r].userData.active) { ring = shockwaveRings[r]; break; }
-  }
-  if (!ring) {
-    // Recycle oldest
-    let oldest = shockwaveRings[0];
-    for (let r = 1; r < RING_POOL_SIZE; r++) {
-      if (shockwaveRings[r].userData.age > oldest.userData.age) oldest = shockwaveRings[r];
-    }
-    ring = oldest;
-  }
-
-  ring.userData.active = true;
-  ring.userData.age = 0;
-  ring.scale.set(1, 1, 1);
-  ring.material.opacity = 0.4 + bass * 0.3;
-
-  // Random axis tilt for variety
-  const ax = (Math.random() - 0.5) * 0.6;
-  const ay = 1;
-  const az = (Math.random() - 0.5) * 0.6;
-  ring.userData.axis.set(ax, ay, az).normalize();
-  ring.lookAt(ring.userData.axis);
-}
-
-function updateShockwaves(dt) {
-  for (let r = 0; r < RING_POOL_SIZE; r++) {
-    const ring = shockwaveRings[r];
-    if (!ring.userData.active) continue;
-
-    ring.userData.age += dt;
-    const t = ring.userData.age;
-    const expandSpeed = 35;
-    const s = 1 + t * expandSpeed;
-    ring.scale.set(s, s, s);
-    ring.material.opacity = Math.max(0, (0.5 - t * 0.6));
-
-    if (ring.material.opacity <= 0) {
-      ring.userData.active = false;
-      ring.material.opacity = 0;
-    }
-  }
-}
-
 // ── Simulation Compiler ────────────────────────────────────
 let compiledSim = null;
 let simControls = {};
@@ -6068,26 +5970,6 @@ function animate() {
   updateLyrics();
   checkForSilence(audio.sRms);
   checkForSongChange();
-
-  // ── Inner Core pulse ──
-  const coreScale = 1.0 + bass * 4.0;
-  coreMesh.scale.set(coreScale, coreScale, coreScale);
-  coreMesh.material.opacity = bass * 0.6;
-  coreMesh.rotation.x += dt * 0.3;
-  coreMesh.rotation.y += dt * 0.5;
-
-  const haloScale = 1.5 + bass * 6.0;
-  haloMesh.scale.set(haloScale, haloScale, haloScale);
-  haloMesh.material.opacity = bass * 0.25;
-  haloMesh.rotation.x -= dt * 0.2;
-  haloMesh.rotation.y -= dt * 0.15;
-
-  // ── Shockwave rings ──
-  if (bass > BEAT_THRESHOLD && bass - prevBass > 0.08) {
-    spawnShockwave(bass);
-  }
-  prevBass = bass;
-  updateShockwaves(dt);
 
   // Dynamic bloom
   bloomPass.strength = glowIntensity + rms * glowIntensity * 0.3;
