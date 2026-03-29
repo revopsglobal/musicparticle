@@ -4728,38 +4728,44 @@ const radius = addControl("radius", "Loop Radius", 15, 50, 30);
 
 const t = time * flowRate;
 
-// Parametric Mobius strip: u goes around the loop, v across the width
-const uCount = Math.ceil(Math.sqrt(count * 4));
-const vCount = Math.ceil(count / uCount);
+// Use golden-ratio spacing for seamless coverage around the loop
+// u = position around the loop [0, 2pi), v = position across strip width [-0.5, 0.5]
+const goldenAngle = 2.399963; // pi * (3 - sqrt(5))
+const u = (i * goldenAngle) % (Math.PI * 2);
+const v = ((i * 0.6180339887) % 1.0 - 0.5) * width;
 
-const ui = i % uCount;
-const vi = Math.floor(i / uCount) % vCount;
-
-const u = (ui / uCount) * Math.PI * 2;
-const v = (vi / vCount - 0.5) * width;
-
-// Flow: particles drift along u over time
+// Flow: shift u over time for particle motion along the strip
 const uFlow = u + t;
 
 // Mobius strip parametric equations with N half-twists
-const halfTwist = uFlow * twist / 2;
+// The twist must use uFlow so the surface stays continuous
+const halfTwist = uFlow * twist * 0.5;
 
-const x = (radius + v * Math.cos(halfTwist)) * Math.cos(uFlow);
-const y = (radius + v * Math.cos(halfTwist)) * Math.sin(uFlow);
-const z = v * Math.sin(halfTwist);
+const cosU = Math.cos(uFlow);
+const sinU = Math.sin(uFlow);
+const cosHT = Math.cos(halfTwist);
+const sinHT = Math.sin(halfTwist);
 
-target.set(x, y, z);
+const x = (radius + v * cosHT) * cosU;
+const y = (radius + v * cosHT) * sinU;
+const z = v * sinHT;
 
-// Color flows along the strip
-const hue = ((ui / uCount) + t * 0.05) % 1.0;
-const edgeFade = 1.0 - Math.pow(Math.abs(vi / vCount - 0.5) * 2, 2);
+// Add subtle breathing on bass
+const breath = 1.0 + bass * 0.08;
+target.set(x * breath, y * breath, z * breath);
+
+// Color: hue flows along the strip, brightness from center to edge
+const uNorm = ((uFlow % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
+const hue = (uNorm + t * 0.03) % 1.0;
+const vNorm = Math.abs(v / width * 2); // 0 at center, 1 at edge
+const edgeFade = 1.0 - vNorm * vNorm;
 const sat = 0.5 + 0.4 * edgeFade;
-const lum = 0.15 + 0.45 * edgeFade + 0.15 * Math.sin(uFlow * 4 + t * 2);
+const lum = 0.15 + 0.45 * edgeFade + 0.1 * Math.sin(uFlow * 4 + t * 2);
 
 color.setHSL(hue, sat, lum);
 
 if (i === 0) {
-    setInfo("Mobius Strip", "A one-sided surface with a half-twist. Particles flow along the loop, tracing a path that visits both 'sides' before returning to start. Topology made visible.");
+    setInfo("Mobius Strip", "A one-sided surface with a half-twist. Particles flow along the loop, tracing a path that visits both 'sides' before returning to start.");
     annotate("twist", new THREE.Vector3(radius, 0, 0), "Twist Point");
 }
 `
