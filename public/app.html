@@ -6558,25 +6558,18 @@ function animate() {
       const rawTx = textTargets[i3];
       const rawTy = textTargets[i3 + 1];
 
-      // Billboard: rotate text plane to face camera.
-      // Camera looks at origin, so the text plane normal = camera direction.
-      const cpx = camera.position.x, cpy = camera.position.y, cpz = camera.position.z;
-      const cdist = Math.sqrt(cpx * cpx + cpy * cpy + cpz * cpz) || 1;
-      // Forward vector (camera to origin)
-      const fwdX = -cpx / cdist, fwdY = -cpy / cdist, fwdZ = -cpz / cdist;
-      // Right vector (cross product of fwd and world up [0,1,0])
-      const rightX = fwdZ, rightZ = -fwdX;
-      const rightLen = Math.sqrt(rightX * rightX + rightZ * rightZ) || 1;
-      const rxN = rightX / rightLen, rzN = rightZ / rightLen;
-      // Up vector (cross product of right and fwd)
-      const upX = fwdY * rzN;
-      const upY = -(fwdX * rzN - fwdZ * rxN);
-      const upZ = -fwdY * rxN;
+      // Billboard: use the camera's own right and up vectors from its matrix.
+      // This is the correct way to billboard -- no manual cross products.
+      const m = camera.matrixWorld.elements;
+      // Camera right = column 0 of matrixWorld
+      const rxN = m[0], ryN = m[1], rzN = m[2];
+      // Camera up = column 1 of matrixWorld
+      const uxN = m[4], uyN = m[5], uzN = m[6];
 
-      // Project 2D text coords onto the billboard plane
-      let finalTx = rawTx * rxN + rawTy * upX;
-      let finalTy = rawTy * upY;
-      let finalTz = rawTx * rzN + rawTy * upZ;
+      // Project 2D text coords onto the camera-facing plane
+      let finalTx = rawTx * rxN + rawTy * uxN;
+      let finalTy = rawTx * ryN + rawTy * uyN;
+      let finalTz = rawTx * rzN + rawTy * uzN;
 
       // Subtle sim bleed for per-sim character
       const simBleed = 0.03;
@@ -6588,7 +6581,7 @@ function animate() {
       fy = fy * invLb + finalTy * lb;
       fz = fz * invLb + finalTz * lb;
 
-      // Text color: consistent readable white-grey, not dependent on sim colors
+      // Text color: consistent readable white-grey
       cr = cr * invLb + 0.6 * lb;
       cg = cg * invLb + 0.6 * lb;
       cb = cb * invLb + 0.65 * lb;
