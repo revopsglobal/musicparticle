@@ -5134,19 +5134,38 @@ let compiledSim = null;
 let simControls = {};
 const simControlsEl = document.getElementById('sim-controls');
 
+// Per-sim control persistence
+function getSimControlStore() {
+  try { return JSON.parse(localStorage.getItem('mp_sim_controls') || '{}'); } catch (e) { return {}; }
+}
+function saveSimControl(simName, id, value) {
+  const store = getSimControlStore();
+  if (!store[simName]) store[simName] = {};
+  store[simName][id] = value;
+  localStorage.setItem('mp_sim_controls', JSON.stringify(store));
+}
+function getSavedSimControl(simName, id) {
+  const store = getSimControlStore();
+  return store[simName] && store[simName][id] != null ? store[simName][id] : null;
+}
+
 function addControl(id, label, min, max, initial) {
   if (!(id in simControls)) {
-    simControls[id] = initial;
+    const simName = SIMULATIONS[currentSimIndex] ? SIMULATIONS[currentSimIndex].name : '';
+    const saved = getSavedSimControl(simName, id);
+    const val = saved != null ? Math.max(min, Math.min(max, saved)) : initial;
+    simControls[id] = val;
     const wrapper = document.createElement('div');
     wrapper.className = 'ctrl-slider';
-    wrapper.innerHTML = `<label>${label} <span id="simval-${id}">${initial.toFixed(1)}</span></label>
-      <input type="range" id="simctrl-${id}" min="${min}" max="${max}" step="${(max-min)/200}" value="${initial}">`;
+    wrapper.innerHTML = `<label>${label} <span id="simval-${id}">${val.toFixed(1)}</span></label>
+      <input type="range" id="simctrl-${id}" min="${min}" max="${max}" step="${(max-min)/200}" value="${val}">`;
     simControlsEl.appendChild(wrapper);
     const input = wrapper.querySelector('input');
     const valSpan = wrapper.querySelector('span');
     input.addEventListener('input', () => {
       simControls[id] = parseFloat(input.value);
       valSpan.textContent = simControls[id].toFixed(1);
+      saveSimControl(simName, id, simControls[id]);
     });
   }
   return simControls[id];
