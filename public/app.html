@@ -5695,47 +5695,13 @@ function updateLyrics() {
     if (now >= lyricsData[i].time) { currentIdx = i; break; }
   }
 
-  if (currentIdx < 0) {
-    // Before first lyric line, but lyrics are active: show first line as preview
-    if (lyricsData.length > 0 && lastLyricIdx === -1) {
-      sampleTextPositions(lyricsData[0].text);
-      lastLyricIdx = -2; // mark as previewing
-      lyricBlendTarget = 1;
-    }
-    return;
-  }
-
-  // Check if we're in an instrumental break
-  const currentLine = lyricsData[currentIdx];
-  const nextLine = lyricsData[currentIdx + 1];
-  const timeSinceLineStart = now - currentLine.time;
-  const gapToNext = nextLine ? (nextLine.time - currentLine.time) : 999;
-  // Only dissolve during long instrumental breaks (8s showing, 10s gap)
-  // This is very conservative to prevent premature text disappearance
-  const isInBreak = timeSinceLineStart > 8.0 && gapToNext > 10.0;
-
-  if (isInBreak) {
-    lyricBlendTarget = 0;
-  } else if (currentIdx !== lastLyricIdx) {
-    const prevIdx = lastLyricIdx;
+  if (currentIdx >= 0 && currentIdx !== lastLyricIdx) {
     lastLyricIdx = currentIdx;
-    sampleTextPositions(currentLine.text);
-
-    // Only scatter if there was a long gap (>3s) since the last line (verse break, chorus change)
-    // For rapid consecutive lines, just swap the text directly without scatter
-    const timeSincePrev = prevIdx >= 0 ? (currentLine.time - lyricsData[prevIdx].time) : 999;
-    if (timeSincePrev > 3.0) {
-      // Long gap: scatter then reform (dramatic transition)
-      lyricBlendTarget = 0;
-      setTimeout(() => { lyricBlendTarget = 1; }, 400);
-    } else {
-      // Quick line change: brief partial dissolve then reform
-      lyricBlend = Math.max(0.3, lyricBlend * 0.5);
-      lyricBlendTarget = 1;
-    }
-  } else {
-    // Same line, keep showing it
-    lyricBlendTarget = 1;
+    sampleTextPositions(lyricsData[currentIdx].text);
+    lyricBlendTarget = 0;
+    setTimeout(() => { lyricBlendTarget = 1; }, 300);
+  } else if (currentIdx < 0) {
+    lyricBlendTarget = 0;
   }
 }
 
@@ -5914,13 +5880,8 @@ function animate() {
   barHighEl.style.height = (2 + highs * 18) + 'px';
 
   // Smooth lyric blend
-  // Blend speed: fast rise to 1 (text forms quickly), slow fall to 0 (text lingers)
-  if (lyricBlendTarget > lyricBlend) {
-    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.04; // visible particle formation
-  } else {
-    lyricBlend += (lyricBlendTarget - lyricBlend) * 0.03; // visible dissolve
-  }
-  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.99;
+  lyricBlend += (lyricBlendTarget - lyricBlend) * 0.06;
+  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.95;
 
   // Run simulation for each particle
   const pos = pointGeo.attributes.position.array;
