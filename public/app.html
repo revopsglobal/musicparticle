@@ -6491,6 +6491,15 @@ function animate() {
       let finalTy = rawTx * ryN + rawTy * uyN;
       let finalTz = rawTx * rzN + rawTy * uzN;
 
+      // Every 5th particle orbits around the text for a floating/rotating feel
+      if (i % 5 === 0) {
+        const orbitR = 1.2 + Math.sin(i * 0.7) * 0.5;
+        const orbitA = elapsed * 2.0 + i * 0.3;
+        finalTx += Math.cos(orbitA) * orbitR;
+        finalTy += Math.sin(orbitA * 1.3) * orbitR * 0.6;
+        finalTz += Math.sin(orbitA * 0.7) * orbitR;
+      }
+
       // Subtle sim bleed for per-sim character
       const simBleed = 0.03;
       finalTx += fx * simBleed;
