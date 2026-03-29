@@ -431,6 +431,7 @@
 
 <div id="bottom-bar">
   <button class="nav-btn" id="mic-toggle-btn" title="Mute/unmute mic (M)" style="font-size:0.55rem;letter-spacing:0.03em;position:relative">MIC</button>
+  <button class="nav-btn active" id="react-toggle-btn" title="Toggle audio reactivity (S)" style="font-size:0.45rem;letter-spacing:0.03em">REACT</button>
   <button class="nav-btn" id="info-toggle-btn" title="Toggle info (I)" style="font-size:0.6rem;letter-spacing:0.03em">i</button>
   <button class="nav-btn" id="prev-btn" title="Previous">&lsaquo;</button>
   <div id="sim-name">HOPF FIBRATION</div>
@@ -580,6 +581,7 @@
   <div><kbd>Tab</kbd> Toggle controls</div>
   <div><kbd>A</kbd> Auto shuffle mode</div>
   <div><kbd>L</kbd> Toggle lyrics</div>
+  <div><kbd>S</kbd> Toggle audio reactivity</div>
   <div><kbd>I</kbd> Toggle info card</div>
   <div><kbd>F</kbd> Fullscreen</div>
   <div><kbd>Click</kbd> Next simulation</div>
@@ -5155,6 +5157,27 @@ let hudSuppressed = false; // user manually hid the HUD
 const hudInfo = document.getElementById('hud-info');
 const infoToggleBtn = document.getElementById('info-toggle-btn');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const reactToggleBtn = document.getElementById('react-toggle-btn');
+
+// Audio reactivity toggle
+let reactivityEnabled = true;
+let savedSensitivity = 1.0;
+
+reactToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  reactivityEnabled = !reactivityEnabled;
+  if (reactivityEnabled) {
+    audioSensitivity = savedSensitivity;
+    document.getElementById('ctrl-sensitivity').value = savedSensitivity;
+    document.getElementById('val-sensitivity').textContent = savedSensitivity.toFixed(1);
+  } else {
+    savedSensitivity = audioSensitivity || 1.0;
+    audioSensitivity = 0;
+    document.getElementById('ctrl-sensitivity').value = 0;
+    document.getElementById('val-sensitivity').textContent = '0.0';
+  }
+  reactToggleBtn.classList.toggle('active', reactivityEnabled);
+});
 
 function setInfo(title, desc) {
   document.getElementById('hud-title').textContent = title;
@@ -5343,6 +5366,7 @@ document.addEventListener('keydown', (e) => {
     autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
   }
   else if (e.key === 'i' || e.key === 'I') { toggleHud(); }
+  else if (e.key === 's' || e.key === 'S') { reactToggleBtn.click(); }
   else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
