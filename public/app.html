@@ -1388,55 +1388,6 @@ if (i === 0) {
 `
   },
   {
-    name: 'GEOMETRICAL CONFIG',
-    cam: [10, 55, 130],
-    code: `
-const pulse = addControl("pulse", "Breath Speed", 0.1, 2.0, 0.7);
-const radius = addControl("radius", "Shell Size", 10, 60, 30);
-const warp = addControl("warp", "Warp Strength", 0, 3, 1.5);
-const spin = addControl("spin", "Spin Speed", 0, 3, 1.0);
-
-const t = time * pulse;
-
-const phi = Math.acos(1 - 2 * (i / count));
-const theta = Math.sqrt(count * Math.PI) * phi;
-
-const wave = Math.sin(phi * 6 + t * 2) * warp;
-const wave2 = Math.cos(theta * 0.5 - t * 1.5) * warp;
-
-const r = radius + wave * 8;
-
-let x = r * Math.sin(phi) * Math.cos(theta);
-let y = r * Math.sin(phi) * Math.sin(theta);
-let z = r * Math.cos(phi);
-
-// cosmic spiral rotation
-const rot = t * spin + wave2;
-const rx = x * Math.cos(rot) - y * Math.sin(rot);
-const ry = x * Math.sin(rot) + y * Math.cos(rot);
-
-// vertical breathing distortion
-z += Math.sin(r * 0.3 + t * 3) * warp * 3;
-
-target.set(rx, ry, z);
-
-// energetic color flow
-const hue = ((phi / Math.PI) + t * 0.08) % 1;
-const sat = 0.7 + Math.sin(theta * 0.3 + t) * 0.3;
-const light = 0.45 + Math.sin(t + phi * 4) * 0.15;
-
-color.setHSL(hue, sat, light);
-
-if (i === 0) {
-setInfo(
-"Quantum Galaxy Shell",
-"A breathing hyperspherical energy shell rotating through harmonic spiral interference."
-);
-annotate("core", new THREE.Vector3(0,0,0), "Quantum Singularity");
-}
-`
-  },
-  {
     name: 'CLOUD FORMATIONS',
     cam: [25, 180, 350],
     code: `
@@ -4260,260 +4211,6 @@ target.set(px, py, pz);
 color.setHSL(hue, sat, lit);
 `
   },
-  {
-    name: 'CHLADNI WAVE',
-    cam: [20, 120, 250],
-    code: `
-const scale = addControl("scale", "Scale", 40, 180, 95);
-const seed = addControl("seed", "Seed", 0, 100, 1);
-
-// field / plate
-const mode = Math.floor(addControl("mode", "Mode", 0, 4, 0));
-const plate = Math.floor(addControl("plate", "Plate", 0, 3, 0)); // 0=square 1=circle 2=diamond 3=rounded
-const symmetry = Math.floor(addControl("symmetry", "Symmetry", 1, 8, 1));
-
-const a = Math.floor(addControl("a", "A", 1, 14, 4));
-const b = Math.floor(addControl("b", "B", 1, 14, 7));
-const c = Math.floor(addControl("c", "C", 1, 14, 9));
-const d = Math.floor(addControl("d", "D", 1, 14, 2));
-const fieldMix = addControl("fieldMix", "Field Mix", 0.0, 1.0, 0.28);
-
-// transform
-const aspect = addControl("aspect", "Aspect", 0.4, 2.0, 1.0);
-const rotation = addControl("rotation", "Rotation", 0.0, 1.0, 0.0);
-
-// nodal projection
-const iterations = Math.floor(addControl("iterations", "Iterations", 0, 10, 5));
-const project = addControl("project", "Project", 0.0, 1.8, 0.78);
-const thickness = addControl("thickness", "Thickness", 0.02, 1.2, 0.16);
-const tangentSpread = addControl("tangentSpread", "Tangent Spread", 0.0, 1.0, 0.26);
-const jitter = addControl("jitter", "Jitter", 0.0, 1.0, 0.18);
-
-// motion / warp
-const warp = addControl("warp", "Warp", 0.0, 2.0, 0.35);
-const warpFreq = addControl("warpFreq", "Warp Freq", 0.5, 6.0, 2.4);
-const swirl = addControl("swirl", "Swirl", 0.0, 3.0, 0.35);
-const ripple = addControl("ripple", "Ripple", 0.0, 2.0, 0.55);
-const drift = addControl("drift", "Drift", 0.0, 2.0, 0.22);
-
-// plate boundary / depth
-const boundaryPull = addControl("boundaryPull", "Boundary Pull", 0.0, 1.0, 0.82);
-const maskSoftness = addControl("maskSoftness", "Mask Softness", 0.02, 0.4, 0.10);
-const lift = addControl("lift", "Lift", 0.0, 20.0, 6.0);
-const zRipple = addControl("zRipple", "Z Ripple", 0.0, 8.0, 1.4);
-
-// color
-const hue = addControl("hue", "Hue", 0.0, 1.0, 0.08);
-const saturation = addControl("saturation", "Saturation", 0.0, 1.0, 0.78);
-const hueCycle = addControl("hueCycle", "Hue Cycle", 0.0, 1.0, 0.14);
-const lightBase = addControl("lightBase", "Light Base", 0.0, 0.5, 0.12);
-const lightGain = addControl("lightGain", "Light Gain", 0.0, 1.0, 0.62);
-
-function fract(v) {
-  return v - Math.floor(v);
-}
-
-function hash(n) {
-  return fract(Math.sin(n) * 43758.5453123);
-}
-
-function clamp(v, lo, hi) {
-  return Math.max(lo, Math.min(hi, v));
-}
-
-function mix(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function plateMetric(px, py) {
-  const pi = 3.141592653589793;
-  const ang = rotation * pi;
-  const ca = Math.cos(ang);
-  const sa = Math.sin(ang);
-
-  let x = px * ca - py * sa;
-  let y = px * sa + py * ca;
-  y /= aspect;
-
-  const ax = Math.abs(x);
-  const ay = Math.abs(y);
-
-  if (plate === 0) {
-    return Math.max(ax, ay);
-  }
-  if (plate === 1) {
-    return Math.sqrt(x * x + y * y);
-  }
-  if (plate === 2) {
-    return ax + ay;
-  }
-  return Math.pow(Math.pow(ax, 4.0) + Math.pow(ay, 4.0), 0.25);
-}
-
-function chladni(px, py, tt) {
-  const pi = 3.141592653589793;
-  const ang0 = rotation * pi;
-  const ca = Math.cos(ang0);
-  const sa = Math.sin(ang0);
-
-  let x = px * ca - py * sa;
-  let y = px * sa + py * ca;
-  y /= aspect;
-
-  const r0 = Math.sqrt(x * x + y * y);
-  if (swirl > 0.0) {
-    const a0 = Math.atan2(y, x) + swirl * 0.45 * r0;
-    x = r0 * Math.cos(a0);
-    y = r0 * Math.sin(a0);
-  }
-
-  if (warp > 0.0) {
-    const wx = warp * 0.14 * Math.sin((y * warpFreq + tt * 0.9 + 0.21 * Math.cos(x * 3.1)) * pi);
-    const wy = warp * 0.14 * Math.sin((x * warpFreq - tt * 0.7 + 0.18 * Math.sin(y * 2.7)) * pi);
-    x += wx;
-    y += wy;
-  }
-
-  if (symmetry > 1) {
-    const rr = Math.sqrt(x * x + y * y);
-    const aa = Math.atan2(y, x);
-    const sector = 2.0 * pi / symmetry;
-    const folded = (fract((aa + pi) / sector) - 0.5) * sector;
-    x = rr * Math.cos(folded);
-    y = rr * Math.sin(folded);
-  }
-
-  const r = Math.sqrt(x * x + y * y);
-  const axy = Math.atan2(y, x);
-
-  const f0 =
-    Math.sin(a * pi * x) * Math.sin(b * pi * y) -
-    Math.sin(c * pi * x) * Math.sin(d * pi * y);
-
-  const f1 =
-    Math.cos(a * pi * x) -
-    Math.cos(b * pi * y) +
-    0.35 * Math.sin(c * pi * (x + y)) +
-    0.20 * Math.cos(d * pi * (x - y));
-
-  const f2 =
-    Math.sin(a * pi * x) +
-    Math.sin(b * pi * y) -
-    Math.sin(c * pi * (x + y) * 0.5) -
-    0.5 * Math.sin(d * pi * (x - y) * 0.5);
-
-  const f3 =
-    Math.sin(a * pi * r) +
-    0.7 * Math.cos(b * axy) -
-    0.45 * Math.sin(c * pi * x) * Math.cos(d * pi * y);
-
-  const f4 =
-    Math.sin(a * pi * x) * Math.cos(b * pi * y) +
-    0.6 * Math.cos(c * pi * r - d * axy) -
-    0.35 * Math.sin((a + b) * pi * (x - y) * 0.25);
-
-  let main = f0;
-  if (mode === 1) main = f1;
-  else if (mode === 2) main = f2;
-  else if (mode === 3) main = f3;
-  else if (mode === 4) main = f4;
-
-  let f = mix(main, f3, fieldMix);
-
-  if (ripple > 0.0) {
-    f += 0.18 * ripple * Math.sin((r * 4.0 - tt * 1.35) * pi);
-  }
-
-  return f;
-}
-
-const t = time * drift;
-const q = i + seed * 131.17;
-
-// quasi-random square start
-let x = 2.0 * fract(i * 0.754877666 + hash(q + 1.3) * 0.37) - 1.0;
-let y = 2.0 * fract(i * 0.569840291 + hash(q + 8.1) * 0.41) - 1.0;
-
-// mild compaction for nicer density
-const r0 = Math.sqrt(x * x + y * y);
-const comp = 0.88 + 0.12 / (1.0 + 1.8 * r0);
-x *= comp;
-y *= comp;
-
-// project toward nodal lines
-const eps = 0.0035;
-for (let k = 0; k < iterations; k++) {
-  const f0 = chladni(x, y, t);
-  const gx0 = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
-  const gy0 = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
-  const g20 = gx0 * gx0 + gy0 * gy0 + 1e-6;
-  const step = project * f0 / g20;
-  x -= gx0 * step;
-  y -= gy0 * step;
-}
-
-// pull back toward plate if outside
-const m = plateMetric(x, y);
-if (m > 1.0) {
-  const sc = mix(1.0, 1.0 / (m + 1e-6), boundaryPull);
-  x *= sc;
-  y *= sc;
-}
-
-// tangent direction for line-like continuity
-const f = chladni(x, y, t);
-const gx = (chladni(x + eps, y, t) - chladni(x - eps, y, t)) / (2.0 * eps);
-const gy = (chladni(x, y + eps, t) - chladni(x, y - eps, t)) / (2.0 * eps);
-const gLen = Math.sqrt(gx * gx + gy * gy) + 1e-6;
-
-const tx = -gy / gLen;
-const ty = gx / gLen;
-
-const along = (hash(q + 17.7) - 0.5) * tangentSpread * 0.10;
-const off = (hash(q + 27.1) - 0.5) * jitter * 0.05;
-
-x += tx * along + gx / gLen * off;
-y += ty * along + gy / gLen * off;
-
-// plate mask / brightness
-const m2 = plateMetric(x, y);
-const edge = Math.exp(-Math.max(0.0, m2 - 1.0) / maskSoftness);
-const near = Math.exp(-Math.abs(f) / Math.max(0.0001, thickness));
-
-const r = Math.sqrt(x * x + y * y);
-const pulse = 0.5 + 0.5 * Math.sin(9.0 * r - t * 1.6 + a * 0.37);
-
-// final placement
-const px = x * scale;
-const py = y * scale;
-const pz =
-  lift * near * edge +
-  zRipple * pulse * near * edge +
-  0.25 * Math.sin(i * 0.11 + t) * (0.4 + 0.6 * near);
-
-// color
-const h = fract(hue + hueCycle * (0.45 * near + 0.20 * r + 0.12 * pulse));
-const s = saturation * (0.35 + 0.65 * edge);
-const l = clamp(
-  lightBase +
-    lightGain * near * edge +
-    0.08 * pulse * edge,
-  0.04,
-  0.95
-);
-
-target.set(px, py, pz);
-color.setHSL(h, s, l);
-
-if (i === 0) {
-  setInfo(
-    "Advanced Chladni Plate",
-    "A multi-control particle Chladni system with plate shapes, symmetry, warp, projection, and color controls."
-  );
-}
-`
-  },
-
   // ═══════════════════════════════════════════════════════════
   // CUSTOM ORIGINALS
   // ═══════════════════════════════════════════════════════════
@@ -4852,224 +4549,6 @@ if (i < coreCount) {
 if (i === 0) {
     setInfo("Supernova", "Stellar death in particle form. A collapsing core pulses as shockwave shells expand outward, scattering a debris field of cooling stellar material.");
     annotate("core", new THREE.Vector3(0, 0, 0), "Neutron Core");
-}
-`
-  },
-
-
-  {
-    name: 'DANCING BEARS',
-    cam: [30, 120, 250],
-    code: `
-const groove = addControl("groove", "Groove Intensity", 0.1, 2.0, 1.0);
-const spinSpeed = addControl("spinSpeed", "Spin Speed", 0.0, 2.0, 0.3);
-const spread = addControl("spread", "Bear Spacing", 20.0, 60.0, 35.0);
-const skullSize = addControl("skullSize", "Skull Size", 5.0, 20.0, 12.0);
-
-// Split particles: 70% bears, 30% center skull
-const skullCount = Math.floor(count * 0.3);
-const bearTotal = count - skullCount;
-
-const rand1 = Math.sin(i * 127.1 + 311.7) * 0.5 + 0.5;
-const rand2 = Math.sin(i * 269.5 + 183.3) * 0.5 + 0.5;
-const rand3 = Math.sin(i * 419.2 + 371.9) * 0.5 + 0.5;
-const phi = Math.acos(1 - 2 * rand1);
-const theta = rand2 * Math.PI * 2;
-const rCube = Math.cbrt(rand3);
-const beatPulse = bass * groove;
-
-if (i < skullCount) {
-  // ── STEAL YOUR FACE (flat coin, rotates around Y axis) ──
-  const su = i / skullCount;
-  const skullSpin = time * spinSpeed * 0.5;
-  const S = skullSize;
-  const coinDepth = S * 0.02; // very thin like a coin
-
-  // All features defined in 2D (sx, sy) on the disc face
-  let sx = 0, sy = 0, sz = 0;
-
-  if (su < 0.30) {
-    // Outer circle ring (the disc edge)
-    const a = rand1 * Math.PI * 2;
-    const rMin = S * 0.42;
-    const rMax = S * 0.5;
-    const r = rMin + rCube * (rMax - rMin);
-    sx = Math.cos(a) * r;
-    sy = Math.sin(a) * r * 0.95 + S * 0.05;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.52) {
-    // Filled disc interior (the black circle)
-    const a = rand1 * Math.PI * 2;
-    const r = rCube * S * 0.4;
-    sx = Math.cos(a) * r;
-    sy = Math.sin(a) * r * 0.95 + S * 0.05;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.58) {
-    // Jaw / chin (narrower, below the circle)
-    sx = (rand1 - 0.5) * S * 0.5 * (1.0 - rand2 * 0.6);
-    sy = -S * 0.35 - rand2 * S * 0.2;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.62) {
-    // Left eye socket (dark hole in the disc)
-    const a = rand1 * Math.PI * 2;
-    const r = S * 0.06 + rCube * S * 0.03;
-    sx = -S * 0.13 + Math.cos(a) * r;
-    sy = S * 0.05 + Math.sin(a) * r;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.66) {
-    // Right eye socket
-    const a = rand1 * Math.PI * 2;
-    const r = S * 0.06 + rCube * S * 0.03;
-    sx = S * 0.13 + Math.cos(a) * r;
-    sy = S * 0.05 + Math.sin(a) * r;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.69) {
-    // Nose hole
-    sx = (rand1 - 0.5) * S * 0.06;
-    sy = -S * 0.1 + rand2 * S * 0.08;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else if (su < 0.76) {
-    // Teeth row
-    const toothIdx = Math.floor(rand1 * 10);
-    sx = (toothIdx - 4.5) * S * 0.03;
-    sy = -S * 0.3 + (rand2 - 0.5) * S * 0.05;
-    sz = (rand3 - 0.5) * coinDepth;
-  } else {
-    // Lightning bolt (zigzag, the iconic center element)
-    const boltT = rand1;
-    const segments = 13;
-    const seg = Math.floor(boltT * segments);
-    const zigzag = (seg % 2 === 0) ? -1 : 1;
-    const segFrac = (boltT * segments) % 1.0;
-    const boltW = S * 0.09;
-    // Taper: wider at top, narrower at bottom
-    const taper = 1.0 - boltT * 0.4;
-    sx = zigzag * boltW * taper * (1.0 - segFrac) + (rand3 - 0.5) * S * 0.015;
-    sy = S * 0.35 - boltT * S * 0.6;
-    sz = (rand3 - 0.5) * coinDepth;
-  }
-
-  // Rotate the flat disc around Y axis (coin spin)
-  const rsx = sx * Math.cos(skullSpin) - sz * Math.sin(skullSpin);
-  const rsz = sx * Math.sin(skullSpin) + sz * Math.cos(skullSpin);
-
-  // Pulse on bass
-  const pulse = 1.0 + beatPulse * 0.15;
-  target.set(rsx * pulse, sy * pulse, rsz * pulse);
-
-  // Coloring: outer ring white, disc interior dark, bolt bright
-  if (su >= 0.76) {
-    // Lightning bolt: bright white, pulses with bass
-    color.setHSL(0.6, 0.2, 0.8 + beatPulse * 0.2);
-  } else if (su < 0.30) {
-    // Outer ring: white/silver
-    color.setHSL(0.0, 0.0, 0.5 + rand1 * 0.15 + beatPulse * 0.1);
-  } else if (su >= 0.58 && su < 0.76) {
-    // Facial features (eyes, nose, teeth): slightly brighter than disc
-    color.setHSL(0.0, 0.0, 0.25 + beatPulse * 0.08);
-  } else {
-    // Disc interior: dark
-    color.setHSL(0.6, 0.05, 0.06 + beatPulse * 0.04);
-  }
-
-} else {
-  // ── DANCING BEARS (circle around skull) ──
-  const bi = i - skullCount;
-  const NUM_BEARS = 5;
-  const bearIdx = bi % NUM_BEARS;
-  const localI = Math.floor(bi / NUM_BEARS);
-  const localCount = Math.floor(bearTotal / NUM_BEARS);
-
-  const bearHues = [0.35, 0.15, 0.08, 0.62, 0.92];
-  const bearSats = [0.85, 0.9, 0.85, 0.8, 0.7];
-  const bearLums = [0.35, 0.55, 0.4, 0.3, 0.5];
-
-  const hue = bearHues[bearIdx];
-  const sat = bearSats[bearIdx];
-  const lum = bearLums[bearIdx];
-
-  const circleAngle = (bearIdx / NUM_BEARS) * Math.PI * 2 + time * spinSpeed;
-  const cx = Math.cos(circleAngle) * spread;
-  const cz = Math.sin(circleAngle) * spread;
-
-  const phase = time * 1.8 * groove + bearIdx * 1.257;
-  const partFrac = localI / localCount;
-
-  let bx = 0, by = 0, bz = 0;
-
-  if (partFrac < 0.25) {
-    const r = rCube * 4.5;
-    bx = Math.sin(phi) * Math.cos(theta) * r * 0.7;
-    by = Math.sin(phi) * Math.sin(theta) * r * 1.0;
-    bz = Math.cos(phi) * r * 0.55;
-  } else if (partFrac < 0.38) {
-    const r = rCube * 2.8;
-    bx = Math.sin(phi) * Math.cos(theta) * r;
-    by = 6.5 + Math.sin(phi) * Math.sin(theta) * r;
-    bz = Math.cos(phi) * r;
-    by += Math.sin(phase * 2) * 0.8 * groove;
-    bx += Math.sin(phase * 1.5) * 0.5 * groove;
-  } else if (partFrac < 0.42) {
-    const r = rCube * 1.3;
-    bx = -2.0 + Math.sin(phi) * Math.cos(theta) * r;
-    by = 8.8 + Math.sin(phi) * Math.sin(theta) * r;
-    bz = Math.cos(phi) * r;
-  } else if (partFrac < 0.46) {
-    const r = rCube * 1.3;
-    bx = 2.0 + Math.sin(phi) * Math.cos(theta) * r;
-    by = 8.8 + Math.sin(phi) * Math.sin(theta) * r;
-    bz = Math.cos(phi) * r;
-  } else if (partFrac < 0.58) {
-    const armAngle = Math.sin(phase) * 1.2 * groove;
-    const armT = rand2;
-    const armLen = armT * 5.0;
-    const limbR = rCube * 1.2 * (1.0 - armT * 0.3);
-    bx = -4.0 + Math.cos(armAngle) * armLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
-    by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(phi) * Math.sin(theta) * limbR;
-    bz = Math.sin(armAngle) * armLen * 0.4 + Math.cos(phi) * limbR;
-  } else if (partFrac < 0.70) {
-    const armAngle = Math.sin(phase + Math.PI) * 1.2 * groove;
-    const armT = rand2;
-    const armLen = armT * 5.0;
-    const limbR = rCube * 1.2 * (1.0 - armT * 0.3);
-    bx = 4.0 - Math.cos(armAngle) * armLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
-    by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(phi) * Math.sin(theta) * limbR;
-    bz = -Math.sin(armAngle) * armLen * 0.4 + Math.cos(phi) * limbR;
-  } else if (partFrac < 0.85) {
-    const legPhase = Math.sin(phase + 0.3) * groove;
-    const legT = rand2;
-    const legLen = legT * 5.0;
-    const limbR = rCube * 1.3 * (1.0 - legT * 0.25);
-    bx = -2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
-    by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase)) * 2.0 * groove + Math.sin(phi) * Math.sin(theta) * limbR;
-    bz = Math.cos(legPhase) * legLen * 0.3 + Math.cos(phi) * limbR;
-  } else {
-    const legPhase = Math.sin(phase + Math.PI + 0.3) * groove;
-    const legT = rand2;
-    const legLen = legT * 5.0;
-    const limbR = rCube * 1.3 * (1.0 - legT * 0.25);
-    bx = 2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
-    by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase + Math.PI)) * 2.0 * groove + Math.sin(phi) * Math.sin(theta) * limbR;
-    bz = Math.cos(legPhase) * legLen * 0.3 + Math.cos(phi) * limbR;
-  }
-
-  by += Math.abs(Math.sin(phase)) * 2.5 * groove;
-  by += beatPulse * 3.0;
-  bx += Math.sin(phase * 0.5) * 1.5 * groove;
-
-  const faceAngle = circleAngle + Math.PI * 0.5;
-  const rx = bx * Math.cos(faceAngle) - bz * Math.sin(faceAngle);
-  const rz = bx * Math.sin(faceAngle) + bz * Math.cos(faceAngle);
-
-  target.set(cx + rx, by, cz + rz);
-
-  const lumVar = lum + (rand1 - 0.5) * 0.15 + beatPulse * 0.2;
-  color.setHSL(hue, sat, Math.max(0.05, Math.min(0.9, lumVar)));
-}
-
-if (i === 0) {
-  setInfo("Dancing Bears", "Steal Your Face skull in the center, five Grateful Dead bears dancing around it. Lightning bolt pulses on bass.");
-  annotate("center", new THREE.Vector3(0, 0, 0), "Steal Your Face");
 }
 `
   },
@@ -5770,12 +5249,12 @@ function updateCinematicCamera(t, bass, rms) {
 }
 
 // ── Text-to-Particle Sampling ──────────────────────────────
-const LYRIC_PARTICLE_RATIO = 0.55;
+const LYRIC_PARTICLE_RATIO = 0.35;
 let lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
 const textCanvas = document.createElement('canvas');
 const textCtx = textCanvas.getContext('2d', { willReadFrequently: true });
-textCanvas.width = 800;
-textCanvas.height = 200;
+textCanvas.width = 512;
+textCanvas.height = 128;
 
 let textTargets = new Float32Array(lyricParticleCount * 3);
 let lyricBlend = 0; // 0 = all sim, 1 = all text
@@ -5792,10 +5271,10 @@ function sampleTextPositions(text) {
   textCtx.textAlign = 'center';
   textCtx.textBaseline = 'middle';
 
-  let fontSize = 100;
+  let fontSize = 72;
   textCtx.font = `700 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
   let metrics = textCtx.measureText(text);
-  while (metrics.width > w * 0.9 && fontSize > 20) {
+  while (metrics.width > w * 0.9 && fontSize > 16) {
     fontSize -= 2;
     textCtx.font = `700 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
     metrics = textCtx.measureText(text);
@@ -5806,12 +5285,11 @@ function sampleTextPositions(text) {
   const imageData = textCtx.getImageData(0, 0, w, h);
   const pixels = imageData.data;
   const filledPixels = [];
-  // Sample every pixel for maximum sharpness
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
       const idx = (y * w + x) * 4;
       if (pixels[idx + 3] > 128) {
-        filledPixels.push([(x - w / 2) * 0.12, -(y - h / 2) * 0.12]);
+        filledPixels.push([(x - w / 2) * 0.06, -(y - h / 2) * 0.06]);
       }
     }
   }
@@ -5823,10 +5301,9 @@ function sampleTextPositions(text) {
     }
     const pi = i % filledPixels.length;
     const px = filledPixels[pi];
-    // Minimal jitter for crisp letter edges
-    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.04;
-    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.04;
-    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.15;
+    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.15;
+    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
   }
 }
 
@@ -6472,33 +5949,15 @@ function animate() {
     let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
     let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
 
-    // Particle text blending -- slowly rotating text plane in 3D space
+    // Particle text blending -- text on XY plane, sim physics bleeds through
     if (doLyrics && i < lyricParticleCount) {
       const i3 = i * 3;
-      const rawTx = textTargets[i3];
-      const rawTy = textTargets[i3 + 1];
+      let finalTx = textTargets[i3];
+      let finalTy = textTargets[i3 + 1];
+      let finalTz = textTargets[i3 + 2];
 
-      // Slow Y-axis rotation so camera passes through the text plane
-      const rotSpeed = 0.15;
-      const rotAngle = elapsed * rotSpeed;
-      const cosA = Math.cos(rotAngle);
-      const sinA = Math.sin(rotAngle);
-
-      let finalTx = rawTx * cosA;
-      let finalTy = rawTy;
-      let finalTz = rawTx * sinA;
-
-      // Every 5th particle orbits around the text for a floating/rotating feel
-      if (i % 5 === 0) {
-        const orbitR = 1.2 + Math.sin(i * 0.7) * 0.5;
-        const orbitA = elapsed * 2.0 + i * 0.3;
-        finalTx += Math.cos(orbitA) * orbitR;
-        finalTy += Math.sin(orbitA * 1.3) * orbitR * 0.6;
-        finalTz += Math.sin(orbitA * 0.7) * orbitR;
-      }
-
-      // Subtle sim bleed for per-sim character
-      const simBleed = 0.03;
+      // Sim bleed: each sim's particle motion influences the text shape
+      const simBleed = 0.3;
       finalTx += fx * simBleed;
       finalTy += fy * simBleed;
       finalTz += fz * simBleed;
@@ -6507,10 +5966,11 @@ function animate() {
       fy = fy * invLb + finalTy * lb;
       fz = fz * invLb + finalTz * lb;
 
-      // Text color: consistent readable white-grey
-      cr = cr * invLb + 0.6 * lb;
-      cg = cg * invLb + 0.6 * lb;
-      cb = cb * invLb + 0.65 * lb;
+      // Brighten sim colors so text is readable
+      const boost = 2.0;
+      cr = cr * invLb + Math.min(1, cr * boost + 0.15) * lb;
+      cg = cg * invLb + Math.min(1, cg * boost + 0.15) * lb;
+      cb = cb * invLb + Math.min(1, cb * boost + 0.15) * lb;
     }
 
     const i3 = i * 3;
