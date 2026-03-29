@@ -429,6 +429,7 @@
   <div class="audio-bar" id="bar-high" style="height:2px"></div>
 </div>
 
+<div id="fx-indicator" style="position:fixed;bottom:52px;left:50%;transform:translateX(-50%);font-family:Syne,sans-serif;font-size:0.55rem;letter-spacing:0.12em;color:rgba(255,255,255,0.35);text-transform:uppercase;pointer-events:none;z-index:10;display:none"></div>
 <div id="bottom-bar">
   <button class="nav-btn" id="mic-toggle-btn" title="Mute/unmute mic (M)" style="font-size:0.55rem;letter-spacing:0.03em;position:relative">MIC</button>
   <button class="nav-btn active" id="react-toggle-btn" title="Toggle audio reactivity (S)" style="font-size:0.45rem;letter-spacing:0.03em">REACT</button>
@@ -5302,8 +5303,15 @@ function applyFxMode(modeName) {
   crtPass.enabled = m.scanlines > 0;
   feedbackEnabled = m.feedback > 0;
   if (kaleidPass.enabled) kaleidPass.uniforms.uSegments.value = m.kaleidoSegments;
-  // When feedback is on, composer renders to buffer not screen
   composer.renderToScreen = !feedbackEnabled;
+  // Update persistent FX indicator
+  const fxInd = document.getElementById('fx-indicator');
+  if (modeName === 'clean') {
+    fxInd.style.display = 'none';
+  } else {
+    fxInd.textContent = 'fx: ' + modeName.replace('_', ' ');
+    fxInd.style.display = 'block';
+  }
 }
 
 // ── Visual Style Textures ──────────────────────────────────
@@ -5708,7 +5716,7 @@ document.addEventListener('keydown', (e) => {
       lyricsVisible = !lyricsVisible;
       lyricsToggleBtn.textContent = lyricsVisible ? 'Hide' : 'Show';
       lyricsToggleBtn.classList.toggle('active', lyricsVisible);
-      if (!lyricsVisible) { lyricBlendTarget = 0; }
+      if (!lyricsVisible) { lyricOpacityTarget = 0; }
     } else if (!sidebar.classList.contains('open')) {
       sidebar.classList.add('open');
       toggleBtn.textContent = 'x';
@@ -5725,17 +5733,10 @@ document.getElementById('auto-rotate-btn').addEventListener('click', (e) => {
 
 // FX mode button
 const fxModeBtn = document.getElementById('fx-mode-btn');
-const fxNameEl = document.getElementById('sim-name');
-let fxLabelTimer = null;
 function cycleFxMode() {
   const idx = (fxModeNames.indexOf(currentFxMode) + 1) % fxModeNames.length;
   applyFxMode(fxModeNames[idx]);
   fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
-  // Flash the mode name briefly in the sim name display
-  const origName = SIMULATIONS[currentSimIndex].name;
-  fxNameEl.textContent = 'FX: ' + currentFxMode.toUpperCase().replace('_', ' ');
-  clearTimeout(fxLabelTimer);
-  fxLabelTimer = setTimeout(() => { fxNameEl.textContent = origName; }, 1500);
 }
 fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
 
@@ -5747,10 +5748,11 @@ function cycleBackdrop() {
   const currentIdx = backdropNames.indexOf(activeBackdropName);
   const nextIdx = (currentIdx + 1) % backdropNames.length;
   setBackdrop(backdropNames[nextIdx]);
+  const simNameEl = document.getElementById('sim-name');
   const origName = SIMULATIONS[currentSimIndex].name;
-  fxNameEl.textContent = 'BG: ' + backdropLabels[nextIdx];
+  simNameEl.textContent = 'BG: ' + backdropLabels[nextIdx];
   clearTimeout(backdropLabelTimer);
-  backdropLabelTimer = setTimeout(() => { fxNameEl.textContent = origName; }, 1500);
+  backdropLabelTimer = setTimeout(() => { simNameEl.textContent = origName; }, 1500);
 }
 
 // Click canvas no longer advances sim (this is a listening app)
@@ -6023,63 +6025,58 @@ function updateCinematicCamera(t, bass, rms) {
   camera.lookAt(lookX, lookY, lookZ);
 }
 
-// ── Text-to-Particle Sampling ──────────────────────────────
-const LYRIC_PARTICLE_RATIO = 0.35;
-let lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
-const textCanvas = document.createElement('canvas');
-const textCtx = textCanvas.getContext('2d', { willReadFrequently: true });
-textCanvas.width = 512;
-textCanvas.height = 128;
+// ── Lyrics Sprite (scene-rendered text, receives FX) ──────
+const lyricCanvas = document.createElement('canvas');
+const lyricCtx = lyricCanvas.getContext('2d');
+lyricCanvas.width = 1024;
+lyricCanvas.height = 256;
+const lyricTexture = new THREE.CanvasTexture(lyricCanvas);
+lyricTexture.minFilter = THREE.LinearFilter;
+lyricTexture.magFilter = THREE.LinearFilter;
+const lyricSpriteMat = new THREE.SpriteMaterial({ map: lyricTexture, transparent: true, opacity: 0, depthWrite: false, depthTest: false });
+const lyricSprite = new THREE.Sprite(lyricSpriteMat);
+lyricSprite.scale.set(18, 4.5, 1);
+lyricSprite.renderOrder = 100;
+scene.add(lyricSprite);
 
-let textTargets = new Float32Array(lyricParticleCount * 3);
-let lyricBlend = 0; // 0 = all sim, 1 = all text
-let lyricBlendTarget = 0;
+let lyricOpacity = 0;
+let lyricOpacityTarget = 0;
 let lastLyricIdx = -1;
+let lyricFadeTimer = null;
 
-function sampleTextPositions(text) {
-  const w = textCanvas.width, h = textCanvas.height;
-  lyricParticleCount = Math.floor(particleCount * LYRIC_PARTICLE_RATIO);
-  textTargets = new Float32Array(lyricParticleCount * 3);
+function renderLyricText(text) {
+  const w = lyricCanvas.width, h = lyricCanvas.height;
+  lyricCtx.clearRect(0, 0, w, h);
+  if (!text) { lyricTexture.needsUpdate = true; return; }
 
-  textCtx.clearRect(0, 0, w, h);
-  textCtx.fillStyle = '#fff';
-  textCtx.textAlign = 'center';
-  textCtx.textBaseline = 'middle';
+  lyricCtx.textAlign = 'center';
+  lyricCtx.textBaseline = 'middle';
 
-  let fontSize = 64;
-  textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
-  let metrics = textCtx.measureText(text);
-  while (metrics.width > w * 0.9 && fontSize > 16) {
+  let fontSize = 56;
+  lyricCtx.font = `500 ${fontSize}px Syne, -apple-system, sans-serif`;
+  let metrics = lyricCtx.measureText(text);
+  while (metrics.width > w * 0.85 && fontSize > 18) {
     fontSize -= 2;
-    textCtx.font = `600 ${fontSize}px -apple-system, Helvetica Neue, sans-serif`;
-    metrics = textCtx.measureText(text);
+    lyricCtx.font = `500 ${fontSize}px Syne, -apple-system, sans-serif`;
+    metrics = lyricCtx.measureText(text);
   }
 
-  textCtx.fillText(text, w / 2, h / 2);
+  // Soft glow behind text
+  lyricCtx.shadowColor = 'rgba(255,255,255,0.4)';
+  lyricCtx.shadowBlur = 20;
+  lyricCtx.fillStyle = 'rgba(255,255,255,0.95)';
+  lyricCtx.fillText(text, w / 2, h / 2);
+  lyricCtx.shadowBlur = 0;
 
-  const imageData = textCtx.getImageData(0, 0, w, h);
-  const pixels = imageData.data;
-  const filledPixels = [];
-  for (let y = 0; y < h; y += 2) {
-    for (let x = 0; x < w; x += 2) {
-      const idx = (y * w + x) * 4;
-      if (pixels[idx + 3] > 128) {
-        filledPixels.push([(x - w / 2) * 0.18, -(y - h / 2) * 0.18]);
-      }
-    }
-  }
+  lyricTexture.needsUpdate = true;
+}
 
-  for (let i = 0; i < lyricParticleCount; i++) {
-    if (filledPixels.length === 0) {
-      textTargets[i * 3] = 0; textTargets[i * 3 + 1] = 0; textTargets[i * 3 + 2] = 0;
-      continue;
-    }
-    const pi = i % filledPixels.length;
-    const px = filledPixels[pi];
-    textTargets[i * 3]     = px[0] + (Math.random() - 0.5) * 0.12;
-    textTargets[i * 3 + 1] = px[1] + (Math.random() - 0.5) * 0.12;
-    textTargets[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
-  }
+function shouldShowLine(idx, text) {
+  if (!text || text.trim().length === 0) return false;
+  const words = text.trim().split(/\s+/);
+  if (words.length < 3) return false; // skip "oh", "yeah", short filler
+  if (idx % 2 !== 0) return false; // every other line
+  return true;
 }
 
 // ── Lyrics System ──────────────────────────────────────────
@@ -6181,8 +6178,8 @@ function loadTrackLyrics(track) {
   lyricsActive = true;
   lyricsVisible = true;
   lastLyricIdx = -1;
-  lyricBlend = 0;
-  lyricBlendTarget = 0;
+  lyricOpacity = 0;
+  lyricOpacityTarget = 0;
   lyricsToggleBtn.classList.add('active');
   lyricsToggleBtn.textContent = 'Hide';
   lyricsTimingControls.style.display = 'block';
@@ -6458,7 +6455,7 @@ detectBtn.addEventListener('click', (e) => {
 
 function updateLyrics() {
   if (!lyricsActive || lyricsData.length === 0 || !lyricsVisible) {
-    lyricBlendTarget = 0;
+    lyricOpacityTarget = 0;
     return;
   }
 
@@ -6472,11 +6469,22 @@ function updateLyrics() {
 
   if (currentIdx >= 0 && currentIdx !== lastLyricIdx) {
     lastLyricIdx = currentIdx;
-    sampleTextPositions(lyricsData[currentIdx].text);
-    lyricBlendTarget = 0;
-    setTimeout(() => { lyricBlendTarget = 1; }, 300);
+    const text = lyricsData[currentIdx].text;
+
+    if (shouldShowLine(currentIdx, text)) {
+      // Fade out, swap text, fade in
+      lyricOpacityTarget = 0;
+      clearTimeout(lyricFadeTimer);
+      lyricFadeTimer = setTimeout(() => {
+        renderLyricText(text);
+        lyricOpacityTarget = 1;
+      }, 350);
+    } else {
+      // Skip this line, fade out if visible
+      lyricOpacityTarget = 0;
+    }
   } else if (currentIdx < 0) {
-    lyricBlendTarget = 0;
+    lyricOpacityTarget = 0;
   }
 }
 
@@ -6484,9 +6492,11 @@ function clearLyrics() {
   lyricsData = [];
   lyricsActive = false;
   lyricsVisible = false;
-  lyricBlend = 0;
-  lyricBlendTarget = 0;
+  lyricOpacity = 0;
+  lyricOpacityTarget = 0;
+  lyricSpriteMat.opacity = 0;
   lastLyricIdx = -1;
+  renderLyricText('');
   lyricsTrackInfo.classList.remove('visible');
   lyricsToggleBtn.classList.remove('active');
   lyricsToggleBtn.textContent = 'Show';
@@ -6501,7 +6511,7 @@ lyricsToggleBtn.addEventListener('click', (e) => {
   lyricsVisible = !lyricsVisible;
   lyricsToggleBtn.textContent = lyricsVisible ? 'Hide' : 'Show';
   lyricsToggleBtn.classList.toggle('active', lyricsVisible);
-  if (!lyricsVisible) { lyricBlendTarget = 0; }
+  if (!lyricsVisible) { lyricOpacityTarget = 0; }
 });
 
 // Search input (inline in sidebar)
@@ -6654,16 +6664,14 @@ function animate() {
   barMidEl.style.height = (2 + mids * 18) + 'px';
   barHighEl.style.height = (2 + highs * 18) + 'px';
 
-  // Smooth lyric blend
-  lyricBlend += (lyricBlendTarget - lyricBlend) * 0.06;
-  const lb = lyricsVisible ? lyricBlend : lyricBlend * 0.95;
+  // Smooth lyric sprite opacity
+  lyricOpacity += (lyricOpacityTarget - lyricOpacity) * 0.08;
+  lyricSpriteMat.opacity = lyricOpacity;
+  lyricSprite.visible = lyricOpacity > 0.01;
 
   // Run simulation for each particle
   const pos = pointGeo.attributes.position.array;
   const col = pointGeo.attributes.color.array;
-  const doLyrics = lb > 0.01;
-  const styleBoostVal = ({ spark: 2.0, plasma: 1.6, glass: 1.3, ink: 2.5, steel: 3.0 })[visualStyle] || 2.0;
-  const invLb = 1 - lb;
 
   let simError = false;
   for (let i = 0; i < particleCount; i++) {
@@ -6684,47 +6692,6 @@ function animate() {
 
     let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
     let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
-
-    // Particle text blending
-    if (lb > 0.01 && i < lyricParticleCount) {
-      const tx = textTargets[i * 3];
-      const ty = textTargets[i * 3 + 1];
-      const tz = textTargets[i * 3 + 2];
-
-      // Some particles (every 5th) orbit around their text position instead of locking
-      const isOrbiter = (i % 5 === 0);
-      let finalTx = tx, finalTy = ty, finalTz = tz;
-      if (isOrbiter) {
-        const orbitR = 1.2 + Math.sin(i * 0.7) * 0.5;
-        const orbitA = elapsed * 2.0 + i * 0.3;
-        finalTx = tx + Math.cos(orbitA) * orbitR;
-        finalTy = ty + Math.sin(orbitA * 1.3) * orbitR * 0.6;
-        finalTz = tz + Math.sin(orbitA * 0.7) * orbitR;
-      }
-
-      // Very subtle sim bleed: each sim's physics barely tints the text shape
-      finalTx += fx * 0.02;
-      finalTy += fy * 0.02;
-      finalTz += fz * 0.02;
-
-      fx = fx * (1 - lb) + finalTx * lb;
-      fy = fy * (1 - lb) + finalTy * lb;
-      fz = fz * (1 - lb) + finalTz * lb;
-
-      // Text particles: boost brightness per visual style
-      const styleBoosts = { spark: 2.0, plasma: 1.6, glass: 1.3, ink: 2.5, steel: 3.0 };
-      const baseBoost = styleBoosts[visualStyle] || 2.0;
-      const pulse = 0.25 * Math.sin(elapsed * 3 + i * 0.01);
-      const boost = baseBoost + pulse;
-
-      const tr = Math.min(1.0, cr * boost);
-      const tg = Math.min(1.0, cg * boost);
-      const tb = Math.min(1.0, cb * boost);
-
-      cr = cr * (1 - lb) + tr * lb;
-      cg = cg * (1 - lb) + tg * lb;
-      cb = cb * (1 - lb) + tb * lb;
-    }
 
     const i3 = i * 3;
 
