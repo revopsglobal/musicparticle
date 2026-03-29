@@ -5177,6 +5177,7 @@ reactToggleBtn.addEventListener('click', (e) => {
     document.getElementById('val-sensitivity').textContent = '0.0';
   }
   reactToggleBtn.classList.toggle('active', reactivityEnabled);
+  saveSettings();
 });
 
 function setInfo(title, desc) {
@@ -5321,6 +5322,8 @@ overlay.addEventListener('click', async () => {
   if (started) return;
   started = true;
   overlay.classList.add('hidden');
+  // Restore saved settings, then start
+  loadSettings();
   // Start on a random sim each visit
   const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
   loadSim(randomStart);
@@ -5472,15 +5475,46 @@ document.getElementById('ctrl-speed').addEventListener('input', (e) => {
   document.getElementById('val-speed').textContent = simSpeed.toFixed(1);
 });
 
+// ── Settings persistence ──
+function saveSettings() {
+  localStorage.setItem('mp_settings', JSON.stringify({
+    sensitivity: audioSensitivity,
+    glow: glowIntensity,
+    camSpeed: camSpeedMult,
+    camMin: camMinOverride,
+    camMax: camMaxOverride,
+    visualStyle: visualStyle,
+    shuffleInterval: autoRotateIntervalOverride,
+    reactivity: reactivityEnabled
+  }));
+}
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('mp_settings'));
+    if (!s) return;
+    if (s.sensitivity != null) { audioSensitivity = s.sensitivity; document.getElementById('ctrl-sensitivity').value = s.sensitivity; document.getElementById('val-sensitivity').textContent = s.sensitivity.toFixed(1); }
+    if (s.glow != null) { glowIntensity = s.glow; bloomPass.strength = s.glow; document.getElementById('ctrl-glow').value = s.glow; document.getElementById('val-glow').textContent = s.glow.toFixed(1); }
+    if (s.camSpeed != null) { camSpeedMult = s.camSpeed; document.getElementById('ctrl-cam-speed').value = s.camSpeed; document.getElementById('val-cam-speed').textContent = s.camSpeed.toFixed(1); }
+    if (s.camMin != null) { camMinOverride = s.camMin; document.getElementById('ctrl-cam-min').value = s.camMin; document.getElementById('val-cam-min').textContent = s.camMin; }
+    if (s.camMax != null) { camMaxOverride = s.camMax; document.getElementById('ctrl-cam-max').value = s.camMax; document.getElementById('val-cam-max').textContent = s.camMax; }
+    if (s.visualStyle) { visualStyle = s.visualStyle; document.querySelectorAll('.style-option').forEach(o => o.classList.toggle('active', o.dataset.style === s.visualStyle)); }
+    if (s.shuffleInterval != null) { autoRotateIntervalOverride = s.shuffleInterval; document.getElementById('ctrl-shuffle-interval').value = s.shuffleInterval; document.getElementById('val-shuffle-interval').textContent = s.shuffleInterval; }
+    if (s.reactivity === false) { reactivityEnabled = false; savedSensitivity = s.sensitivity || 1.0; audioSensitivity = 0; document.getElementById('ctrl-sensitivity').value = 0; document.getElementById('val-sensitivity').textContent = '0.0'; reactToggleBtn.classList.remove('active'); }
+  } catch (e) {}
+}
+
 document.getElementById('ctrl-glow').addEventListener('input', (e) => {
   glowIntensity = parseFloat(e.target.value);
   document.getElementById('val-glow').textContent = glowIntensity.toFixed(1);
   bloomPass.strength = glowIntensity;
+  saveSettings();
 });
 
 document.getElementById('ctrl-sensitivity').addEventListener('input', (e) => {
   audioSensitivity = parseFloat(e.target.value);
   document.getElementById('val-sensitivity').textContent = audioSensitivity.toFixed(1);
+  saveSettings();
 });
 
 // Visual style list
@@ -5491,6 +5525,7 @@ document.querySelectorAll('.style-option').forEach(opt => {
     opt.classList.add('active');
     visualStyle = opt.dataset.style;
     buildParticleSystem();
+    saveSettings();
   });
 });
 
@@ -5502,16 +5537,19 @@ let camMaxOverride = null;
 document.getElementById('ctrl-cam-speed').addEventListener('input', (e) => {
   camSpeedMult = parseFloat(e.target.value);
   document.getElementById('val-cam-speed').textContent = camSpeedMult.toFixed(1);
+  saveSettings();
 });
 
 document.getElementById('ctrl-cam-min').addEventListener('input', (e) => {
   camMinOverride = parseInt(e.target.value);
   document.getElementById('val-cam-min').textContent = camMinOverride;
+  saveSettings();
 });
 
 document.getElementById('ctrl-cam-max').addEventListener('input', (e) => {
   camMaxOverride = parseInt(e.target.value);
   document.getElementById('val-cam-max').textContent = camMaxOverride;
+  saveSettings();
 });
 
 // Auto shuffle chip in sidebar
@@ -5538,6 +5576,7 @@ document.getElementById('ctrl-shuffle-interval').addEventListener('input', (e) =
   document.getElementById('val-shuffle-interval').textContent = val;
   // Update the constant (it's a let now)
   autoRotateIntervalOverride = val;
+  saveSettings();
 });
 
 // Help
@@ -6195,6 +6234,30 @@ function triggerAutoTransition() {
   pendingSimIndex = idx;
   crossfadeDirection = 1; // start fading out
   crossfadeProgress = 1;
+
+  // Explore mode: randomize visual parameters for variety
+  // Glow: 0.2 - 1.2
+  const newGlow = 0.2 + Math.random() * 1.0;
+  glowIntensity = newGlow;
+  bloomPass.strength = newGlow;
+  document.getElementById('ctrl-glow').value = newGlow;
+  document.getElementById('val-glow').textContent = newGlow.toFixed(1);
+
+  // Camera zoom range: vary within sensible bounds
+  const newMin = 5 + Math.floor(Math.random() * 30);
+  const newMax = 100 + Math.floor(Math.random() * 200);
+  camMinOverride = newMin;
+  camMaxOverride = newMax;
+  document.getElementById('ctrl-cam-min').value = newMin;
+  document.getElementById('val-cam-min').textContent = newMin;
+  document.getElementById('ctrl-cam-max').value = newMax;
+  document.getElementById('val-cam-max').textContent = newMax;
+
+  // Visual style: random pick
+  const styles = ['spark', 'plasma', 'glass', 'ink', 'steel'];
+  const newStyle = styles[Math.floor(Math.random() * styles.length)];
+  visualStyle = newStyle;
+  document.querySelectorAll('.style-option').forEach(o => o.classList.toggle('active', o.dataset.style === newStyle));
 }
 
 function updateAutoRotate(dt) {
