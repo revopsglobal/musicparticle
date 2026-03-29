@@ -5927,10 +5927,10 @@ function animate() {
         finalTz = tz + Math.sin(orbitA * 0.7) * orbitR;
       }
 
-      // Subtle sim bleed: each sim's physics gently shapes the text
-      finalTx += fx * 0.08;
-      finalTy += fy * 0.08;
-      finalTz += fz * 0.08;
+      // Very subtle sim bleed: each sim's physics barely tints the text shape
+      finalTx += fx * 0.02;
+      finalTy += fy * 0.02;
+      finalTz += fz * 0.02;
 
       fx = fx * (1 - lb) + finalTx * lb;
       fy = fy * (1 - lb) + finalTy * lb;
