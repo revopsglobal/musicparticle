@@ -6282,7 +6282,7 @@ function animate() {
       // Blend the sim's own spatial motion into the text positions.
       // This makes each sim's lyrics look unique -- the text inherits
       // the sim's geometry as a living perturbation.
-      const simBleed = 0.12;
+      const simBleed = 0.05;
       finalTx += fx * simBleed;
       finalTy += fy * simBleed;
       finalTz += fz * simBleed;
@@ -6292,7 +6292,7 @@ function animate() {
       fz = fz * invLb + finalTz * lb;
 
       // Brighten text particles strongly for legibility
-      const boost = 2.0 + 0.3 * Math.sin(elapsed * 3 + i * 0.01);
+      const boost = 2.8 + 0.3 * Math.sin(elapsed * 3 + i * 0.01);
       const tr = Math.min(1.0, cr * boost);
       const tg = Math.min(1.0, cg * boost);
       const tb = Math.min(1.0, cb * boost);
