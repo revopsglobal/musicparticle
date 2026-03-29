@@ -493,22 +493,8 @@
 </div>
 
 
-<div id="overlay">
-  <canvas id="overlay-canvas"></canvas>
-  <div id="overlay-content">
-    <div style="display:flex; align-items:center; gap:0; margin-bottom:1.2rem; opacity:0.85;">
-      <span style="font-family:'Syne',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:600; letter-spacing:-0.02em; color:#e8e4dc;">Music</span><span style="font-family:'Syne',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:600; letter-spacing:-0.02em; color:#c4a882;">Particle</span>
-      <span style="position:relative; display:inline-block; width:22px; height:22px; margin-left:4px;">
-        <i style="position:absolute;border-radius:50%;width:3.5px;height:3.5px;background:#e85d3a;top:3px;left:2px;box-shadow:0 0 6px 1px rgba(232,93,58,0.4);"></i>
-        <i style="position:absolute;border-radius:50%;width:2.5px;height:2.5px;background:#c4a882;top:9px;left:9px;opacity:0.6;"></i>
-        <i style="position:absolute;border-radius:50%;width:2px;height:2px;background:#e8e4dc;top:15px;left:4px;opacity:0.3;"></i>
-        <i style="position:absolute;border-radius:50%;width:1.5px;height:1.5px;background:#e85d3a;top:5px;left:15px;opacity:0.35;"></i>
-        <i style="position:absolute;border-radius:50%;width:2px;height:2px;background:#c4a882;top:13px;left:16px;opacity:0.2;"></i>
-      </span>
-    </div>
-    <p style="font-size:0.7rem; color:rgba(255,255,255,0.35); letter-spacing:0.2em; text-transform:uppercase; margin-top:0.5rem;">Tap to start</p>
-  </div>
-</div>
+<!-- overlay removed: app auto-starts -->
+<div id="overlay" class="hidden" style="display:none"></div>
 <div id="hud-info">
   <div id="hud-title"></div>
   <div id="hud-desc"></div>
@@ -7062,33 +7048,27 @@ const helpTooltip = document.getElementById('help-tooltip');
 const barBassEl = document.getElementById('bar-bass');
 const barMidEl = document.getElementById('bar-mid');
 const barHighEl = document.getElementById('bar-high');
-let started = false;
+let started = true;
 
-overlay.addEventListener('click', async () => {
-  if (started) return;
-  started = true;
-  overlay.classList.add('hidden');
-  // Restore saved settings, then start
-  loadSettings();
-  // Start on a random sim each visit
-  const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
-  loadSim(randomStart);
-  // Auto-shuffle on by default
-  startAutoRotate();
-  // Show mic prompt after a moment
-  setTimeout(() => {
-    const micPrompt = document.getElementById('mic-prompt');
-    if (micPrompt) micPrompt.style.display = 'flex';
-  }, 2000);
-  // Show iOS install banner after app starts
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isStandalone = window.navigator.standalone === true;
-  const dismissed = localStorage.getItem('mp-install-dismissed');
-  if (isIOS && !isStandalone && !dismissed) {
-    const banner = document.getElementById('ios-install-banner');
-    if (banner) setTimeout(() => { banner.style.display = 'flex'; }, 8000);
-  }
-});
+// Auto-start: no tap-to-start overlay needed
+if (overlay) overlay.classList.add('hidden');
+loadSettings();
+const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
+loadSim(randomStart);
+startAutoRotate();
+// Show mic prompt after a moment
+setTimeout(() => {
+  const micPrompt = document.getElementById('mic-prompt');
+  if (micPrompt) micPrompt.style.display = 'flex';
+}, 2000);
+// iOS install banner
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone === true;
+const dismissed = localStorage.getItem('mp-install-dismissed');
+if (isIOS && !isStandalone && !dismissed) {
+  const banner = document.getElementById('ios-install-banner');
+  if (banner) setTimeout(() => { banner.style.display = 'flex'; }, 8000);
+}
 
 // Navigation
 document.getElementById('prev-btn').addEventListener('click', (e) => {
