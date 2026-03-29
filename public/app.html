@@ -5127,72 +5127,73 @@ const rand1 = Math.sin(i * 127.1 + 311.7) * 0.5 + 0.5;
 const rand2 = Math.sin(i * 269.5 + 183.3) * 0.5 + 0.5;
 const rand3 = Math.sin(i * 419.2 + 371.9) * 0.5 + 0.5;
 
+// 3D sphere/ellipsoid sampling using spherical coordinates
+const phi = Math.acos(1 - 2 * rand1);
+const theta = rand2 * Math.PI * 2;
+const rCube = Math.cbrt(rand3); // cube root for uniform volume fill
+
 if (partFrac < 0.25) {
-  // Body (torso ellipse)
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 4.5;
-  bx = Math.cos(a) * r * 0.7;
-  by = Math.sin(a) * r * 1.0;
-  bz = (rand3 - 0.5) * 1.5;
+  // Body (torso - 3D ellipsoid)
+  const r = rCube * 4.5;
+  bx = Math.sin(phi) * Math.cos(theta) * r * 0.7;
+  by = Math.sin(phi) * Math.sin(theta) * r * 1.0;
+  bz = Math.cos(phi) * r * 0.55;
 } else if (partFrac < 0.38) {
-  // Head
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 2.8;
-  bx = Math.cos(a) * r;
-  by = 6.5 + Math.sin(a) * r;
-  bz = (rand3 - 0.5) * 1.2;
+  // Head (3D sphere)
+  const r = rCube * 2.8;
+  bx = Math.sin(phi) * Math.cos(theta) * r;
+  by = 6.5 + Math.sin(phi) * Math.sin(theta) * r;
+  bz = Math.cos(phi) * r;
   by += Math.sin(phase * 2) * 0.8 * groove;
   bx += Math.sin(phase * 1.5) * 0.5 * groove;
 } else if (partFrac < 0.42) {
-  // Left ear
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.3;
-  bx = -2.0 + Math.cos(a) * r;
-  by = 8.8 + Math.sin(a) * r;
-  bz = (rand3 - 0.5) * 0.8;
+  // Left ear (3D sphere)
+  const r = rCube * 1.3;
+  bx = -2.0 + Math.sin(phi) * Math.cos(theta) * r;
+  by = 8.8 + Math.sin(phi) * Math.sin(theta) * r;
+  bz = Math.cos(phi) * r;
 } else if (partFrac < 0.46) {
-  // Right ear
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.3;
-  bx = 2.0 + Math.cos(a) * r;
-  by = 8.8 + Math.sin(a) * r;
-  bz = (rand3 - 0.5) * 0.8;
+  // Right ear (3D sphere)
+  const r = rCube * 1.3;
+  bx = 2.0 + Math.sin(phi) * Math.cos(theta) * r;
+  by = 8.8 + Math.sin(phi) * Math.sin(theta) * r;
+  bz = Math.cos(phi) * r;
 } else if (partFrac < 0.58) {
-  // Left arm (swinging)
+  // Left arm (3D cylinder-ish, swinging)
   const armAngle = Math.sin(phase) * 1.2 * groove;
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.4;
-  const armLen = rand2 * 5.0;
-  bx = -4.0 + Math.cos(armAngle) * armLen * 0.3 + Math.cos(a) * r * 0.5;
-  by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(a) * r * 0.3;
-  bz = Math.sin(armAngle) * armLen * 0.4 + (rand3 - 0.5) * 0.8;
+  const armT = rand2; // 0-1 along arm length
+  const armLen = armT * 5.0;
+  const limbR = rCube * 1.2 * (1.0 - armT * 0.3); // taper toward hand
+  bx = -4.0 + Math.cos(armAngle) * armLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
+  by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(phi) * Math.sin(theta) * limbR;
+  bz = Math.sin(armAngle) * armLen * 0.4 + Math.cos(phi) * limbR;
 } else if (partFrac < 0.70) {
-  // Right arm (swinging, opposite phase)
+  // Right arm (3D, opposite phase)
   const armAngle = Math.sin(phase + Math.PI) * 1.2 * groove;
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.4;
-  const armLen = rand2 * 5.0;
-  bx = 4.0 - Math.cos(armAngle) * armLen * 0.3 + Math.cos(a) * r * 0.5;
-  by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(a) * r * 0.3;
-  bz = -Math.sin(armAngle) * armLen * 0.4 + (rand3 - 0.5) * 0.8;
+  const armT = rand2;
+  const armLen = armT * 5.0;
+  const limbR = rCube * 1.2 * (1.0 - armT * 0.3);
+  bx = 4.0 - Math.cos(armAngle) * armLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
+  by = 3.0 - Math.sin(armAngle + 0.5) * armLen * 0.6 + Math.sin(phi) * Math.sin(theta) * limbR;
+  bz = -Math.sin(armAngle) * armLen * 0.4 + Math.cos(phi) * limbR;
 } else if (partFrac < 0.85) {
-  // Left leg (stepping)
+  // Left leg (3D, stepping)
   const legPhase = Math.sin(phase + 0.3) * groove;
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.3;
-  const legLen = rand2 * 5.0;
-  bx = -2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.cos(a) * r * 0.4;
-  by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase)) * 2.0 * groove;
-  bz = Math.cos(legPhase) * legLen * 0.3 + (rand3 - 0.5) * 0.8;
+  const legT = rand2;
+  const legLen = legT * 5.0;
+  const limbR = rCube * 1.3 * (1.0 - legT * 0.25);
+  bx = -2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
+  by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase)) * 2.0 * groove + Math.sin(phi) * Math.sin(theta) * limbR;
+  bz = Math.cos(legPhase) * legLen * 0.3 + Math.cos(phi) * limbR;
 } else {
-  // Right leg (stepping, opposite phase)
+  // Right leg (3D, opposite phase)
   const legPhase = Math.sin(phase + Math.PI + 0.3) * groove;
-  const a = rand1 * Math.PI * 2;
-  const r = Math.sqrt(rand2) * 1.3;
-  const legLen = rand2 * 5.0;
-  bx = 2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.cos(a) * r * 0.4;
-  by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase + Math.PI)) * 2.0 * groove;
-  bz = Math.cos(legPhase) * legLen * 0.3 + (rand3 - 0.5) * 0.8;
+  const legT = rand2;
+  const legLen = legT * 5.0;
+  const limbR = rCube * 1.3 * (1.0 - legT * 0.25);
+  bx = 2.0 + Math.sin(legPhase) * legLen * 0.3 + Math.sin(phi) * Math.cos(theta) * limbR;
+  by = -4.5 - legLen * 0.5 + Math.abs(Math.sin(phase + Math.PI)) * 2.0 * groove + Math.sin(phi) * Math.sin(theta) * limbR;
+  bz = Math.cos(legPhase) * legLen * 0.3 + Math.cos(phi) * limbR;
 }
 
 // Whole-body bounce on the beat
