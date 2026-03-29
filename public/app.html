@@ -431,10 +431,12 @@
 
 <div id="bottom-bar">
   <button class="nav-btn" id="mic-toggle-btn" title="Mute/unmute mic (M)" style="font-size:0.55rem;letter-spacing:0.03em;position:relative">MIC</button>
+  <button class="nav-btn" id="info-toggle-btn" title="Toggle info (I)" style="font-size:0.6rem;letter-spacing:0.03em">i</button>
   <button class="nav-btn" id="prev-btn" title="Previous">&lsaquo;</button>
   <div id="sim-name">HOPF FIBRATION</div>
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
   <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
+  <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
 
 <button id="toggle-sidebar" title="Controls">+</button>
@@ -578,6 +580,8 @@
   <div><kbd>Tab</kbd> Toggle controls</div>
   <div><kbd>A</kbd> Auto shuffle mode</div>
   <div><kbd>L</kbd> Toggle lyrics</div>
+  <div><kbd>I</kbd> Toggle info card</div>
+  <div><kbd>F</kbd> Fullscreen</div>
   <div><kbd>Click</kbd> Next simulation</div>
 </div>
 
@@ -5098,7 +5102,7 @@ let visualStyle = 'spark';
 const audio = { bass: 0, mids: 0, highs: 0, rms: 0, sBass: 0, sMids: 0, sHighs: 0, sRms: 0 };
 let analyser = null;
 let freqData = null;
-const SMOOTH = 0.45;
+const SMOOTH = 0.65;
 
 // ── Three.js Setup ─────────────────────────────────────────
 const scene = new THREE.Scene();
@@ -5251,22 +5255,65 @@ function addControl(id, label, min, max, initial) {
 }
 
 let hudTimer = null;
+let hudSuppressed = false; // user manually hid the HUD
 const hudInfo = document.getElementById('hud-info');
+const infoToggleBtn = document.getElementById('info-toggle-btn');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 function setInfo(title, desc) {
   document.getElementById('hud-title').textContent = title;
   document.getElementById('hud-desc').textContent = desc;
-  // Show on sim change, auto-hide after 4s
+  if (hudSuppressed) return; // user wants it hidden
   hudInfo.classList.remove('hidden');
   clearTimeout(hudTimer);
   hudTimer = setTimeout(() => hudInfo.classList.add('hidden'), 4000);
 }
 
-// Tap to toggle
+function toggleHud() {
+  hudSuppressed = !hudSuppressed;
+  infoToggleBtn.classList.toggle('active', !hudSuppressed);
+  if (hudSuppressed) {
+    hudInfo.classList.add('hidden');
+    clearTimeout(hudTimer);
+  } else {
+    hudInfo.classList.remove('hidden');
+    clearTimeout(hudTimer);
+    hudTimer = setTimeout(() => hudInfo.classList.add('hidden'), 4000);
+  }
+}
+
+// Tap HUD to dismiss
 hudInfo.addEventListener('click', (e) => {
   e.stopPropagation();
   hudInfo.classList.add('hidden');
 });
+
+// Info toggle button
+infoToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleHud();
+});
+
+// Fullscreen toggle
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+}
+
+if (document.fullscreenEnabled) {
+  fullscreenBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleFullscreen();
+  });
+  document.addEventListener('fullscreenchange', () => {
+    fullscreenBtn.classList.toggle('active', !!document.fullscreenElement);
+  });
+} else {
+  fullscreenBtn.style.display = 'none';
+}
 
 function annotate() {} // no-op for now
 
@@ -5305,8 +5352,8 @@ async function initAudio() {
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(micStream);
     analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.25;
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.12;
     source.connect(analyser);
     freqData = new Uint8Array(analyser.frequencyBinCount);
   } catch (e) {
@@ -5399,6 +5446,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'a' || e.key === 'A') {
     autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
   }
+  else if (e.key === 'i' || e.key === 'I') { toggleHud(); }
+  else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
     if (lyricsActive) {
@@ -6325,26 +6374,29 @@ function animate() {
     let fx = targetVec.x, fy = targetVec.y, fz = targetVec.z;
     let cr = colorObj.r, cg = colorObj.g, cb = colorObj.b;
 
-    // Particle text blending
+    // Particle text blending -- sim-flavored lyrics
+    // Each sim's own particle motion bleeds through the text, so CHLADNI text
+    // vibrates, DNA HELIX text spirals, STORM text drifts, etc.
     if (doLyrics && i < lyricParticleCount) {
       const i3 = i * 3;
       let finalTx = textTargets[i3];
       let finalTy = textTargets[i3 + 1];
       let finalTz = textTargets[i3 + 2];
 
-      if (i % 5 === 0) {
-        const orbitR = 1.2 + Math.sin(i * 0.7) * 0.5;
-        const orbitA = elapsed * 2.0 + i * 0.3;
-        finalTx += Math.cos(orbitA) * orbitR;
-        finalTy += Math.sin(orbitA * 1.3) * orbitR * 0.6;
-        finalTz += Math.sin(orbitA * 0.7) * orbitR;
-      }
+      // Blend the sim's own spatial motion into the text positions.
+      // This makes each sim's lyrics look unique -- the text inherits
+      // the sim's geometry as a living perturbation.
+      const simBleed = 0.3;
+      finalTx += fx * simBleed;
+      finalTy += fy * simBleed;
+      finalTz += fz * simBleed;
 
       fx = fx * invLb + finalTx * lb;
       fy = fy * invLb + finalTy * lb;
       fz = fz * invLb + finalTz * lb;
 
-      const boost = styleBoostVal + 0.25 * Math.sin(elapsed * 3 + i * 0.01);
+      // Keep the sim's own color palette, just brighten for legibility
+      const boost = 1.4 + 0.2 * Math.sin(elapsed * 3 + i * 0.01);
       const tr = Math.min(1.0, cr * boost);
       const tg = Math.min(1.0, cg * boost);
       const tb = Math.min(1.0, cb * boost);
