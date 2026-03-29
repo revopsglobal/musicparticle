@@ -854,38 +854,44 @@ const FRACTAL_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = ve
 const fractalUniforms = {
   uTime: { value: 0.0 }, uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
   uBass: { value: 0.0 }, uMids: { value: 0.0 }, uHighs: { value: 0.0 }, uRms: { value: 0.0 },
+  uCamPos: { value: new THREE.Vector3() }, uCamDir: { value: new THREE.Vector3() },
+  uCamRight: { value: new THREE.Vector3() }, uCamUp: { value: new THREE.Vector3() },
 };
 
 const MandelbulbBackdropFrag = `
 precision highp float;
 varying vec2 vUv;
 uniform float uTime; uniform vec2 uResolution; uniform float uBass; uniform float uMids; uniform float uHighs; uniform float uRms;
+uniform vec3 uCamPos; uniform vec3 uCamDir; uniform vec3 uCamRight; uniform vec3 uCamUp;
+
+// Mandelbulb DE in particle coordinate space (scale ~6-8 from origin)
 float mandelbulbDE(vec3 pos) {
-  vec3 z = pos; float dr = 1.0; float r = 0.0; float power = 8.0 + uBass * 4.0;
+  // Scale down to unit space for fractal math, then scale distance back
+  vec3 p = pos / 7.0;
+  vec3 z = p; float dr = 1.0; float r = 0.0; float power = 8.0 + uBass * 4.0;
   for (int i = 0; i < 12; i++) {
     r = length(z); if (r > 2.0) break;
     float theta = acos(z.z / r); float phi = atan(z.y, z.x);
     dr = pow(r, power - 1.0) * power * dr + 1.0;
     float zr = pow(r, power); theta *= power; phi *= power;
-    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + pos;
+    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
   }
-  return 0.5 * log(r) * r / dr;
+  return 0.5 * log(r) * r / dr * 7.0;
 }
 float raymarch(vec3 ro, vec3 rd) {
   float t = 0.0;
-  for (int i = 0; i < 80; i++) { float d = mandelbulbDE(ro + rd * t); if (d < 0.001) return t; t += d * 0.7; if (t > 20.0) break; }
+  for (int i = 0; i < 80; i++) { float d = mandelbulbDE(ro + rd * t); if (d < 0.002) return t; t += d * 0.7; if (t > 200.0) break; }
   return -1.0;
 }
 vec3 calcNormal(vec3 p) {
-  vec2 e = vec2(0.001, 0.0);
+  vec2 e = vec2(0.01, 0.0);
   return normalize(vec3(mandelbulbDE(p+e.xyy)-mandelbulbDE(p-e.xyy), mandelbulbDE(p+e.yxy)-mandelbulbDE(p-e.yxy), mandelbulbDE(p+e.yyx)-mandelbulbDE(p-e.yyx)));
 }
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution) / uResolution.y;
-  float angle = uTime * 0.15 + uMids * 0.5;
-  vec3 ro = vec3(2.5*cos(angle), 0.8+sin(uTime*0.1)*0.5, 2.5*sin(angle));
-  vec3 fwd = normalize(-ro); vec3 rt = normalize(cross(fwd, vec3(0,1,0))); vec3 up = cross(rt, fwd);
-  vec3 rd = normalize(fwd*1.5 + rt*uv.x + up*uv.y);
+  // Use scene camera
+  vec3 ro = uCamPos;
+  vec3 rd = normalize(uCamDir + uCamRight * uv.x + uCamUp * uv.y);
   float t = raymarch(ro, rd);
   vec3 col = vec3(0.0);
   if (t > 0.0) {
@@ -903,29 +909,30 @@ const MandelboxBackdropFrag = `
 precision highp float;
 varying vec2 vUv;
 uniform float uTime; uniform vec2 uResolution; uniform float uBass; uniform float uMids; uniform float uHighs; uniform float uRms;
+uniform vec3 uCamPos; uniform vec3 uCamDir; uniform vec3 uCamRight; uniform vec3 uCamUp;
+
 vec3 boxFold(vec3 z) { return clamp(z,-1.0,1.0)*2.0-z; }
 void sphereFold(inout vec3 z, inout float dr) {
   float minR2=0.25; float fixedR2=1.0+uMids*0.5; float r2=dot(z,z);
   if(r2<minR2){float t=fixedR2/minR2;z*=t;dr*=t;}else if(r2<fixedR2){float t=fixedR2/r2;z*=t;dr*=t;}
 }
 float mandelboxDE(vec3 pos) {
-  float scale=-1.5+uBass*0.8; vec3 z=pos; float dr=1.0;
-  for(int i=0;i<12;i++){z=boxFold(z);sphereFold(z,dr);z=z*scale+pos;dr=dr*abs(scale)+1.0;}
-  return length(z)/abs(dr);
+  vec3 p = pos / 4.0;
+  float scale=-1.5+uBass*0.8; vec3 z=p; float dr=1.0;
+  for(int i=0;i<12;i++){z=boxFold(z);sphereFold(z,dr);z=z*scale+p;dr=dr*abs(scale)+1.0;}
+  return length(z)/abs(dr) * 4.0;
 }
 float raymarch(vec3 ro, vec3 rd) {
-  float t=0.0; for(int i=0;i<80;i++){float d=mandelboxDE(ro+rd*t);if(d<0.001)return t;t+=d*0.6;if(t>30.0)break;} return -1.0;
+  float t=0.0; for(int i=0;i<80;i++){float d=mandelboxDE(ro+rd*t);if(d<0.002)return t;t+=d*0.6;if(t>200.0)break;} return -1.0;
 }
 vec3 calcNormal(vec3 p) {
-  vec2 e=vec2(0.001,0.0);
+  vec2 e=vec2(0.01,0.0);
   return normalize(vec3(mandelboxDE(p+e.xyy)-mandelboxDE(p-e.xyy),mandelboxDE(p+e.yxy)-mandelboxDE(p-e.yxy),mandelboxDE(p+e.yyx)-mandelboxDE(p-e.yyx)));
 }
 void main() {
   vec2 uv=(gl_FragCoord.xy-0.5*uResolution)/uResolution.y;
-  float angle=uTime*0.1; float cd=6.0-uBass*1.0;
-  vec3 ro=vec3(cd*cos(angle),1.5+sin(uTime*0.08)*0.8,cd*sin(angle));
-  vec3 fwd=normalize(-ro); vec3 rt=normalize(cross(fwd,vec3(0,1,0))); vec3 up=cross(rt,fwd);
-  vec3 rd=normalize(fwd*1.5+rt*uv.x+up*uv.y);
+  vec3 ro = uCamPos;
+  vec3 rd = normalize(uCamDir + uCamRight * uv.x + uCamUp * uv.y);
   float t=raymarch(ro,rd); vec3 col=vec3(0.0);
   if(t>0.0){vec3 p=ro+rd*t;vec3 n=calcNormal(p);vec3 ld=normalize(vec3(0.8,1,-0.6));
   float diff=max(dot(n,ld),0.0);float spec=pow(max(dot(reflect(-ld,n),-rd),0.0),16.0);
@@ -938,6 +945,8 @@ const HybridLandscapeFrag = `
 precision highp float;
 varying vec2 vUv;
 uniform float uTime; uniform vec2 uResolution; uniform float uBass; uniform float uMids; uniform float uHighs; uniform float uRms;
+uniform vec3 uCamPos; uniform vec3 uCamDir; uniform vec3 uCamRight; uniform vec3 uCamUp;
+
 float mengerDE(vec3 p) {
   float d=max(max(abs(p.x),abs(p.y)),abs(p.z))-1.0; float s=1.0;
   for(int m=0;m<3;m++){vec3 a=mod(p*s,2.0)-1.0;s*=3.0;vec3 r=abs(1.0-3.0*abs(a));
@@ -951,24 +960,25 @@ float bulbDE(vec3 pos) {
   return 0.5*log(r)*r/dr;
 }
 float sceneSDF(vec3 p) {
-  float rep=4.0+uBass*0.5; vec3 q=mod(p+rep*0.5,rep)-rep*0.5;
+  // Scale to fractal space
+  vec3 fp = p / 8.0;
+  float rep=4.0+uBass*0.5; vec3 q=mod(fp+rep*0.5,rep)-rep*0.5;
   float mg=mengerDE(q*0.8)/0.8; float bl=bulbDE(q*2.0)/2.0;
   float d=mix(mg,bl,0.5+uHighs*0.3);
-  d=min(d,p.y+1.5+sin(p.x*2.0+uTime)*uBass*0.2); return d;
+  d=min(d,fp.y+1.5+sin(fp.x*2.0+uTime)*uBass*0.2);
+  return d * 8.0;
 }
-float raymarch(vec3 ro,vec3 rd){float t=0.0;for(int i=0;i<80;i++){float d=sceneSDF(ro+rd*t);if(d<0.002)return t;t+=d*0.5;if(t>40.0)break;}return -1.0;}
-vec3 calcNormal(vec3 p){vec2 e=vec2(0.002,0.0);return normalize(vec3(sceneSDF(p+e.xyy)-sceneSDF(p-e.xyy),sceneSDF(p+e.yxy)-sceneSDF(p-e.yxy),sceneSDF(p+e.yyx)-sceneSDF(p-e.yyx)));}
+float raymarch(vec3 ro,vec3 rd){float t=0.0;for(int i=0;i<80;i++){float d=sceneSDF(ro+rd*t);if(d<0.01)return t;t+=d*0.5;if(t>200.0)break;}return -1.0;}
+vec3 calcNormal(vec3 p){vec2 e=vec2(0.05,0.0);return normalize(vec3(sceneSDF(p+e.xyy)-sceneSDF(p-e.xyy),sceneSDF(p+e.yxy)-sceneSDF(p-e.yxy),sceneSDF(p+e.yyx)-sceneSDF(p-e.yyx)));}
 void main() {
   vec2 uv=(gl_FragCoord.xy-0.5*uResolution)/uResolution.y;
-  vec3 ro=vec3(sin(uTime*0.1)*3.0,1.0+sin(uTime*0.07)*0.5,uTime*0.5);
-  vec3 la=ro+vec3(sin(uTime*0.05)*0.5,-0.2,0.5);
-  vec3 fwd=normalize(la-ro);vec3 rt=normalize(cross(fwd,vec3(0,1,0)));vec3 up=cross(rt,fwd);
-  vec3 rd=normalize(fwd*1.2+rt*uv.x+up*uv.y);
+  vec3 ro = uCamPos;
+  vec3 rd = normalize(uCamDir + uCamRight * uv.x + uCamUp * uv.y);
   float t=raymarch(ro,rd); vec3 col=vec3(0.0);
   if(t>0.0){vec3 p=ro+rd*t;vec3 n=calcNormal(p);
   vec3 l1=normalize(vec3(1,2,0.5));vec3 l2=normalize(vec3(-1,0.5,-1));
   float d1=max(dot(n,l1),0.0);float d2=max(dot(n,l2),0.0);
-  float fog=exp(-t*0.04);
+  float fog=exp(-t*0.005);
   vec3 c1=vec3(0.15,0.1,0.35)+vec3(uBass*0.1,0.0,uHighs*0.1);vec3 c2=vec3(0.05,0.15,0.2);
   col=c1*d1*0.7+c2*d2*0.3+vec3(0.1,0.08,0.2)*uRms;
   col=mix(vec3(0.02,0.01,0.05),col,fog);}
@@ -6786,6 +6796,11 @@ function animate() {
     fractalUniforms.uHighs.value = highs;
     fractalUniforms.uRms.value = rms;
     fractalUniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+    // Sync backdrop camera with scene camera
+    fractalUniforms.uCamPos.value.copy(camera.position);
+    camera.getWorldDirection(fractalUniforms.uCamDir.value);
+    fractalUniforms.uCamRight.value.setFromMatrixColumn(camera.matrixWorld, 0);
+    fractalUniforms.uCamUp.value.setFromMatrixColumn(camera.matrixWorld, 1);
   }
 
   // ── Render with or without feedback ─────────────────────
