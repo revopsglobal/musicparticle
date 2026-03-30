@@ -2405,18 +2405,7 @@ function createPipeline(effectName) {
 // [deferred to initWebGPU] let ppViews = [null, null];
 // [deferred to initWebGPU] let ppCurrentW = 0, ppCurrentH = 0;
 // [deferred to initWebGPU] 
-function ensurePingPong(w, h) {
-  if (ppCurrentW === w && ppCurrentH === h && ppTextures[0]) return;
-  ppTextures.forEach(t => { if (t) t.destroy(); });
-  for (let i = 0; i < 2; i++) {
-    ppTextures[i] = device.createTexture({
-      size: [w, h], format: format, // must match pipeline target format (bgra8unorm)
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    ppViews[i] = ppTextures[i].createView();
-  }
-  ppCurrentW = w; ppCurrentH = h;
-}
+// ensurePingPong defined after WebGPU init (uses gpuFormat)
 
 // ================================================================
 // SECTION 4: SIMULATIONS (all 35, verbatim from production)
