@@ -2257,12 +2257,22 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
     matrixCol += vec3f(0.0, glow * colBrightness, glow * colBrightness * 0.3);
   }
 
-  // Blend with source video
+  // Sample source video and use its brightness to drive the rain
   let tex = textureSample(inputTexture, texSampler, texCoord);
-  let videoContrib = tex.rgb * uniforms.blend;
-  // Video shows through where rain is active (tinted green)
-  let vidGreen = dot(tex.rgb, vec3f(0.299, 0.587, 0.114)) * vec3f(0.0, 0.4, 0.1);
-  let final_color = matrixCol + mix(vec3f(0.0), vidGreen, uniforms.blend * (1.0 - trail * 0.5));
+  let vidLuma = dot(tex.rgb, vec3f(0.299, 0.587, 0.114));
+
+  // Rain characters are brighter where the video is brighter
+  let vidInfluence = uniforms.blend;
+  let boostedTrail = trail * (1.0 + vidLuma * vidInfluence * 2.0);
+  matrixCol *= (1.0 + vidLuma * vidInfluence * 1.5);
+
+  // Tint rain characters with video color (green-shifted)
+  let vidTint = mix(vec3f(0.0, 0.6, 0.15), tex.rgb * 0.5 + vec3f(0.0, 0.3, 0.05), vidInfluence * 0.6);
+  let tintedRain = matrixCol * mix(vec3f(1.0), vidTint / max(length(vidTint), 0.01) * 1.2, vidInfluence * 0.4);
+
+  // In dark video areas, show pure rain; in bright areas, blend video through characters
+  let vidThrough = tex.rgb * glyphAlpha * vidLuma * vidInfluence * 0.35;
+  let final_color = tintedRain + vidThrough;
 
   return vec4f(final_color, 1.0);
 }`
@@ -8724,6 +8734,7 @@ function setMode(mode) {
     pCanvas.style.display = 'block';
     pCanvas.style.visibility = 'visible';
     pCanvas.style.opacity = '1';
+    pCanvas.style.zIndex = '0';
     vCanvas.style.display = 'none';
     vCanvas.style.zIndex = '-1';
     if (blendCtrl) blendCtrl.style.display = 'none';
@@ -8731,6 +8742,7 @@ function setMode(mode) {
     document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name;
   } else if (mode === 'input') {
     pCanvas.style.display = 'none';
+    pCanvas.style.zIndex = '0';
     vCanvas.style.display = 'block';
     vCanvas.style.zIndex = '1';
     if (blendCtrl) blendCtrl.style.display = 'none';
@@ -8738,8 +8750,9 @@ function setMode(mode) {
     pCanvas.style.display = 'block';
     pCanvas.style.visibility = 'visible';
     pCanvas.style.opacity = '1';
+    pCanvas.style.zIndex = '2';
     vCanvas.style.display = 'block';
-    vCanvas.style.zIndex = '-1';
+    vCanvas.style.zIndex = '1';
     if (blendCtrl) blendCtrl.style.display = 'flex';
     renderer.setClearColor(0x000000, 0);
     document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name + ' + FX';
