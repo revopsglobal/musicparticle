@@ -8239,7 +8239,7 @@ function animate() {
   }
 }
 
-animate();
+// animate() is called after the consolidated wrapper is set up below
 
 // ================================================================
 // SECTION 6: WebGPU Rendering + Mode Management + Effect Stack UI
@@ -8314,18 +8314,15 @@ function getStackParams(stack, fxName) {
   return entry ? entry.params : null;
 }
 
-// Pipelines and buffers (populated by initWebGPU)
-const pipelines = {};
-const uniformBuffers = {};
-const bindGroups = {};
-const pipelineData = {};
+// Pipelines and buffers (references to vars declared in WebGPU init section above)
+// pipelines, uniformBuffers, bindGroups already declared at line ~2339
+if (typeof pipelineData === 'undefined') var pipelineData = {};
 let ppTextures = [null, null];
 let ppViews = [null, null];
 let ppCurrentW = 0, ppCurrentH = 0;
-let fontAtlas = null;
+// fontAtlas, emojiAtlas already declared at line ~1275/1334
 let atlasTexture = null;
 let emojiAtlasTexture = null;
-const emojiAtlas = { canvas: null, charW: 0, charH: 0, cols: 0, rows: 0, charset: [] };
 
 function ensurePingPong(w, h) {
   if (!device) return;
@@ -8820,13 +8817,15 @@ document.body.addEventListener('drop', e => {
 });
 
 // Toggle controls panel (replaces production sidebar toggle)
-const toggleBtn = document.getElementById('toggle-sidebar');
+// Toggle sidebar (FX panel) - toggleBtn already declared above
 const controlsPanel = document.getElementById('sidebar');
-toggleBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  controlsPanel.classList.toggle('open');
-  toggleBtn.textContent = controlsPanel.classList.contains('open') ? 'x' : '+';
-});
+if (toggleBtn) {
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    controlsPanel.classList.toggle('open');
+    toggleBtn.textContent = controlsPanel.classList.contains('open') ? 'x' : 'FX';
+  });
+}
 
 // WebGPU resize
 window.addEventListener('resize', () => {
@@ -8923,10 +8922,8 @@ initWebGPU().then(() => {
   });
 });
 
-// The production code already calls animate() at the end.
-// We just need to hook into it for mode support.
-// Since production animate() uses requestAnimationFrame internally,
-// we need to replace it before it starts.
+// Start the consolidated animation loop (handles all modes)
+animate_consolidated();
 
 </script>
 </body>
