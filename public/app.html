@@ -21,19 +21,19 @@
   #webgpu-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
   #font-atlas-canvas, #test-canvas { display: none; }
 
-  /* -- Mode bar (top center) -- */
-  #mode-bar {
+  /* -- Source bar (top center) -- */
+  #source-bar {
     position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 150;
     display: flex; gap: 2px; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 6px; padding: 3px; backdrop-filter: blur(12px);
   }
-  .mode-btn {
-    padding: 6px 14px; border: none; border-radius: 4px;
-    background: transparent; color: rgba(255,255,255,0.3); font-family: 'Helvetica Neue', -apple-system, sans-serif; font-size: 0.6rem;
-    letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+  .source-btn {
+    padding: 7px 18px; border: none; border-radius: 4px;
+    background: transparent; color: rgba(255,255,255,0.4); font-family: 'Helvetica Neue', -apple-system, sans-serif; font-size: 11px;
+    letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
   }
-  .mode-btn:hover { color: rgba(255,255,255,0.6); }
-  .mode-btn.active { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+  .source-btn:hover { color: rgba(255,255,255,0.7); }
+  .source-btn.active { background: rgba(255,255,255,0.1); color: #fff; }
 
   /* -- Controls panel (right side) -- */
   #sidebar {
@@ -75,15 +75,6 @@
   .src-btn:hover { background: rgba(255,255,255,0.08); color: #aaa; }
   .src-btn.active { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
 
-  /* -- Blend control (hybrid mode) -- */
-  #blend-control {
-    position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%); z-index: 60;
-    display: none; align-items: center; gap: 10px;
-    background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px; padding: 6px 14px; backdrop-filter: blur(12px);
-  }
-  #blend-control label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #555; }
-  #blend-control input { width: 120px; accent-color: #666; }
 
   #no-webgpu { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 16px; color: #f44; text-align: center; z-index: 100; display: none; }
 
@@ -188,6 +179,60 @@
   }
   .chip:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.5); }
   .chip.active { border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
+
+  /* MIDI */
+  .midi-learning { cursor: crosshair !important; }
+  .midi-learn-active {
+    outline: 1px solid rgba(120, 130, 255, 0.6) !important;
+    outline-offset: 2px;
+    animation: midi-learn-pulse 1s ease-in-out infinite;
+  }
+  @keyframes midi-learn-pulse {
+    0%, 100% { outline-color: rgba(120, 130, 255, 0.6); }
+    50% { outline-color: rgba(120, 130, 255, 0.15); }
+  }
+  .midi-map-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.65rem; color: rgba(255,255,255,0.4);
+  }
+  .midi-map-row .midi-cc-num {
+    width: 32px; text-align: center; color: rgba(120, 130, 255, 0.7);
+    font-family: monospace; font-size: 0.7rem; flex-shrink: 0;
+  }
+  .midi-map-row .midi-param-name { flex: 1; }
+  .midi-map-row .midi-learn-btn {
+    font-size: 0.5rem; padding: 2px 6px; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.1); background: transparent;
+    color: rgba(255,255,255,0.3); cursor: pointer; text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .midi-map-row .midi-learn-btn:hover { border-color: rgba(120, 130, 255, 0.4); color: rgba(120, 130, 255, 0.7); }
+  .midi-map-row .midi-delete-btn {
+    font-size: 0.65rem; color: rgba(255,255,255,0.15); cursor: pointer;
+    background: none; border: none; padding: 2px; flex-shrink: 0;
+  }
+  .midi-map-row .midi-delete-btn:hover { color: rgba(255,100,100,0.6); }
+  #midi-learn-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(6, 6, 12, 0.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    backdrop-filter: blur(8px);
+  }
+  #midi-learn-overlay .learn-prompt {
+    font-family: 'Syne', sans-serif; font-size: 1rem;
+    color: rgba(255,255,255,0.7); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  #midi-learn-overlay .learn-target {
+    font-size: 0.7rem; color: rgba(120, 130, 255, 0.7);
+    letter-spacing: 0.15em; text-transform: uppercase;
+  }
+  #midi-learn-overlay .learn-cancel {
+    margin-top: 20px; font-size: 0.6rem; color: rgba(255,255,255,0.25);
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  #midi-learn-overlay .learn-cancel:hover { color: rgba(255,255,255,0.5); }
 
   /* Toggle sidebar button */
   #toggle-sidebar {
@@ -447,6 +492,16 @@
     #hud-info { max-width: 220px; top: calc(16px + env(safe-area-inset-top)); }
     #toggle-sidebar { top: calc(16px + env(safe-area-inset-top)); }
     #help-btn { bottom: 48px; }
+    /* Sidebar becomes bottom sheet on mobile */
+    #sidebar {
+      top: auto !important; right: 0 !important; left: 0 !important;
+      bottom: 56px !important; width: 100% !important;
+      max-height: 45vh; border-radius: 12px 12px 0 0;
+      border-left: none; border-top: 1px solid rgba(255,255,255,0.08);
+      transform: translateY(100%); transition: transform 0.3s ease;
+    }
+    #sidebar.open { transform: translateY(0); right: 0 !important; }
+    .source-btn { padding: 5px 10px; font-size: 9px; letter-spacing: 1px; }
     /* Sidebar text bumps */
     .section-title { font-size: 0.75rem; }
     .ctrl-slider label { font-size: 0.82rem; }
@@ -473,18 +528,18 @@
 
 <!-- WebGPU canvas (video effects, behind particles) -->
 <canvas id="webgpu-canvas"></canvas>
-<video id="src-video" loop muted playsinline>
-  <source src="/videos/mountains.mp4" type="video/mp4">
+<video id="src-video" loop muted playsinline preload="auto">
+  <source src="/videos/nature.mp4" type="video/mp4">
 </video>
 <canvas id="font-atlas-canvas" style="display:none"></canvas>
 <canvas id="test-canvas" style="display:none"></canvas>
 
 <!-- Mode tabs -->
-<div id="mode-bar">
-  <button class="mode-btn active" data-mode="particles">Particles</button>
-  <button class="mode-btn" data-mode="input">Input</button>
-  <button class="mode-btn" data-mode="hybrid">Hybrid</button>
-  <!-- <button class="mode-btn" data-mode="fractal">Fractal</button> -->
+<div id="source-bar">
+  <button class="source-btn active" data-source="nature">Nature</button>
+  <button class="source-btn" data-source="camera">Camera</button>
+  <button class="source-btn" data-source="upload">Upload</button>
+  <button class="source-btn" data-source="particles">Particles</button>
 </div>
 
 
@@ -505,29 +560,18 @@
 <div id="bottom-bar">
   <button class="nav-btn" id="mic-toggle-btn" title="Mute/unmute mic (M)" style="font-size:0.55rem;letter-spacing:0.03em;position:relative">MIC</button>
   <button class="nav-btn active" id="react-toggle-btn" title="Toggle audio reactivity (S)" style="font-size:0.45rem;letter-spacing:0.03em">REACT</button>
-  <button class="nav-btn" id="info-toggle-btn" title="Toggle info (I)" style="font-size:0.6rem;letter-spacing:0.03em">i</button>
+  <button class="nav-btn" id="midi-btn" title="MIDI panel (D)" style="font-size:0.45rem;letter-spacing:0.03em;display:none">MIDI</button>
   <button class="nav-btn" id="prev-btn" title="Previous">&lsaquo;</button>
-  <div id="sim-name">HOPF FIBRATION</div>
+  <div id="sim-name">NATURE</div>
   <button class="nav-btn" id="next-btn" title="Next">&rsaquo;</button>
-  <button class="nav-btn" id="auto-rotate-btn" title="Auto shuffle (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
-  <button class="nav-btn" id="fx-mode-btn" title="FX Mode (V)" style="font-size:0.45rem;letter-spacing:0.03em">FX</button>
-  <button class="nav-btn" id="auto-fx-btn" title="Auto FX (G)" style="font-size:0.4rem;letter-spacing:0.03em">AFX</button>
-<button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
+  <button class="nav-btn" id="auto-rotate-btn" title="Auto (A)" style="font-size:0.5rem;letter-spacing:0.05em">AUTO</button>
+  <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
+  <button class="nav-btn" id="record-btn" title="Record clip (R)" style="font-size:0.5rem;letter-spacing:0.03em">REC</button>
 </div>
-<button id="toggle-sidebar" title="Effects">FX</button>
+<button id="toggle-sidebar" title="Effects (Tab)">&#9776;</button>
 <div id="sidebar">
 
-  <!-- Source selector (Input/Hybrid only) -->
-  <div id="source-section" style="display:none;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
-    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding-right:30px;">
-      <span style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#444;">Source</span>
-      <button class="src-btn active" data-src="nature" style="font-size:9px;padding:3px 7px;">Nature</button>
-      <button class="src-btn" data-src="camera" style="font-size:9px;padding:3px 7px;">Camera</button>
-      <button class="src-btn" data-src="upload" style="font-size:9px;padding:3px 7px;">Upload</button>
-    </div>
-  </div>
-
-<!-- fractal section removed for now -->
+  <!-- Source selector moved to top source-bar -->
 
   <!-- Presets: featured strip + expand -->
   <h2 id="stack-label" style="margin-bottom:2px;">Presets</h2>
@@ -550,6 +594,21 @@
   <!-- Effect stack with categories -->
   <h2>Effects</h2>
   <div id="fx-stack"></div>
+
+  <!-- FX Mode (psychedelic modes) -->
+  <div style="padding:8px 14px;border-top:1px solid rgba(255,255,255,0.06);">
+    <label style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);display:block;margin-bottom:4px;">FX Mode</label>
+    <select id="fx-mode-select" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;color:rgba(255,255,255,0.7);font-family:inherit;font-size:11px;padding:5px;outline:none;">
+      <option value="clean">Clean</option>
+      <option value="psychedelic">Psychedelic</option>
+      <option value="retro">Retro</option>
+      <option value="cosmic">Cosmic</option>
+      <option value="void">Void</option>
+      <option value="fractal">Fractal</option>
+      <option value="prism">Prism</option>
+      <option value="deep_space">Deep Space</option>
+    </select>
+  </div>
 
   <!-- Advanced: remaining controls -->
   <details id="advanced-details" style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
@@ -669,11 +728,32 @@
 </div>
     </div>
   </details>
-</div>
-<div id="blend-control">
-  <label>Particles</label>
-  <input type="range" id="blend-slider" min="0" max="1" value="0.5" step="0.05">
-  <label>Video FX</label>
+
+  <!-- MIDI Controller -->
+  <details id="midi-details" style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;display:none;">
+    <summary style="font-size:0.6rem;color:rgba(255,255,255,0.25);cursor:pointer;letter-spacing:0.12em;text-transform:uppercase;padding:4px 0;">MIDI Controller</summary>
+    <div id="midi-content" style="margin-top:8px;">
+      <div class="section-title">Device</div>
+      <div id="midi-device-status" style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-bottom:8px;">No device connected</div>
+      <select id="midi-device-select" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);font-size:0.7rem;padding:6px 8px;border-radius:4px;margin-bottom:10px;">
+        <option value="">Select MIDI device...</option>
+      </select>
+
+      <div class="section-title">Preset</div>
+      <div id="midi-preset-list" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;"></div>
+
+      <div class="section-title">CC Mappings</div>
+      <div id="midi-cc-list"></div>
+      <button id="midi-add-cc" class="chip" style="margin-top:6px;width:100%;text-align:center;">+ Add CC Mapping</button>
+
+      <div class="section-title" style="margin-top:10px;">Note Mappings</div>
+      <div id="midi-note-list"></div>
+      <button id="midi-add-note" class="chip" style="margin-top:6px;width:100%;text-align:center;">+ Add Note Mapping</button>
+
+      <div class="section-title" style="margin-top:10px;">Activity</div>
+      <div id="midi-activity" style="font-family:monospace;font-size:0.6rem;color:rgba(255,255,255,0.15);height:24px;overflow:hidden;"></div>
+    </div>
+  </details>
 </div>
 <div id="lyrics-track-info"></div>
 <div id="mic-prompt">
@@ -1134,6 +1214,8 @@ const fxModeNames = Object.keys(FX_MODES);
 let webgpuAvailable = false;
 let device, gpuCanvas, gpuCtx, gpuFormat;
 let videoTexture = null;
+let fractalPipeline, fractalUniformBuffer, fractalBindGroup, fractalEffectStack;
+let fractalTexture, fractalTextureW, fractalTextureH;
 let sampler, atlasSampler;
 const video = document.getElementById('src-video');
 const testCanvas = document.getElementById('test-canvas');
@@ -1463,10 +1545,11 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
     params: [
       { name: 'cellSize', label: 'Cell Size', min: 4, max: 32, value: 12, step: 1 },
       { name: 'charset', label: 'Characters', min: 0, max: Object.keys(CHARSETS).length - 1, value: 0, step: 1, isCharset: true, uiOnly: true },
-      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1, hidden: true },
-      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1, hidden: true },
+      { name: 'brightness', label: 'Brightness', min: -100, max: 100, value: 0, step: 1 },
+      { name: 'contrast', label: 'Contrast', min: -100, max: 100, value: 20, step: 1 },
       { name: 'useOriginalColors', label: 'Color (0=Green 1=Original 2=B&W)', min: 0, max: 2, value: 1, step: 1 },
       { name: 'invert', label: 'Invert', min: 0, max: 1, value: 0, step: 1 },
+      { name: 'spacing', label: 'Spacing', min: 0, max: 0.5, value: 0, step: 0.02 },
     ],
     // ASCII needs font atlas bindings
     useFontAtlas: true,
@@ -1477,11 +1560,12 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
   contrast: f32,
   useOriginalColors: f32,
   invert: f32,
+  spacing: f32,
   charsetLength: f32,
   atlasSizeX: f32, atlasSizeY: f32,
   atlasCharSizeX: f32, atlasCharSizeY: f32,
   atlasCols: f32,
-  _pad1: f32, _pad2: f32, _pad3: f32,
+  _pad1: f32, _pad2: f32,
 }`,
     uniformSize: 64,
     fragment: `
@@ -1502,6 +1586,12 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
   // Which cell are we in?
   let cell = floor(pixelCoord / cs);
   let cellUV = fract(pixelCoord / cs);
+
+  // Spacing: black margin between cells
+  let sp = uniforms.spacing;
+  if (sp > 0.0 && (cellUV.x < sp || cellUV.x > (1.0 - sp) || cellUV.y < sp || cellUV.y > (1.0 - sp))) {
+    return vec4f(0.0, 0.0, 0.0, 1.0);
+  }
 
   // Sample source at cell center
   let cellCenter = (cell + 0.5) * cs / res;
@@ -2204,31 +2294,42 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
   let numCols = floor(res.x / cellSize);
   let numRows = floor(res.y / cellSize);
 
-  // Per-column properties: speed, offset, brightness (depth)
+  // Sample source image at cell center (like ASCII does)
+  let cellCenter = (cell + 0.5) * cellSize / res;
+  let sourceColor = textureSample(inputTexture, texSampler, cellCenter);
+  let sourceLum = luminance(sourceColor.rgb);
+
+  // Map source brightness to a character index (ALWAYS, this IS the image)
+  let maxCharIdx = u32(uniforms.charsetLength) - 1u;
+  let imageCharIdx = clamp(u32(sourceLum * uniforms.charsetLength), 0u, maxCharIdx);
+
+  // Per-column rain properties: speed, offset, depth
   let colHash1 = hash(vec2f(cell.x * 0.173, 1.7));
   let colHash2 = hash(vec2f(cell.x * 0.317, 3.1));
   let colSpeed = (1.5 + colHash1 * 5.0) * uniforms.speed;
   let colOffset = colHash2 * numRows * 2.0;
-  let colBrightness = 0.4 + colHash1 * 0.6; // depth: some columns dimmer
 
   // Scrolling head position (falls top to bottom, wraps)
   let totalLen = numRows + uniforms.trailLength;
   let scrollPos = (uniforms.time * colSpeed + colOffset) % (totalLen * 1.5);
 
   // Distance from the leading edge (head of the rain drop)
-  let cellRow = cell.y;
-  let distFromHead = scrollPos - cellRow;
+  let distFromHead = scrollPos - cell.y;
 
   // Trail: exponential decay behind the head
   var trail = 0.0;
   if (distFromHead > 0.0 && distFromHead < uniforms.trailLength) {
     trail = exp(-distFromHead * 3.0 / uniforms.trailLength);
   }
+  let headProximity = exp(-max(distFromHead, 0.0) * 2.0);
 
-  // Character selection: changes periodically per cell, faster near head
-  let charChangeRate = select(3.0, 12.0, distFromHead < 3.0);
-  let charSeed = hash(cell + floor(vec2f(uniforms.time * charChangeRate, 0.0)));
-  let charIdx = u32(charSeed * uniforms.charsetLength) % u32(uniforms.charsetLength);
+  // Character index: image-mapped by default, scrambled near the rain head
+  var charIdx = imageCharIdx;
+  if (trail > 0.3) {
+    // Near rain head: rapidly scramble characters
+    let scrambleSeed = hash(cell + floor(vec2f(uniforms.time * 12.0, 0.0)));
+    charIdx = u32(scrambleSeed * uniforms.charsetLength) % u32(uniforms.charsetLength);
+  }
 
   // Font atlas lookup
   let atlasCols = u32(uniforms.atlasCols);
@@ -2239,43 +2340,26 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
   let atlasUV = (vec2f(atlasCol, atlasRow) + localUV) * atlasCharSize / atlasSize;
   let glyphAlpha = textureSample(fontAtlas, atlasSampler, atlasUV).r;
 
-  // Per-character brightness variation within the trail
-  let charBrightVar = 0.7 + hash(cell * 0.97) * 0.3;
+  // Base: source image rendered AS characters with source colors (ALWAYS visible)
+  let baseColor = sourceColor.rgb * glyphAlpha;
 
-  // Color: leading edge is white, trail fades to green
-  var matrixCol = vec3f(0.0);
+  // Rain overlay: green tint where trail is active
+  var finalColor = baseColor;
   if (trail > 0.01) {
-    let headProximity = exp(-distFromHead * 2.0);
-    // White at head, transitioning to green
-    let headColor = vec3f(0.85, 1.0, 0.9);
-    let trailColor = vec3f(0.0, 0.8, 0.2) * charBrightVar;
-    let rainColor = mix(trailColor, headColor, headProximity);
-    matrixCol = rainColor * glyphAlpha * trail * colBrightness;
+    let trailGreen = vec3f(0.0, 0.85, 0.25);
+    let headWhite = vec3f(0.9, 1.0, 0.95);
+    let rainTint = mix(trailGreen, headWhite, headProximity);
+    let tintedChar = rainTint * glyphAlpha * (0.5 + sourceLum * 0.5);
 
-    // Subtle glow bleed around characters
+    // Subtle glow bleed around characters in the trail
     let glowRadius = 1.0 - length(localUV - 0.5) * 1.5;
-    let glow = max(glowRadius, 0.0) * trail * 0.08;
-    matrixCol += vec3f(0.0, glow * colBrightness, glow * colBrightness * 0.3);
+    let glow = max(glowRadius, 0.0) * trail * 0.06;
+    let glowColor = vec3f(0.0, glow, glow * 0.3);
+
+    finalColor = mix(baseColor, tintedChar, trail) + glowColor;
   }
 
-  // Sample source video and use its brightness to drive the rain
-  let tex = textureSample(inputTexture, texSampler, texCoord);
-  let vidLuma = dot(tex.rgb, vec3f(0.299, 0.587, 0.114));
-
-  // Rain characters are brighter where the video is brighter
-  let vidInfluence = uniforms.blend;
-  let boostedTrail = trail * (1.0 + vidLuma * vidInfluence * 2.0);
-  matrixCol *= (1.0 + vidLuma * vidInfluence * 1.5);
-
-  // Tint rain characters with video color (green-shifted)
-  let vidTint = mix(vec3f(0.0, 0.6, 0.15), tex.rgb * 0.5 + vec3f(0.0, 0.3, 0.05), vidInfluence * 0.6);
-  let tintedRain = matrixCol * mix(vec3f(1.0), vidTint / max(length(vidTint), 0.01) * 1.2, vidInfluence * 0.4);
-
-  // In dark video areas, show pure rain; in bright areas, blend video through characters
-  let vidThrough = tex.rgb * glyphAlpha * vidLuma * vidInfluence * 0.35;
-  let final_color = tintedRain + vidThrough;
-
-  return vec4f(final_color, 1.0);
+  return vec4f(finalColor, 1.0);
 }`
   },
 
@@ -6612,6 +6696,125 @@ let analyser = null;
 let freqData = null;
 const SMOOTH = 0.65;
 
+// ── MIDI State ────────────────────────────────────────────
+const midi = {
+  available: false,
+  access: null,
+  device: null,
+  deviceName: '',
+  cc: new Float32Array(128),
+  notes: new Uint8Array(128),
+  lastCC: -1,
+  lastNote: -1,
+  learning: null,
+  mappings: [],
+  noteMappings: [],
+  overrides: {},
+};
+let currentMidiPreset = 'custom';
+
+const MIDI_PARAMS = {
+  audioSensitivity: {
+    get: () => audioSensitivity,
+    set: (v) => {
+      audioSensitivity = v;
+      const el = document.getElementById('ctrl-sensitivity');
+      const vl = document.getElementById('val-sensitivity');
+      if (el) el.value = v;
+      if (vl) vl.textContent = v.toFixed(1);
+      const p = document.getElementById('ctrl-sensitivity-promoted');
+      const pv = document.getElementById('val-sensitivity-promoted');
+      if (p) p.value = v;
+      if (pv) pv.textContent = v.toFixed(1);
+    },
+    min: 0, max: 3.0, label: 'Audio Sensitivity'
+  },
+  glowIntensity: {
+    get: () => glowIntensity,
+    set: (v) => {
+      glowIntensity = v;
+      if (typeof bloomPass !== 'undefined') bloomPass.strength = v;
+      const el = document.getElementById('ctrl-glow');
+      const vl = document.getElementById('val-glow');
+      if (el) el.value = v;
+      if (vl) vl.textContent = v.toFixed(1);
+      const p = document.getElementById('ctrl-glow-promoted');
+      const pv = document.getElementById('val-glow-promoted');
+      if (p) p.value = v;
+      if (pv) pv.textContent = v.toFixed(1);
+    },
+    min: 0, max: 3.0, label: 'Glow Intensity'
+  },
+  simSpeed: {
+    get: () => simSpeed,
+    set: (v) => {
+      simSpeed = v;
+      const el = document.getElementById('ctrl-speed');
+      const vl = document.getElementById('val-speed');
+      if (el) el.value = v;
+      if (vl) vl.textContent = v.toFixed(1);
+    },
+    min: 0.1, max: 3.0, label: 'Sim Speed'
+  },
+  midiBass:  { get: () => midi.overrides.bass  || 0, set: (v) => { midi.overrides.bass = v; },  min: 0, max: 3.0, label: 'Bass Override' },
+  midiMids:  { get: () => midi.overrides.mids  || 0, set: (v) => { midi.overrides.mids = v; },  min: 0, max: 3.0, label: 'Mids Override' },
+  midiHighs: { get: () => midi.overrides.highs || 0, set: (v) => { midi.overrides.highs = v; }, min: 0, max: 3.0, label: 'Highs Override' },
+  midiRms:   { get: () => midi.overrides.rms   || 0, set: (v) => { midi.overrides.rms = v; },   min: 0, max: 3.0, label: 'RMS Override' },
+};
+
+const MIDI_ACTIONS = {
+  loadSim:      { fn: (v) => loadSim(v % SIMULATIONS.length),  label: 'Load Simulation' },
+  nextSim:      { fn: () => loadSim((currentSimIndex + 1) % SIMULATIONS.length), label: 'Next Sim' },
+  prevSim:      { fn: () => loadSim((currentSimIndex - 1 + SIMULATIONS.length) % SIMULATIONS.length), label: 'Prev Sim' },
+  randomSim:    { fn: () => { let idx; do { idx = Math.floor(Math.random() * SIMULATIONS.length); } while (idx === currentSimIndex); loadSim(idx); }, label: 'Random Sim' },
+  cycleFxMode:  { fn: () => cycleFxMode(),  label: 'Cycle FX Mode' },
+  toggleAutoFx: { fn: () => toggleAutoFx(), label: 'Toggle Auto FX' },
+  toggleShuffle:{ fn: () => { autoRotateEnabled ? stopAutoRotate() : startAutoRotate(); }, label: 'Toggle Shuffle' },
+};
+
+const MIDI_PRESETS = {
+  'generic': {
+    label: 'Generic CC',
+    mappings: [
+      { cc: 1, param: 'audioSensitivity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 2, param: 'glowIntensity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 3, param: 'simSpeed', min: 0.1, max: 3.0, mode: 'direct' },
+      { cc: 5, param: 'midiBass', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 6, param: 'midiMids', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 7, param: 'midiHighs', min: 0, max: 3.0, mode: 'direct' },
+    ],
+    noteMappings: [
+      ...Array.from({length: 8}, (_, i) => ({ note: 36 + i, action: 'loadSim', value: i })),
+      { note: 44, action: 'randomSim', value: 0 },
+      { note: 45, action: 'cycleFxMode', value: 0 },
+      { note: 46, action: 'toggleShuffle', value: 0 },
+    ]
+  },
+  'apc40': {
+    label: 'APC40 mk2',
+    mappings: [
+      { cc: 48, param: 'audioSensitivity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 49, param: 'glowIntensity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 50, param: 'simSpeed', min: 0.1, max: 3.0, mode: 'direct' },
+      { cc: 52, param: 'midiBass', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 53, param: 'midiMids', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 54, param: 'midiHighs', min: 0, max: 3.0, mode: 'direct' },
+    ],
+    noteMappings: Array.from({length: 8}, (_, i) => ({ note: 36 + i, action: 'loadSim', value: i })),
+  },
+  'push': {
+    label: 'Ableton Push',
+    mappings: [
+      { cc: 71, param: 'audioSensitivity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 72, param: 'glowIntensity', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 73, param: 'simSpeed', min: 0.1, max: 3.0, mode: 'direct' },
+      { cc: 75, param: 'midiBass', min: 0, max: 3.0, mode: 'direct' },
+      { cc: 76, param: 'midiMids', min: 0, max: 3.0, mode: 'direct' },
+    ],
+    noteMappings: Array.from({length: 8}, (_, i) => ({ note: 36 + i, action: 'loadSim', value: i })),
+  },
+};
+
 
 // ── Three.js Setup ─────────────────────────────────────────
 const scene = new THREE.Scene();
@@ -6619,7 +6822,7 @@ const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerH
 camera.position.set(0, 15, 90);
 camera.lookAt(0, 0, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setClearColor(0x000000);
@@ -6711,6 +6914,9 @@ const SIM_BACKDROP_MAP = {
 
 function applyFxMode(modeName) {
   currentFxMode = modeName;
+  // Sync sidebar dropdown
+  const sel = document.getElementById('fx-mode-select');
+  if (sel) sel.value = modeName;
   const m = FX_MODES[modeName] || FX_MODES.clean;
   chromaPass.enabled = m.chromatic > 0;
   huePass.enabled = m.hueSpeed > 0;
@@ -6942,7 +7148,7 @@ function setInfo(title, desc) {
 
 function toggleHud() {
   hudSuppressed = !hudSuppressed;
-  infoToggleBtn.classList.toggle('active', !hudSuppressed);
+  if (infoToggleBtn) infoToggleBtn.classList.toggle('active', !hudSuppressed);
   if (hudSuppressed) {
     hudInfo.classList.add('hidden');
     clearTimeout(hudTimer);
@@ -6960,7 +7166,7 @@ hudInfo.addEventListener('click', (e) => {
 });
 
 // Info toggle button
-infoToggleBtn.addEventListener('click', (e) => {
+if (infoToggleBtn) infoToggleBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   toggleHud();
 });
@@ -7062,6 +7268,381 @@ function updateAudio() {
 
 }
 
+// ── MIDI Functions ────────────────────────────────────────
+async function initMidi() {
+  if (!navigator.requestMIDIAccess) {
+    midi.available = false;
+    return;
+  }
+  try {
+    midi.access = await navigator.requestMIDIAccess({ sysex: false });
+    midi.available = true;
+    midi.access.onstatechange = onMidiStateChange;
+    refreshMidiDevices();
+    const saved = localStorage.getItem('mp_midi_device');
+    if (saved) {
+      for (const [id, input] of midi.access.inputs) {
+        if (input.name === saved) { connectMidiDevice(input); break; }
+      }
+    }
+  } catch (e) {
+    midi.available = false;
+    console.warn('MIDI access denied:', e);
+  }
+}
+
+function refreshMidiDevices() {
+  if (!midi.access) return;
+  const list = [];
+  for (const [id, input] of midi.access.inputs) {
+    list.push({ id, name: input.name, manufacturer: input.manufacturer });
+  }
+  updateMidiDeviceUI(list);
+}
+
+function onMidiStateChange(e) {
+  refreshMidiDevices();
+  if (midi.device && e.port === midi.device && e.port.state === 'disconnected') {
+    midi.device = null;
+    midi.deviceName = '';
+    updateMidiStatusUI();
+  }
+}
+
+function connectMidiDevice(input) {
+  if (midi.device) midi.device.onmidimessage = null;
+  midi.device = input;
+  midi.deviceName = input.name;
+  input.onmidimessage = onMidiMessage;
+  localStorage.setItem('mp_midi_device', input.name);
+  updateMidiStatusUI();
+}
+
+function onMidiMessage(e) {
+  if (!e.data || e.data.length < 3) return;
+  const [status, data1, data2] = e.data;
+  const cmd = status & 0xf0;
+
+  if (cmd === 0xb0) {
+    const cc = data1;
+    const val = data2 / 127;
+    midi.cc[cc] = val;
+    midi.lastCC = cc;
+
+    if (midi.learning && midi.learning.type === 'cc') {
+      completeMidiLearn(cc);
+      return;
+    }
+    applyMidiCC(cc, val);
+    showMidiActivity('CC' + cc, val);
+
+  } else if (cmd === 0x90 && data2 > 0) {
+    midi.notes[data1] = data2;
+    midi.lastNote = data1;
+
+    if (midi.learning && midi.learning.type === 'note') {
+      completeMidiNoteLearn(data1);
+      return;
+    }
+    handleMidiNoteOn(data1, data2);
+    showMidiActivity('N' + data1, data2 / 127);
+
+  } else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) {
+    midi.notes[data1] = 0;
+  }
+}
+
+function applyMidiCC(cc, normalizedValue) {
+  for (const mapping of midi.mappings) {
+    if (mapping.cc !== cc) continue;
+    const param = MIDI_PARAMS[mapping.param];
+    if (!param) continue;
+    const range = mapping.max - mapping.min;
+    const mapped = mapping.min + normalizedValue * range;
+    param.set(mapped);
+  }
+}
+
+function handleMidiNoteOn(note, velocity) {
+  for (const mapping of midi.noteMappings) {
+    if (mapping.note !== note) continue;
+    const action = MIDI_ACTIONS[mapping.action];
+    if (action) action.fn(mapping.value);
+  }
+}
+
+// MIDI Learn
+function startMidiLearn(type, target) {
+  midi.learning = { type, target };
+  document.body.classList.add('midi-learning');
+  const overlay = document.getElementById('midi-learn-overlay');
+  const prompt = document.getElementById('midi-learn-prompt');
+  const label = document.getElementById('midi-learn-target-label');
+  if (type === 'cc') {
+    const param = MIDI_PARAMS[target];
+    if (prompt) prompt.textContent = 'Move a knob or fader...';
+    if (label) label.textContent = param ? param.label : target;
+  } else {
+    const action = MIDI_ACTIONS[target.action];
+    if (prompt) prompt.textContent = 'Press a pad or key...';
+    if (label) label.textContent = action ? action.label : target.action;
+  }
+  if (overlay) overlay.style.display = '';
+}
+
+function completeMidiLearn(cc) {
+  const target = midi.learning.target;
+  const param = MIDI_PARAMS[target];
+  if (!param) { cancelMidiLearn(); return; }
+  midi.mappings = midi.mappings.filter(m => m.cc !== cc);
+  midi.mappings.push({ cc, param: target, min: param.min, max: param.max, mode: 'direct' });
+  midi.learning = null;
+  document.body.classList.remove('midi-learning');
+  const overlay = document.getElementById('midi-learn-overlay');
+  if (overlay) overlay.style.display = 'none';
+  saveMidiMappings();
+  updateMidiMappingUI();
+}
+
+function completeMidiNoteLearn(note) {
+  const target = midi.learning.target;
+  midi.noteMappings = midi.noteMappings.filter(m => m.note !== note);
+  midi.noteMappings.push({ note, action: target.action, value: target.value });
+  midi.learning = null;
+  document.body.classList.remove('midi-learning');
+  const overlay = document.getElementById('midi-learn-overlay');
+  if (overlay) overlay.style.display = 'none';
+  saveMidiMappings();
+  updateMidiMappingUI();
+}
+
+function cancelMidiLearn() {
+  midi.learning = null;
+  document.body.classList.remove('midi-learning');
+  const overlay = document.getElementById('midi-learn-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// MIDI Persistence
+function saveMidiMappings() {
+  localStorage.setItem('mp_midi', JSON.stringify({
+    mappings: midi.mappings,
+    noteMappings: midi.noteMappings,
+    device: midi.deviceName,
+    preset: currentMidiPreset,
+  }));
+}
+
+function loadMidiMappings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('mp_midi'));
+    if (!s) return;
+    if (s.mappings) midi.mappings = s.mappings;
+    if (s.noteMappings) midi.noteMappings = s.noteMappings;
+    if (s.preset) currentMidiPreset = s.preset;
+  } catch (e) {}
+}
+
+function applyMidiPreset(name) {
+  const preset = MIDI_PRESETS[name];
+  if (!preset) return;
+  midi.mappings = JSON.parse(JSON.stringify(preset.mappings));
+  midi.noteMappings = JSON.parse(JSON.stringify(preset.noteMappings));
+  currentMidiPreset = name;
+  saveMidiMappings();
+  updateMidiMappingUI();
+}
+
+// MIDI UI Builders
+function updateMidiDeviceUI(devices) {
+  const select = document.getElementById('midi-device-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">Select MIDI device...</option>';
+  devices.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name + (d.manufacturer ? ' (' + d.manufacturer + ')' : '');
+    if (midi.device && midi.deviceName === d.name) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+function updateMidiStatusUI() {
+  const el = document.getElementById('midi-device-status');
+  const btn = document.getElementById('midi-btn');
+  if (midi.device) {
+    if (el) { el.textContent = 'Connected: ' + midi.deviceName; el.style.color = 'rgba(120, 200, 120, 0.6)'; }
+    if (btn) btn.classList.add('active');
+  } else {
+    if (el) { el.textContent = 'No device connected'; el.style.color = 'rgba(255,255,255,0.3)'; }
+    if (btn) btn.classList.remove('active');
+  }
+}
+
+function updateMidiMappingUI() {
+  // CC mappings
+  const ccList = document.getElementById('midi-cc-list');
+  if (ccList) {
+    ccList.innerHTML = '';
+    midi.mappings.forEach((m, idx) => {
+      const param = MIDI_PARAMS[m.param];
+      const row = document.createElement('div');
+      row.className = 'midi-map-row';
+      row.innerHTML =
+        '<span class="midi-cc-num">CC' + m.cc + '</span>' +
+        '<span class="midi-param-name">' + (param ? param.label : m.param) + '</span>' +
+        '<button class="midi-learn-btn" data-cc-idx="' + idx + '">Learn</button>' +
+        '<button class="midi-delete-btn" data-cc-del="' + idx + '">&times;</button>';
+      ccList.appendChild(row);
+    });
+  }
+
+  // Note mappings
+  const noteList = document.getElementById('midi-note-list');
+  if (noteList) {
+    noteList.innerHTML = '';
+    midi.noteMappings.forEach((m, idx) => {
+      const action = MIDI_ACTIONS[m.action];
+      const row = document.createElement('div');
+      row.className = 'midi-map-row';
+      row.innerHTML =
+        '<span class="midi-cc-num">N' + m.note + '</span>' +
+        '<span class="midi-param-name">' + (action ? action.label : m.action) + (m.value != null ? ' (' + m.value + ')' : '') + '</span>' +
+        '<button class="midi-learn-btn" data-note-idx="' + idx + '">Learn</button>' +
+        '<button class="midi-delete-btn" data-note-del="' + idx + '">&times;</button>';
+      noteList.appendChild(row);
+    });
+  }
+
+  // Presets
+  const presetList = document.getElementById('midi-preset-list');
+  if (presetList) {
+    presetList.innerHTML = '';
+    Object.entries(MIDI_PRESETS).forEach(([key, preset]) => {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (currentMidiPreset === key ? ' active' : '');
+      btn.textContent = preset.label;
+      btn.addEventListener('click', () => applyMidiPreset(key));
+      presetList.appendChild(btn);
+    });
+  }
+}
+
+function showMidiActivity(label, value) {
+  const el = document.getElementById('midi-activity');
+  if (!el) return;
+  el.textContent = label + ': ' + (value * 100).toFixed(0) + '%';
+  el.style.color = 'rgba(120, 130, 255, 0.5)';
+  clearTimeout(el._fadeTimer);
+  el._fadeTimer = setTimeout(() => { el.style.color = 'rgba(255,255,255,0.15)'; }, 400);
+}
+
+function toggleMidiPanel() {
+  const details = document.getElementById('midi-details');
+  if (!details || details.style.display === 'none') return;
+  details.open = !details.open;
+  if (!sidebar.classList.contains('open')) {
+    sidebar.classList.add('open');
+    toggleBtn.textContent = '\u2715';
+  }
+}
+
+function wireMidiUI() {
+  // Device select
+  const select = document.getElementById('midi-device-select');
+  if (select) {
+    select.addEventListener('change', (e) => {
+      if (!e.target.value) { if (midi.device) midi.device.onmidimessage = null; midi.device = null; midi.deviceName = ''; updateMidiStatusUI(); return; }
+      for (const [id, input] of midi.access.inputs) {
+        if (id === e.target.value) { connectMidiDevice(input); break; }
+      }
+    });
+  }
+
+  // CC mapping list delegation
+  const ccList = document.getElementById('midi-cc-list');
+  if (ccList) {
+    ccList.addEventListener('click', (e) => {
+      const learnIdx = e.target.dataset.ccIdx;
+      if (learnIdx != null) {
+        const m = midi.mappings[parseInt(learnIdx)];
+        if (m) startMidiLearn('cc', m.param);
+        return;
+      }
+      const delIdx = e.target.dataset.ccDel;
+      if (delIdx != null) {
+        midi.mappings.splice(parseInt(delIdx), 1);
+        saveMidiMappings();
+        updateMidiMappingUI();
+      }
+    });
+  }
+
+  // Note mapping list delegation
+  const noteList = document.getElementById('midi-note-list');
+  if (noteList) {
+    noteList.addEventListener('click', (e) => {
+      const learnIdx = e.target.dataset.noteIdx;
+      if (learnIdx != null) {
+        const m = midi.noteMappings[parseInt(learnIdx)];
+        if (m) startMidiLearn('note', { action: m.action, value: m.value });
+        return;
+      }
+      const delIdx = e.target.dataset.noteDel;
+      if (delIdx != null) {
+        midi.noteMappings.splice(parseInt(delIdx), 1);
+        saveMidiMappings();
+        updateMidiMappingUI();
+      }
+    });
+  }
+
+  // Add CC mapping button
+  const addCcBtn = document.getElementById('midi-add-cc');
+  if (addCcBtn) {
+    addCcBtn.addEventListener('click', () => {
+      // Find first unmapped param
+      const mapped = new Set(midi.mappings.map(m => m.param));
+      const available = Object.keys(MIDI_PARAMS).find(k => !mapped.has(k));
+      if (!available) return;
+      const param = MIDI_PARAMS[available];
+      midi.mappings.push({ cc: 1, param: available, min: param.min, max: param.max, mode: 'direct' });
+      currentMidiPreset = 'custom';
+      saveMidiMappings();
+      updateMidiMappingUI();
+      // Start learn for the new mapping
+      startMidiLearn('cc', available);
+    });
+  }
+
+  // Add Note mapping button
+  const addNoteBtn = document.getElementById('midi-add-note');
+  if (addNoteBtn) {
+    addNoteBtn.addEventListener('click', () => {
+      const actionKeys = Object.keys(MIDI_ACTIONS);
+      const mapped = new Set(midi.noteMappings.map(m => m.action));
+      const available = actionKeys.find(k => !mapped.has(k)) || actionKeys[0];
+      midi.noteMappings.push({ note: 36, action: available, value: 0 });
+      currentMidiPreset = 'custom';
+      saveMidiMappings();
+      updateMidiMappingUI();
+      startMidiLearn('note', { action: available, value: 0 });
+    });
+  }
+
+  // MIDI button in bottom bar
+  const midiBtn = document.getElementById('midi-btn');
+  if (midiBtn) {
+    midiBtn.addEventListener('click', toggleMidiPanel);
+  }
+
+  // Learn overlay cancel
+  const cancelBtn = document.getElementById('midi-learn-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', cancelMidiLearn);
+  }
+}
+
 // ── UI Wiring ──────────────────────────────────────────────
 const overlay = document.getElementById('overlay');
 const sidebar = document.getElementById('sidebar');
@@ -7076,6 +7657,17 @@ let started = true;
 // Auto-start: no tap-to-start overlay needed
 if (overlay) overlay.classList.add('hidden');
 loadSettings();
+loadMidiMappings();
+wireMidiUI();
+initMidi().then(() => {
+  if (midi.available) {
+    const midiBtn = document.getElementById('midi-btn');
+    const midiDetails = document.getElementById('midi-details');
+    if (midiBtn) midiBtn.style.display = '';
+    if (midiDetails) midiDetails.style.display = '';
+    updateMidiMappingUI();
+  }
+});
 const randomStart = Math.floor(Math.random() * SIMULATIONS.length);
 loadSim(randomStart);
 startAutoRotate();
@@ -7123,6 +7715,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'v' || e.key === 'V') { cycleFxMode(); }
   else if (e.key === 'b' || e.key === 'B') { cycleBackdrop(); }
   else if (e.key === 'g' || e.key === 'G') { toggleAutoFx(); }
+  else if (e.key === 'd' || e.key === 'D') { toggleMidiPanel(); }
+  else if (e.key === 'Escape' && midi.learning) { cancelMidiLearn(); }
   else if (e.key === 'l' || e.key === 'L') {
     // Toggle lyrics if loaded, otherwise open sidebar to lyrics section
     if (lyricsActive) {
@@ -7132,7 +7726,7 @@ document.addEventListener('keydown', (e) => {
       if (!lyricsVisible) { lyricOpacityTarget = 0; }
     } else if (!sidebar.classList.contains('open')) {
       sidebar.classList.add('open');
-      toggleBtn.textContent = 'x';
+      toggleBtn.textContent = '\u2715';
       setTimeout(() => lyricsSearchInput.focus(), 100);
     }
   }
@@ -7149,21 +7743,21 @@ const fxModeBtn = document.getElementById('fx-mode-btn');
 function cycleFxMode() {
   const idx = (fxModeNames.indexOf(currentFxMode) + 1) % fxModeNames.length;
   applyFxMode(fxModeNames[idx]);
-  fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
+  if (fxModeBtn) fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
 }
-fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
+if (fxModeBtn) fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
 
 // Auto FX toggle
 const autoFxBtn = document.getElementById('auto-fx-btn');
 function toggleAutoFx() {
   autoFxEnabled = !autoFxEnabled;
-  autoFxBtn.classList.toggle('active', autoFxEnabled);
+  if (autoFxBtn) autoFxBtn.classList.toggle('active', autoFxEnabled);
   if (!autoFxEnabled) {
     applyFxMode('clean');
-    fxModeBtn.classList.remove('active');
+    if (fxModeBtn) fxModeBtn.classList.remove('active');
   }
 }
-autoFxBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleAutoFx(); });
+if (autoFxBtn) autoFxBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleAutoFx(); });
 
 // Backdrop cycling
 const backdropNames = [null, 'mandelbulb', 'mandelbox', 'hybrid'];
@@ -7187,7 +7781,7 @@ renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 toggleBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   sidebar.classList.toggle('open');
-  toggleBtn.textContent = sidebar.classList.contains('open') ? 'x' : 'FX';
+  toggleBtn.textContent = sidebar.classList.contains('open') ? '\u2715' : '\u2630';
 });
 
 // iOS install banner
@@ -7320,6 +7914,11 @@ document.getElementById('ctrl-glow-promoted')?.addEventListener('input', (e) => 
   if (adv) { adv.value = glowIntensity; document.getElementById('val-glow').textContent = glowIntensity.toFixed(1); }
   saveSettings();
 });
+// FX Mode dropdown
+document.getElementById('fx-mode-select')?.addEventListener('change', (e) => {
+  applyFxMode(e.target.value);
+});
+
 document.getElementById('ctrl-sensitivity-promoted')?.addEventListener('input', (e) => {
   audioSensitivity = parseFloat(e.target.value);
   document.getElementById('val-sensitivity-promoted').textContent = audioSensitivity.toFixed(1);
@@ -8055,7 +8654,7 @@ function triggerAutoTransition() {
     const modes = fxModeNames.filter(m => m !== 'clean');
     const newFx = modes[Math.floor(Math.random() * modes.length)];
     applyFxMode(newFx);
-    fxModeBtn.classList.add('active');
+    if (fxModeBtn) fxModeBtn.classList.add('active');
   }
 }
 
@@ -8108,10 +8707,16 @@ function animate_production() {
 
   const dt = clock.getDelta() * simSpeed;
   const elapsed = clock.getElapsedTime() * simSpeed;
-  const bass = audio.sBass * audioSensitivity;
-  const mids = audio.sMids * audioSensitivity;
-  const highs = audio.sHighs * audioSensitivity;
-  const rms = audio.sRms * audioSensitivity;
+  let bass = audio.sBass * audioSensitivity;
+  let mids = audio.sMids * audioSensitivity;
+  let highs = audio.sHighs * audioSensitivity;
+  let rms = audio.sRms * audioSensitivity;
+
+  // MIDI override: boost signal, never suppress
+  if (midi.overrides.bass  != null) bass  = Math.max(bass,  midi.overrides.bass);
+  if (midi.overrides.mids  != null) mids  = Math.max(mids,  midi.overrides.mids);
+  if (midi.overrides.highs != null) highs = Math.max(highs, midi.overrides.highs);
+  if (midi.overrides.rms   != null) rms   = Math.max(rms,   midi.overrides.rms);
 
   // Auto-rotate between sims
   updateAutoRotate(dt);
@@ -8252,15 +8857,7 @@ function animate_production() {
 // SECTION 6: WebGPU Rendering + Mode Management + Effect Stack UI
 // ================================================================
 
-let currentMode = 'particles';
-let hybridBlend = 0.5;
-let fractalType = 0;
-let fractalPipeline = null;
-let fractalUniformBuffer = null;
-let fractalBindGroup = null;
-let fractalEffectStack = [];
-let fractalTexture = null;
-let fractalTextureW = 0, fractalTextureH = 0;
+let currentMode = 'particles'; // backward compat alias, derived from currentSource
 
 // Initialize WebGPU if available
 async function initWebGPU() {
@@ -8687,13 +9284,21 @@ function renderVideoFX(t) {
     source = testCanvas;
   }
 
-  if (videoTexture) videoTexture.destroy();
+  // Guard: skip frame if video not ready yet
+  if (source instanceof HTMLVideoElement && source.readyState < 2) return;
+
+  // Cache video texture -- only recreate when source dimensions change
   const srcW = source.width || source.videoWidth || 1280;
   const srcH = source.height || source.videoHeight || 720;
-  videoTexture = device.createTexture({
-    size: [srcW, srcH], format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  if (!videoTexture || renderVideoFX._vtW !== srcW || renderVideoFX._vtH !== srcH) {
+    if (videoTexture) videoTexture.destroy();
+    videoTexture = device.createTexture({
+      size: [srcW, srcH], format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    renderVideoFX._vtW = srcW;
+    renderVideoFX._vtH = srcH;
+  }
   device.queue.copyExternalImageToTexture({ source, flipY: false }, { texture: videoTexture }, [srcW, srcH]);
 
   const activeEffects = getActiveEffects(inputEffectStack);
@@ -8868,13 +9473,18 @@ function renderParticlesThroughFX(t) {
     gpuCanvas.style.height = window.innerHeight + 'px';
   }
 
-  if (videoTexture) videoTexture.destroy();
+  // Cache video texture -- only recreate when particle canvas dimensions change
   const srcW = pCanvas.width;
   const srcH = pCanvas.height;
-  videoTexture = device.createTexture({
-    size: [srcW, srcH], format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  if (!videoTexture || renderParticlesThroughFX._vtW !== srcW || renderParticlesThroughFX._vtH !== srcH) {
+    if (videoTexture) videoTexture.destroy();
+    videoTexture = device.createTexture({
+      size: [srcW, srcH], format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    renderParticlesThroughFX._vtW = srcW;
+    renderParticlesThroughFX._vtH = srcH;
+  }
   device.queue.copyExternalImageToTexture({ source: pCanvas, flipY: false }, { texture: videoTexture }, [srcW, srcH]);
 
   const activeEffects = getActiveEffects(particleEffectStack);
@@ -9077,136 +9687,122 @@ function buildStackPanel() {
     container.innerHTML = '<p style="font-size:0.6rem;color:rgba(255,255,255,0.2);padding:8px 0;">WebGPU effects unavailable</p>';
     return;
   }
-  const sourceSection = document.getElementById('source-section');
   const stackLabel = document.getElementById('stack-label');
+  stackLabel.textContent = 'Presets';
 
-  if (currentMode === 'particles') {
-    stackLabel.textContent = 'Presets';
+  if (currentSource === 'particles') {
     buildPresetsBar(particleEffectStack);
     buildStackSection(container, particleEffectStack, null);
-    if (sourceSection) sourceSection.style.display = 'none';
-  } else if (currentMode === 'input') {
-    stackLabel.textContent = 'Presets';
+  } else {
     buildPresetsBar(inputEffectStack);
     buildStackSection(container, inputEffectStack, null);
-    if (sourceSection) sourceSection.style.display = 'flex';
-  } else if (currentMode === 'hybrid') {
-    stackLabel.textContent = 'Presets';
-    buildPresetsBar(inputEffectStack);
-    // Particle stack with warm accent
-    buildStackSection(container, particleEffectStack, 'Particle Effects', 'rgba(200,160,100,0.5)');
-    const divider = document.createElement('div');
-    divider.style.cssText = 'margin:6px 0;';
-    container.appendChild(divider);
-    // Input stack with cool accent
-    buildStackSection(container, inputEffectStack, 'Input Effects', 'rgba(100,160,200,0.5)');
-    if (sourceSection) sourceSection.style.display = 'flex';
-  } else if (currentMode === 'fractal') {
-    stackLabel.textContent = 'Presets';
-    buildPresetsBar(fractalEffectStack);
-    buildStackSection(container, fractalEffectStack, null);
-    if (sourceSection) sourceSection.style.display = 'none';
-    const fracSec = document.getElementById('fractal-section');
-    if (fracSec) fracSec.style.display = 'block';
   }
 }
 
 // ================================================================
-// SECTION 8: Mode Switching
+// SECTION 8: Source Switching
 // ================================================================
 
-function setMode(mode) {
-  currentMode = mode;
+function updateBottomBar() {
+  const simNameEl = document.getElementById('sim-name');
+  if (!simNameEl) return;
+  if (currentSource === 'particles') {
+    simNameEl.textContent = SIMULATIONS[currentSimIndex].name;
+  } else {
+    const active = getActiveEffects(inputEffectStack);
+    if (active.length === 0) simNameEl.textContent = 'PASSTHROUGH';
+    else if (active.length === 1) simNameEl.textContent = active[0].toUpperCase();
+    else simNameEl.textContent = active.length + ' EFFECTS';
+  }
+}
+
+function setSource(source) {
+  currentSource = source;
+  currentMode = (source === 'particles') ? 'particles' : 'input'; // backward compat
+
   const pCanvas = renderer.domElement;
   const vCanvas = document.getElementById('webgpu-canvas');
-  const blendCtrl = document.getElementById('blend-control');
 
-  if (mode === 'particles') {
+  // Update source pills
+  document.querySelectorAll('.source-btn').forEach(b => b.classList.toggle('active', b.dataset.source === source));
+
+  if (source === 'particles') {
+    // Show Three.js particle canvas, hide video layer
     pCanvas.style.display = 'block';
     pCanvas.style.visibility = 'visible';
     pCanvas.style.opacity = '1';
     pCanvas.style.zIndex = '0';
     vCanvas.style.display = 'none';
     vCanvas.style.zIndex = '-1';
-    if (blendCtrl) blendCtrl.style.display = 'none';
-    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
     renderer.setClearColor(0x000000, 1);
-    document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name;
-  } else if (mode === 'input') {
+    // Stop camera if active
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  } else {
+    // Hide particles, show WebGPU canvas for video input
     pCanvas.style.display = 'none';
     pCanvas.style.zIndex = '0';
     vCanvas.style.display = 'block';
     vCanvas.style.zIndex = '1';
-    if (blendCtrl) blendCtrl.style.display = 'none';
-    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
-  } else if (mode === 'hybrid') {
-    pCanvas.style.display = 'block';
-    pCanvas.style.visibility = 'visible';
-    pCanvas.style.opacity = '1';
-    pCanvas.style.zIndex = '2';
-    vCanvas.style.display = 'block';
-    vCanvas.style.zIndex = '1';
-    if (blendCtrl) blendCtrl.style.display = 'flex';
-    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
-    renderer.setClearColor(0x000000, 0);
-    document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name + ' + FX';
-  } else if (mode === 'fractal') {
-    pCanvas.style.display = 'none';
-    pCanvas.style.zIndex = '0';
-    vCanvas.style.display = 'block';
-    vCanvas.style.zIndex = '1';
-    if (blendCtrl) blendCtrl.style.display = 'none';
-    const fracSec = document.getElementById('fractal-section');
-    if (fracSec) fracSec.style.display = 'block';
-    const srcSec = document.getElementById('source-section');
-    if (srcSec) srcSec.style.display = 'none';
-    const names = ['TUNNELS', 'CRYSTAL', 'ORGANIC'];
-    document.getElementById('sim-name').textContent = names[fractalType] || 'TUNNELS';
+
+    if (source === 'nature') {
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      video.srcObject = null;
+      video.src = '/videos/nature.mp4';
+      video.load();
+      video.play().catch(() => {});
+    } else if (source === 'camera') {
+      navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'environment' } })
+        .then(stream => {
+          cameraStream = stream;
+          video.srcObject = stream;
+          video.play();
+        })
+        .catch(() => { setSource('nature'); }); // fallback
+    } else if (source === 'upload') {
+      let fileInput = document.getElementById('video-upload-input');
+      if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.id = 'video-upload-input';
+        fileInput.type = 'file';
+        fileInput.accept = 'video/*';
+        fileInput.style.display = 'none';
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+            video.srcObject = null;
+            video.src = URL.createObjectURL(file);
+            video.play();
+          }
+        });
+        document.body.appendChild(fileInput);
+      }
+      fileInput.click();
+    }
   }
+
+  updateBottomBar();
   buildStackPanel();
 }
 
-// Mode buttons
-document.querySelectorAll('.mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    setMode(btn.dataset.mode);
-  });
+// Backward compat: setMode delegates to setSource
+function setMode(mode) {
+  if (mode === 'particles') setSource('particles');
+  else if (mode === 'input') setSource('nature');
+  else setSource('nature');
+}
+
+// Source pill buttons
+document.querySelectorAll('.source-btn').forEach(btn => {
+  btn.addEventListener('click', () => setSource(btn.dataset.source));
 });
 
-// Blend slider
-document.getElementById('blend-slider')?.addEventListener('input', (e) => {
-  hybridBlend = parseFloat(e.target.value);
-});
-
-// Source buttons
-document.querySelectorAll('[data-src]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    document.querySelectorAll('[data-src]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentSource = btn.dataset.src;
-    if (currentSource === 'camera') {
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'environment' } });
-        video.srcObject = cameraStream;
-        await video.play();
-      } catch(e) { currentSource = 'nature'; }
-    } else if (videoSources[currentSource]) {
-      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-      video.srcObject = null;
-      video.src = videoSources[currentSource];
-      video.play();
-    }
-  });
-});
-
-// Number keys for mode switching
+// Number keys for source switching
 document.addEventListener('keydown', e => {
-  if (e.key === '1') document.querySelector('[data-mode="particles"]')?.click();
-  else if (e.key === '2') document.querySelector('[data-mode="input"]')?.click();
-  else if (e.key === '3') document.querySelector('[data-mode="hybrid"]')?.click();
-  else if (e.key === '4') document.querySelector('[data-mode="fractal"]')?.click();
+  if (e.key === '1') setSource('nature');
+  else if (e.key === '2') setSource('camera');
+  else if (e.key === '3') setSource('upload');
+  else if (e.key === '4') setSource('particles');
 });
 
 // Drag and drop video
@@ -9215,11 +9811,14 @@ document.body.addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer?.files[0];
   if (file && file.type.startsWith('video/')) {
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    video.srcObject = null;
     video.src = URL.createObjectURL(file);
     video.play();
-    useVideo = true;
     currentSource = 'upload';
-    document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('active', b.dataset.src === 'upload'));
+    currentMode = 'input';
+    document.querySelectorAll('.source-btn').forEach(b => b.classList.toggle('active', b.dataset.source === 'upload'));
+    updateBottomBar();
   }
 });
 
@@ -9240,14 +9839,15 @@ window.addEventListener('resize', () => {
 // SECTION 9: Override Animation Loop for Mode Support
 // ================================================================
 
-// Consolidated animation loop: handles all three modes
+// Consolidated animation loop: source-based (particles vs video input)
 function animate_consolidated() {
   requestAnimationFrame(animate_consolidated);
 
-  if (currentMode === 'fractal') {
+  if (currentSource !== 'particles') {
+    // Video/camera/upload source: render through WebGPU effects pipeline
     updateAudio();
     const elapsed = clock.getElapsedTime() * simSpeed;
-    renderFractal(elapsed);
+    renderVideoFX(elapsed);
     const bass = audio.sBass * audioSensitivity;
     const mids = audio.sMids * audioSensitivity;
     const rms = audio.sRms * audioSensitivity;
@@ -9259,34 +9859,11 @@ function animate_consolidated() {
     return;
   }
 
-  if (currentMode === 'input') {
-    // Video effects only, no particles
-    updateAudio();
-    const elapsed = clock.getElapsedTime() * simSpeed;
-    renderVideoFX(elapsed);
-    // Still update lyrics and audio bars
-    const bass = audio.sBass * audioSensitivity;
-    const mids = audio.sMids * audioSensitivity;
-    const rms = audio.sRms * audioSensitivity;
-    if (typeof barBassEl !== 'undefined') {
-      barBassEl.style.height = (2 + bass * 18) + 'px';
-      barMidEl.style.height = (2 + mids * 18) + 'px';
-      barHighEl.style.height = (2 + rms * 18) + 'px';
-    }
-    return;
-  }
-  
-  if (currentMode === 'hybrid') {
-    // Render input layer with input effects
-    const elapsed = clock.getElapsedTime() * simSpeed;
-    renderVideoFX(elapsed);
-  }
-
-  // Run standard production animate for particles (all modes except input)
+  // Particles source: run standard particle animation
   animate_production();
 
-  // After particles render, process through WebGPU particle effects if active
-  if ((currentMode === 'particles' || currentMode === 'hybrid') && webgpuAvailable) {
+  // Process particles through WebGPU effects if active
+  if (webgpuAvailable) {
     const activeFx = getActiveEffects(particleEffectStack);
     const wgpuCanvas = document.getElementById('webgpu-canvas');
     if (activeFx.length > 0) {
@@ -9295,30 +9872,14 @@ function animate_consolidated() {
       renderer.domElement.style.display = 'block';
       wgpuCanvas.style.display = 'block';
       wgpuCanvas.style.zIndex = '3';
-      if (currentMode === 'hybrid') {
-        wgpuCanvas.style.opacity = String(0.3 + hybridBlend * 0.7);
-      } else {
-        wgpuCanvas.style.opacity = '1';
-      }
+      wgpuCanvas.style.opacity = '1';
       renderParticlesThroughFX(elapsed);
     } else {
-      if (currentMode === 'hybrid') {
-        // No particle effects: show particles raw with blend opacity
-        renderer.domElement.style.visibility = 'visible';
-        renderer.domElement.style.display = 'block';
-        renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
-      } else {
-        renderer.domElement.style.visibility = 'visible';
-        wgpuCanvas.style.display = 'none';
-        wgpuCanvas.style.zIndex = '-1';
-      }
+      renderer.domElement.style.visibility = 'visible';
+      wgpuCanvas.style.display = 'none';
+      wgpuCanvas.style.zIndex = '-1';
     }
-  } else if (currentMode === 'hybrid') {
-    // No WebGPU: show particles raw with blend opacity
-    renderer.domElement.style.visibility = 'visible';
-    renderer.domElement.style.display = 'block';
-    renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
-  } else if (currentMode === 'particles') {
+  } else {
     renderer.domElement.style.visibility = 'visible';
   }
 
@@ -9335,6 +9896,179 @@ initWebGPU().then(() => {
 // Start the consolidated animation loop (handles all modes)
 animate_consolidated();
 
+// ================================================================
+// SECTION 10: Video Recording & Export
+// ================================================================
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+let recordingTimeout = null;
+
+function getActiveCanvas() {
+  const wgpuCanvas = document.getElementById('webgpu-canvas');
+  if (currentSource !== 'particles') return wgpuCanvas;
+  if (wgpuCanvas.style.display === 'block' && wgpuCanvas.style.zIndex === '3') return wgpuCanvas;
+  return renderer.domElement;
+}
+
+function startRecording(durationSec) {
+  if (isRecording) return;
+  const canvas = getActiveCanvas();
+  const stream = canvas.captureStream(30);
+  recordedChunks = [];
+
+  const mimeType = MediaRecorder.isTypeSupported('video/webm; codecs=vp9')
+    ? 'video/webm; codecs=vp9'
+    : 'video/webm';
+  mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 });
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    isRecording = false;
+    const recBtn = document.getElementById('record-btn');
+    recBtn.textContent = 'REC';
+    recBtn.style.color = '';
+    recBtn.style.borderColor = '';
+
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+
+    // Auto-download
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fxLabel = currentFxMode !== 'clean' ? '_' + currentFxMode : '';
+    a.href = url;
+    a.download = 'luminbeat' + fxLabel + '_' + ts + '.webm';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Dispatch custom event for programmatic use
+    window.dispatchEvent(new CustomEvent('luminbeat-recording-complete', { detail: { blob, url } }));
+  };
+
+  mediaRecorder.start(100); // collect data every 100ms
+  isRecording = true;
+
+  const recBtn = document.getElementById('record-btn');
+  recBtn.textContent = 'STOP';
+  recBtn.style.color = '#ff4444';
+  recBtn.style.borderColor = '#ff4444';
+
+  if (durationSec && durationSec > 0) {
+    recordingTimeout = setTimeout(() => stopRecording(), durationSec * 1000);
+  }
+}
+
+function stopRecording() {
+  if (!isRecording || !mediaRecorder) return;
+  if (recordingTimeout) { clearTimeout(recordingTimeout); recordingTimeout = null; }
+  mediaRecorder.stop();
+}
+
+// Expose recording API to window for programmatic access
+window.startRecording = startRecording;
+window.stopRecording = stopRecording;
+window.applyFxMode = applyFxMode;
+window.setSource = setSource;
+
+// REC button handler
+document.getElementById('record-btn').addEventListener('click', () => {
+  if (isRecording) stopRecording();
+  else startRecording(0); // 0 = manual stop
+});
+
+// Keyboard shortcut: R to toggle recording
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (isRecording) stopRecording();
+    else startRecording(0);
+  }
+});
+
+// ================================================================
+// SECTION 11: URL Parameter API (for pipeline automation)
+// ================================================================
+
+(function handleUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+
+  // ?source=nature|camera|upload|particles
+  const source = params.get('source');
+
+  // ?video=URL -- load video from URL (implies source=upload)
+  const videoUrl = params.get('video');
+
+  // ?fx=psychedelic|retro|cosmic|void|fractal|prism|deep_space
+  const fx = params.get('fx');
+
+  // ?effects=ascii,halftone,vhs -- enable specific WebGPU effects
+  const effects = params.get('effects');
+
+  // ?record=true&duration=10 -- auto-start recording
+  const autoRecord = params.get('record');
+  const duration = parseInt(params.get('duration') || '10', 10);
+
+  // Wait for WebGPU init to complete (it's already called above)
+  // Use a polling check since the init promise isn't stored
+  function whenReady(fn) {
+    if (typeof device !== 'undefined' && device !== null) { fn(); return; }
+    setTimeout(() => whenReady(fn), 200);
+  }
+  if (!source && !videoUrl && !fx && !effects && !autoRecord) return;
+  whenReady(() => {
+    // Apply FX mode
+    if (fx && FX_MODES[fx]) {
+      applyFxMode(fx);
+    }
+
+    // Enable specific WebGPU effects
+    if (effects) {
+      const effectNames = effects.split(',').map(s => s.trim().toLowerCase());
+      for (const entry of inputEffectStack) {
+        entry.enabled = effectNames.includes(entry.name);
+      }
+      buildStackPanel();
+      updateBottomBar();
+    }
+
+    // Load video from URL
+    if (videoUrl) {
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      video.srcObject = null;
+      video.src = videoUrl;
+      video.loop = true;
+      video.muted = false;
+      video.play().catch(() => {});
+      setSource('nature'); // switches to input mode, then we override the src
+      setTimeout(() => {
+        video.src = videoUrl;
+        video.play().catch(() => {});
+      }, 200);
+    } else if (source) {
+      // Apply source (but not upload, which requires user interaction)
+      if (source !== 'upload') setSource(source);
+    }
+
+    // Auto-start recording after a brief delay for rendering to stabilize
+    if (autoRecord === 'true') {
+      setTimeout(() => startRecording(duration), 1500);
+    }
+  });
+})();
+
 </script>
+
+<div id="midi-learn-overlay" style="display:none">
+  <div class="learn-prompt" id="midi-learn-prompt">Move a knob or fader...</div>
+  <div class="learn-target" id="midi-learn-target-label"></div>
+  <div class="learn-cancel" id="midi-learn-cancel">Cancel (Esc)</div>
+</div>
+
 </body>
 </html>
