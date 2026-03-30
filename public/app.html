@@ -484,6 +484,7 @@
   <button class="mode-btn active" data-mode="particles">Particles</button>
   <button class="mode-btn" data-mode="input">Input</button>
   <button class="mode-btn" data-mode="hybrid">Hybrid</button>
+  <button class="mode-btn" data-mode="fractal">Fractal</button>
 </div>
 
 
@@ -526,6 +527,20 @@
       <button class="src-btn" data-src="upload" style="font-size:9px;padding:3px 7px;">Upload</button>
     </div>
   </div>
+
+<div id="fractal-section" style="display:none;">
+  <div style="padding:8px 14px 4px;font-size:0.45rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.2);">Fractal</div>
+  <div style="padding:0 14px 8px;display:flex;gap:3px;">
+    <button class="src-btn fractal-type-btn active" data-fractal="0" style="font-size:0.5rem;padding:3px 7px;">Tunnels</button>
+    <button class="src-btn fractal-type-btn" data-fractal="1" style="font-size:0.5rem;padding:3px 7px;">Crystal</button>
+    <button class="src-btn fractal-type-btn" data-fractal="2" style="font-size:0.5rem;padding:3px 7px;">Organic</button>
+  </div>
+  <div style="padding:0 14px 8px;">
+    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Power <input type="range" id="fractal-power" min="2" max="16" step="0.1" value="8" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Iterations <input type="range" id="fractal-iters" min="2" max="20" step="1" value="8" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Speed <input type="range" id="fractal-speed" min="0" max="2" step="0.05" value="0.3" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
+  </div>
+</div>
 
   <!-- Presets: featured strip + expand -->
   <h2 id="stack-label" style="margin-bottom:2px;">Presets</h2>
@@ -8253,6 +8268,13 @@ function animate_production() {
 
 let currentMode = 'particles';
 let hybridBlend = 0.5;
+let fractalType = 0;
+let fractalPipeline = null;
+let fractalUniformBuffer = null;
+let fractalBindGroup = null;
+let fractalEffectStack = [];
+let fractalTexture = null;
+let fractalTextureW = 0, fractalTextureH = 0;
 
 // Initialize WebGPU if available
 async function initWebGPU() {
@@ -8301,6 +8323,278 @@ async function initWebGPU() {
       pipelineData[name] = createPipeline(name);
     }
 
+    // ── FRACTAL RAYMARCHING PIPELINE ──
+    const FRACTAL_SHADER = `
+struct FractalUniforms {
+  resolution: vec2f,
+  time: f32,
+  power: f32,
+  fractalType: f32,
+  iterations: f32,
+  speed: f32,
+  bass: f32,
+  mids: f32,
+  highs: f32,
+  rms: f32,
+  _pad: f32,
+}
+
+@group(0) @binding(0) var<uniform> u: FractalUniforms;
+
+fn palette(t: f32, a: vec3f, b: vec3f, c: vec3f, d: vec3f) -> vec3f {
+  return a + b * cos(6.28318 * (c * t + d));
+}
+
+fn rotY(a: f32) -> mat3x3f {
+  let c = cos(a); let s = sin(a);
+  return mat3x3f(vec3f(c,0,s), vec3f(0,1,0), vec3f(-s,0,c));
+}
+
+fn fractalSDF(p: vec3f) -> vec2f {
+  let ft = i32(u.fractalType);
+  let iters = i32(u.iterations);
+  var trap: f32 = 1e10;
+  // Audio-reactive fold scale
+  let audioScale = 1.0 + u.bass * 0.15;
+
+  if (ft == 0) {
+    let period = 2.0;
+    var z = p - round(p / period) * period;
+    var scale: f32 = 1.0;
+    for (var i = 0; i < iters; i++) {
+      z = abs(z);
+      if (z.x < z.y) { z = vec3f(z.y, z.x, z.z); }
+      if (z.x < z.z) { z = vec3f(z.z, z.y, z.x); }
+      if (z.y < z.z) { z = vec3f(z.x, z.z, z.y); }
+      z = z * (3.0 * audioScale) - vec3f(2.0);
+      if (z.z < -1.0) { z.z += 2.0; }
+      scale *= 3.0 * audioScale;
+      trap = min(trap, dot(z, z));
+    }
+    let d = (length(z) - 1.5) / scale;
+    return vec2f(d, sqrt(trap));
+  }
+
+  if (ft == 1) {
+    let period = 4.0;
+    var z = p - round(p / period) * period;
+    var scale: f32 = 1.0;
+    for (var i = 0; i < iters; i++) {
+      if (z.x + z.y < 0.0) { z = vec3f(-z.y, -z.x, z.z); }
+      if (z.x + z.z < 0.0) { z = vec3f(-z.z, z.y, -z.x); }
+      if (z.y + z.z < 0.0) { z = vec3f(z.x, -z.z, -z.y); }
+      z = z * u.power - vec3f(u.power - 1.0);
+      scale *= u.power;
+      trap = min(trap, dot(z, z));
+    }
+    let d = (length(z) - 1.0) / scale;
+    return vec2f(d, sqrt(trap));
+  }
+
+  var z = p;
+  var scale: f32 = 1.0;
+  let rotAngle = u.time * u.speed * 0.015 + u.mids * 0.5;
+  for (var i = 0; i < iters; i++) {
+    z = -1.0 + 2.0 * fract(0.5 * z + 0.5);
+    let r2 = dot(z, z);
+    let k = max(u.power / r2, 1.0);
+    z *= k;
+    scale *= k;
+    trap = min(trap, r2);
+    z = rotY(rotAngle * 0.5) * z;
+  }
+  let d = 0.25 * length(z) / scale;
+  return vec2f(d, sqrt(trap));
+}
+
+fn calcNormal(p: vec3f) -> vec3f {
+  let e = 0.0005;
+  let d = fractalSDF(p).x;
+  return normalize(vec3f(
+    fractalSDF(p + vec3f(e, 0, 0)).x - d,
+    fractalSDF(p + vec3f(0, e, 0)).x - d,
+    fractalSDF(p + vec3f(0, 0, e)).x - d
+  ));
+}
+
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) texCoord: vec2f,
+}
+
+@vertex
+fn vertexMain(@builtin(vertex_index) vi: u32) -> VertexOutput {
+  let pos = array<vec2f, 6>(
+    vec2f(-1.0, -1.0), vec2f(1.0, -1.0), vec2f(-1.0, 1.0),
+    vec2f(-1.0, 1.0), vec2f(1.0, -1.0), vec2f(1.0, 1.0)
+  );
+  let uv = array<vec2f, 6>(
+    vec2f(0.0, 1.0), vec2f(1.0, 1.0), vec2f(0.0, 0.0),
+    vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(1.0, 0.0)
+  );
+  var output: VertexOutput;
+  output.position = vec4f(pos[vi], 0.0, 1.0);
+  output.texCoord = uv[vi];
+  return output;
+}
+
+@fragment
+fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
+  let uv = texCoord * 2.0 - 1.0;
+  let aspect = u.resolution.x / u.resolution.y;
+  let t_anim = u.time * u.speed;
+
+  let camSpeed = 0.2;
+  let pathT = t_anim * camSpeed;
+  let camPos = vec3f(
+    sin(pathT * 0.41) * 1.2 + sin(pathT * 0.19) * 0.6 + cos(pathT * 0.67) * 0.3,
+    cos(pathT * 0.31) * 1.0 + sin(pathT * 0.53) * 0.5 + sin(pathT * 0.11) * 0.25,
+    sin(pathT * 0.37) * 1.1 + cos(pathT * 0.23) * 0.7 + sin(pathT * 0.71) * 0.35
+  );
+
+  let lookAhead = 0.6;
+  let futureT = pathT + lookAhead;
+  let lookPt = vec3f(
+    sin(futureT * 0.41) * 1.2 + sin(futureT * 0.19) * 0.6 + cos(futureT * 0.67) * 0.3,
+    cos(futureT * 0.31) * 1.0 + sin(futureT * 0.53) * 0.5 + sin(futureT * 0.11) * 0.25,
+    sin(futureT * 0.37) * 1.1 + cos(futureT * 0.23) * 0.7 + sin(futureT * 0.71) * 0.35
+  );
+
+  let forward = normalize(lookPt - camPos);
+  let rollAngle = sin(t_anim * 0.04) * 0.12;
+  let worldUp = vec3f(sin(rollAngle), cos(rollAngle), 0.0);
+  let right = normalize(cross(forward, worldUp));
+  let up = cross(right, forward);
+
+  let fov = 1.4;
+  let rd = normalize(forward * fov + right * uv.x * aspect + up * uv.y);
+
+  let camSDF = fractalSDF(camPos);
+  let camDist = abs(camSDF.x);
+  let dissolveThreshold = 0.08;
+  let dissolve = smoothstep(0.0, dissolveThreshold, camDist);
+
+  var t: f32 = 0.0;
+  var trap: f32 = 0.0;
+  var hit = false;
+  var stepCount: f32 = 0.0;
+  var minDist: f32 = 1e10;
+
+  for (var i = 0; i < 150; i++) {
+    let p = camPos + rd * t;
+    let result = fractalSDF(p);
+    let d = result.x;
+    trap = result.y;
+    minDist = min(minDist, abs(d));
+    if (abs(d) < 0.0003) { hit = true; break; }
+    if (t > 12.0) { break; }
+    t += max(abs(d) * 0.7, 0.0001);
+    stepCount += 1.0;
+  }
+
+  var col = vec3f(0.01, 0.01, 0.02);
+
+  let glowAmount = clamp(1.0 - minDist * 15.0, 0.0, 1.0);
+  let hueShift = u.highs * 0.3;
+  let glowCol = palette(
+    t_anim * 0.015 + stepCount * 0.005 + hueShift,
+    vec3f(0.1, 0.05, 0.2),
+    vec3f(0.3, 0.2, 0.4),
+    vec3f(1.0, 0.8, 0.6),
+    vec3f(0.0, 0.2, 0.5)
+  );
+  col += glowCol * glowAmount * glowAmount * 0.3;
+
+  if (hit) {
+    let p = camPos + rd * t;
+    let n = calcNormal(p);
+
+    var occ: f32 = 0.0;
+    var sca: f32 = 1.0;
+    for (var i = 0; i < 5; i++) {
+      let h = 0.005 + 0.04 * f32(i) / 4.0;
+      let d = fractalSDF(p + h * n).x;
+      occ += (h - d) * sca;
+      sca *= 0.95;
+    }
+    let ao = clamp(1.0 - 4.0 * occ, 0.0, 1.0);
+
+    let lightDir = normalize(vec3f(
+      sin(t_anim * 0.1) * 0.3,
+      0.6,
+      cos(t_anim * 0.08) * 0.3
+    ) + forward * 0.5);
+    let diff = max(dot(n, lightDir), 0.0);
+    let spec = pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 32.0);
+    let rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0);
+
+    let depth = camPos.z * 0.05;
+    let baseCol = palette(
+      trap * 0.3 + depth + t_anim * 0.008 + hueShift,
+      vec3f(0.5, 0.5, 0.5),
+      vec3f(0.5, 0.5, 0.5),
+      vec3f(1.0, 0.7, 0.4),
+      vec3f(0.0, 0.15, 0.6)
+    );
+
+    let normalCol = palette(
+      dot(n, vec3f(0.577)) * 0.5 + 0.5 + depth * 0.3,
+      vec3f(0.5, 0.5, 0.5),
+      vec3f(0.4, 0.4, 0.5),
+      vec3f(0.8, 0.8, 0.5),
+      vec3f(0.3, 0.5, 0.7)
+    );
+
+    let surfCol = mix(baseCol, normalCol, 0.35);
+    col = surfCol * (0.1 + 0.5 * diff + 0.2 * ao);
+    col += 0.2 * spec * vec3f(1.0, 0.95, 0.9);
+    col += 0.1 * rim * surfCol;
+
+    let fog = exp(-0.015 * t * t);
+    col = mix(glowCol * 0.03, col, fog);
+  }
+
+  let dissolveCol = palette(
+    t_anim * 0.02 + camPos.z * 0.03,
+    vec3f(0.15, 0.08, 0.2),
+    vec3f(0.2, 0.15, 0.25),
+    vec3f(0.8, 0.6, 1.0),
+    vec3f(0.1, 0.3, 0.6)
+  );
+  col = mix(dissolveCol * 0.5, col, dissolve);
+
+  col = col * (2.51 * col + 0.03) / (col * (2.43 * col + 0.59) + 0.14);
+  col = pow(clamp(col, vec3f(0.0), vec3f(1.0)), vec3f(0.4545));
+
+  return vec4f(col, 1.0);
+}
+`;
+
+    // Create fractal pipeline
+    const fractalModule = device.createShaderModule({ code: FRACTAL_SHADER });
+    fractalModule.getCompilationInfo().then(info => {
+      for (const msg of info.messages) console.log(`[FRACTAL ${msg.type}] ${msg.message}`);
+      if (info.messages.length === 0) console.log('[FRACTAL] Shader compiled OK');
+    });
+    const fractalBGL = device.createBindGroupLayout({
+      entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }],
+    });
+    fractalPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [fractalBGL] }),
+      vertex: { module: fractalModule, entryPoint: 'vertexMain' },
+      fragment: { module: fractalModule, entryPoint: 'fragmentMain', targets: [{ format: gpuFormat }] },
+      primitive: { topology: 'triangle-list' },
+    });
+    fractalUniformBuffer = device.createBuffer({
+      size: 48,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    fractalBindGroup = device.createBindGroup({
+      layout: fractalBGL,
+      entries: [{ binding: 0, resource: { buffer: fractalUniformBuffer } }],
+    });
+    fractalEffectStack = createStack();
+
     webgpuAvailable = true;
     particleEffectStack = createStack();
     inputEffectStack = createStack();
@@ -8314,12 +8608,12 @@ async function initWebGPU() {
 // Pipelines and buffers (references to vars declared in WebGPU init section above)
 // pipelines, uniformBuffers, bindGroups already declared at line ~2339
 if (typeof pipelineData === 'undefined') var pipelineData = {};
-let ppTextures = [null, null];
-let ppViews = [null, null];
-let ppCurrentW = 0, ppCurrentH = 0;
+var ppTextures = [null, null];
+var ppViews = [null, null];
+var ppCurrentW = 0, ppCurrentH = 0;
 // fontAtlas, emojiAtlas already declared at line ~1275/1334
-let atlasTexture = null;
-let emojiAtlasTexture = null;
+var atlasTexture = null;
+var emojiAtlasTexture = null;
 
 function ensurePingPong(w, h) {
   if (!device) return;
