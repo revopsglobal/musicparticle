@@ -6670,6 +6670,8 @@ const screenScene = new THREE.Scene(); screenScene.add(screenQuad);
 let feedbackEnabled = false;
 
 // ── Fractal Backdrop Management ───────────────────────────
+var activeBackdropName = null;
+var activeBackdropMesh = null;
 function setBackdrop(name) {
   if (name === activeBackdropName) return;
   if (activeBackdropMesh) { scene.remove(activeBackdropMesh); activeBackdropMesh.geometry.dispose(); activeBackdropMesh.material.dispose(); activeBackdropMesh = null; }
