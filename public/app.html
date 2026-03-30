@@ -7328,9 +7328,9 @@ document.querySelectorAll('.style-option').forEach(opt => {
 });
 
 // Camera controls
-let camSpeedMult = 1.0;
-let camMinOverride = null;
-let camMaxOverride = null;
+var camSpeedMult = 1.0;
+var camMinOverride = null;
+var camMaxOverride = null;
 
 document.getElementById('ctrl-cam-speed').addEventListener('input', (e) => {
   camSpeedMult = parseFloat(e.target.value);
@@ -7396,8 +7396,8 @@ window.addEventListener('resize', () => {
 
 // ── Cinematic Camera ───────────────────────────────────────
 // Per-sim camera distances, smoothly interpolated on sim change.
-let camDistMin = 12, camDistMax = 140, camDistCenter = 65;
-let camTargetMin = 12, camTargetMax = 140, camTargetCenter = 65;
+var camDistMin = 12, camDistMax = 140, camDistCenter = 65;
+var camTargetMin = 12, camTargetMax = 140, camTargetCenter = 65;
 
 const CAM_SPEEDS = {
   orbit:     0.13,
