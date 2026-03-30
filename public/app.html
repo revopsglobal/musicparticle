@@ -7979,13 +7979,13 @@ document.getElementById('lyrics-clear-btn').addEventListener('click', (e) => {
 
 // ── Auto-Rotate Mode ───────────────────────────────────────
 // Shuffles through simulations with smooth cross-fade transitions.
-let autoRotateEnabled = false;
-let autoRotateTimer = 0;
-let autoRotateIntervalOverride = 25;
-const CROSSFADE_DURATION = 2.5; // seconds for transition
-let crossfadeProgress = 1; // 1 = fully showing current sim
-let crossfadeDirection = 0; // 0 = none, 1 = fading out, 2 = fading in
-let pendingSimIndex = -1;
+var autoRotateEnabled = false;
+var autoRotateTimer = 0;
+var autoRotateIntervalOverride = 25;
+var CROSSFADE_DURATION = 2.5; // seconds for transition
+var crossfadeProgress = 1; // 1 = fully showing current sim
+var crossfadeDirection = 0; // 0 = none, 1 = fading out, 2 = fading in
+var pendingSimIndex = -1;
 
 function startAutoRotate() {
   autoRotateEnabled = true;
