@@ -474,7 +474,7 @@
 <!-- WebGPU canvas (video effects, behind particles) -->
 <canvas id="webgpu-canvas"></canvas>
 <video id="src-video" loop muted playsinline>
-  <source src="/videos/mountains.mp4" type="video/mp4">
+  <source src="/videos/nature.mp4" type="video/mp4">
 </video>
 <canvas id="font-atlas-canvas" style="display:none"></canvas>
 <canvas id="test-canvas" style="display:none"></canvas>
@@ -520,7 +520,8 @@
   <div id="source-section" style="display:none;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
     <div style="display:flex;align-items:center;gap:6px;">
       <span style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#444;">Source</span>
-      <button class="src-btn active" data-src="test" style="font-size:9px;padding:3px 8px;">Mountains</button>
+      <button class="src-btn active" data-src="nature" style="font-size:9px;padding:3px 8px;">Nature</button>
+      <button class="src-btn" data-src="mountains" style="font-size:9px;padding:3px 8px;">Mountains</button>
       <button class="src-btn" data-src="camera" style="font-size:9px;padding:3px 8px;">Camera</button>
       <button class="src-btn" data-src="upload" style="font-size:9px;padding:3px 8px;">Upload</button>
     </div>
@@ -1156,7 +1157,11 @@ let particleEffectStack = [];
 let inputEffectStack = [];
 
 let currentFx = 'none';
-let currentSource = 'test';
+let currentSource = 'nature';
+const videoSources = {
+  nature: '/videos/nature.mp4',
+  mountains: '/videos/mountains.mp4',
+};
 let cameraStream = null;
 let useVideo = false;
 
@@ -8785,11 +8790,11 @@ document.querySelectorAll('[data-src]').forEach(btn => {
         cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'environment' } });
         video.srcObject = cameraStream;
         await video.play();
-      } catch(e) { currentSource = 'test'; }
-    } else {
+      } catch(e) { currentSource = 'nature'; }
+    } else if (videoSources[currentSource]) {
       if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
       video.srcObject = null;
-      video.src = '/videos/mountains.mp4';
+      video.src = videoSources[currentSource];
       video.play();
     }
   });
