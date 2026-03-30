@@ -8864,38 +8864,33 @@ function animate_consolidated() {
   animate_production();
 
   // After particles render, process through WebGPU particle effects if active
-  if ((currentMode === 'particles' || currentMode === 'hybrid') && webgpuAvailable) {
+  // Note: particle effects only work in Particles mode (single WebGPU canvas limitation)
+  // In Hybrid mode, particles render raw on top of the processed video
+  if (currentMode === 'particles' && webgpuAvailable) {
     const activeFx = getActiveEffects(particleEffectStack);
     const wgpuCanvas = document.getElementById('webgpu-canvas');
     if (activeFx.length > 0) {
       const elapsed = clock.getElapsedTime() * simSpeed;
-      if (currentMode === 'particles') {
-        // Particles only: capture particle canvas, process through effects, show result
-        renderer.domElement.style.visibility = 'hidden';
-        renderer.domElement.style.display = 'block';
-        wgpuCanvas.style.display = 'block';
-        wgpuCanvas.style.zIndex = '3';
-      }
+      renderer.domElement.style.visibility = 'hidden';
+      renderer.domElement.style.display = 'block';
+      wgpuCanvas.style.display = 'block';
+      wgpuCanvas.style.zIndex = '3';
       renderParticlesThroughFX(elapsed);
-      if (currentMode === 'hybrid') {
-        // In hybrid, particle canvas shows on top with blend opacity
-        renderer.domElement.style.visibility = 'visible';
-        renderer.domElement.style.display = 'block';
-        renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
-      }
     } else {
-      if (currentMode === 'particles') {
-        renderer.domElement.style.visibility = 'visible';
-        wgpuCanvas.style.display = 'none';
-        wgpuCanvas.style.zIndex = '-1';
-      } else if (currentMode === 'hybrid') {
-        // No particle effects in hybrid: just show particles with blend
-        renderer.domElement.style.visibility = 'visible';
-        renderer.domElement.style.display = 'block';
-        renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
-      }
+      renderer.domElement.style.visibility = 'visible';
+      wgpuCanvas.style.display = 'none';
+      wgpuCanvas.style.zIndex = '-1';
     }
+  } else if (currentMode === 'hybrid') {
+    // In hybrid: particles always render raw on top with blend opacity
+    renderer.domElement.style.visibility = 'visible';
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.opacity = String(0.3 + hybridBlend * 0.7);
+  } else if (currentMode === 'particles') {
+    // No WebGPU, just show particles
+    renderer.domElement.style.visibility = 'visible';
   }
+
 }
 
 // Initialize WebGPU, build initial stack panel, start video
