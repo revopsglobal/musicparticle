@@ -1222,6 +1222,7 @@ function getActiveEffects(stack) {
 function getStackParams(stack, fxName) {
   const entry = stack.find(e => e.name === fxName);
   return entry ? entry.params : null;
+}
 const CHARSETS = {
   standard:  { label: 'Standard', chars: ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$' },
   blocks:    { label: 'Blocks', chars: ' .,:-=+*#%@' },
