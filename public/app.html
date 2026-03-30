@@ -87,11 +87,6 @@
 
   #no-webgpu { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 16px; color: #f44; text-align: center; z-index: 100; display: none; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #000000; margin: 0; padding: 0; }
-  body { overflow: hidden; font-family: 'Helvetica Neue', -apple-system, sans-serif; color: #ccc; }
-  canvas { display: block; }
-
   /* ── Overlay ── */
   #overlay {
     position: fixed; inset: 0; z-index: 200;
@@ -471,7 +466,6 @@
     #lyrics-clear-btn { font-size: 0.68rem; }
   }
 </style>
-</style>
 </head>
 <body>
 
@@ -519,21 +513,42 @@
   <button class="nav-btn" id="auto-fx-btn" title="Auto FX (G)" style="font-size:0.4rem;letter-spacing:0.03em">AFX</button>
 <button class="nav-btn" id="fullscreen-btn" title="Fullscreen (F)" style="font-size:0.5rem;letter-spacing:0.03em">FS</button>
 </div>
-<button id="toggle-sidebar" title="Controls">+</button>
+<button id="toggle-sidebar" title="Effects">FX</button>
 <div id="sidebar">
-  <h2 id="stack-label">Effect Stack</h2>
-  <div id="presets-bar" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;"></div>
-  <div id="fx-stack"></div>
-  <div id="source-section" style="display:none">
-    <h3 style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#444;margin:8px 0 6px;">Source</h3>
-    <div style="margin-bottom:12px;">
-      <button class="src-btn active" data-src="test">Mountains</button>
-      <button class="src-btn" data-src="camera">Camera</button>
-      <button class="src-btn" data-src="upload">Upload</button>
+
+  <!-- Source selector (Input/Hybrid only) -->
+  <div id="source-section" style="display:none;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#444;">Source</span>
+      <button class="src-btn active" data-src="test" style="font-size:9px;padding:3px 8px;">Mountains</button>
+      <button class="src-btn" data-src="camera" style="font-size:9px;padding:3px 8px;">Camera</button>
+      <button class="src-btn" data-src="upload" style="font-size:9px;padding:3px 8px;">Upload</button>
     </div>
   </div>
 
-  <!-- Advanced section: production sidebar content -->
+  <!-- Presets: featured strip + expand -->
+  <h2 id="stack-label" style="margin-bottom:2px;">Presets</h2>
+  <div id="presets-featured" style="display:flex;gap:4px;margin-bottom:4px;"></div>
+  <div id="presets-more" style="display:none;flex-wrap:wrap;gap:3px;margin-bottom:6px;"></div>
+  <button id="presets-expand" style="font-size:8px;color:rgba(255,255,255,0.25);background:none;border:none;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;padding:0;">More presets</button>
+
+  <!-- Promoted controls -->
+  <div id="promoted-controls" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div class="ctrl-slider">
+      <label>Glow <span id="val-glow-promoted">0.4</span></label>
+      <input type="range" id="ctrl-glow-promoted" min="0" max="3.0" step="0.1" value="0.4">
+    </div>
+    <div class="ctrl-slider">
+      <label>Audio Sensitivity <span id="val-sensitivity-promoted">1.0</span></label>
+      <input type="range" id="ctrl-sensitivity-promoted" min="0" max="3.0" step="0.1" value="1.0">
+    </div>
+  </div>
+
+  <!-- Effect stack with categories -->
+  <h2>Effects</h2>
+  <div id="fx-stack"></div>
+
+  <!-- Advanced: remaining controls -->
   <details id="advanced-details" style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
     <summary style="font-size:0.6rem;color:rgba(255,255,255,0.25);cursor:pointer;letter-spacing:0.12em;text-transform:uppercase;padding:4px 0;">Advanced</summary>
     <div id="advanced-content" style="margin-top:8px;">
@@ -7273,12 +7288,35 @@ document.getElementById('ctrl-glow').addEventListener('input', (e) => {
   glowIntensity = parseFloat(e.target.value);
   document.getElementById('val-glow').textContent = glowIntensity.toFixed(1);
   bloomPass.strength = glowIntensity;
+  // Sync promoted control
+  const p = document.getElementById('ctrl-glow-promoted');
+  if (p) { p.value = glowIntensity; document.getElementById('val-glow-promoted').textContent = glowIntensity.toFixed(1); }
   saveSettings();
 });
 
 document.getElementById('ctrl-sensitivity').addEventListener('input', (e) => {
   audioSensitivity = parseFloat(e.target.value);
   document.getElementById('val-sensitivity').textContent = audioSensitivity.toFixed(1);
+  // Sync promoted control
+  const p = document.getElementById('ctrl-sensitivity-promoted');
+  if (p) { p.value = audioSensitivity; document.getElementById('val-sensitivity-promoted').textContent = audioSensitivity.toFixed(1); }
+  saveSettings();
+});
+
+// Promoted controls sync back to Advanced
+document.getElementById('ctrl-glow-promoted')?.addEventListener('input', (e) => {
+  glowIntensity = parseFloat(e.target.value);
+  document.getElementById('val-glow-promoted').textContent = glowIntensity.toFixed(1);
+  bloomPass.strength = glowIntensity;
+  const adv = document.getElementById('ctrl-glow');
+  if (adv) { adv.value = glowIntensity; document.getElementById('val-glow').textContent = glowIntensity.toFixed(1); }
+  saveSettings();
+});
+document.getElementById('ctrl-sensitivity-promoted')?.addEventListener('input', (e) => {
+  audioSensitivity = parseFloat(e.target.value);
+  document.getElementById('val-sensitivity-promoted').textContent = audioSensitivity.toFixed(1);
+  const adv = document.getElementById('ctrl-sensitivity');
+  if (adv) { adv.value = audioSensitivity; document.getElementById('val-sensitivity').textContent = audioSensitivity.toFixed(1); }
   saveSettings();
 });
 
@@ -8512,93 +8550,146 @@ const EFFECT_LABELS = {
   emoji: 'Emoji'
 };
 
-function buildStackSection(container, stack, sectionLabel) {
+// Effect categories for grouped display
+const EFFECT_CATEGORIES = [
+  { label: 'Character', effects: ['ascii', 'matrix'] },
+  { label: 'Texture', effects: ['dithering', 'halftone', 'dots'] },
+  { label: 'Shape', effects: ['edge', 'blockify', 'threshold', 'contour', 'voronoi'] },
+  { label: 'Mood', effects: ['vhs'] },
+];
+
+// Featured presets (shown by default) vs secondary (behind "More")
+const FEATURED_PRESETS = ['Terminal', 'VHS Tape', 'Sketch', 'Matrix', 'Pixel Art'];
+const ALL_PRESET_NAMES = Object.keys(PRESETS);
+
+function buildEffectRow(container, entry, idPrefix) {
+  const effect = EFFECTS[entry.name];
+  if (!effect) return;
+  const charsetNames = Object.keys(CHARSETS);
+  const row = document.createElement('div');
+  row.className = 'fx-row' + (entry.enabled ? ' active' : '');
+  const header = document.createElement('div');
+  header.className = 'fx-header';
+  const toggle = document.createElement('button');
+  toggle.className = 'fx-toggle' + (entry.enabled ? ' on' : '');
+  toggle.innerHTML = entry.enabled ? '&#10003;' : '';
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    entry.enabled = !entry.enabled;
+    toggle.classList.toggle('on', entry.enabled);
+    toggle.innerHTML = entry.enabled ? '&#10003;' : '';
+    row.classList.toggle('active', entry.enabled);
+  });
+  const name = document.createElement('span');
+  name.className = 'fx-name';
+  name.textContent = EFFECT_LABELS[entry.name] || entry.name;
+  const expand = document.createElement('span');
+  expand.className = 'fx-expand';
+  expand.textContent = '\u25B8';
+  header.appendChild(toggle);
+  header.appendChild(name);
+  header.appendChild(expand);
+  const params = document.createElement('div');
+  params.className = 'fx-params';
+  for (const p of entry.params) {
+    if (p._value === undefined) p._value = p.value;
+    if (p.hidden) continue;
+    const paramRow = document.createElement('div');
+    paramRow.className = 'param-row';
+    const valId = `sv-${idPrefix}-${entry.name}-${p.name}`;
+    if (p.isCharset) {
+      const displayLabel = CHARSETS[charsetNames[Math.round(p._value)]]?.label || 'Standard';
+      paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${displayLabel}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
+      params.appendChild(paramRow);
+      paramRow.querySelector('input').addEventListener('input', (ev) => {
+        const idx = Math.round(parseFloat(ev.target.value));
+        p._value = idx;
+        const csName = charsetNames[idx] || 'standard';
+        document.getElementById(valId).textContent = CHARSETS[csName]?.label || csName;
+        switchCharset(csName);
+      });
+    } else {
+      paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${p._value}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
+      params.appendChild(paramRow);
+      paramRow.querySelector('input').addEventListener('input', (ev) => {
+        p._value = parseFloat(ev.target.value);
+        document.getElementById(valId).textContent = p._value;
+      });
+    }
+  }
+  header.addEventListener('click', () => { row.classList.toggle('expanded'); });
+  row.appendChild(header);
+  row.appendChild(params);
+  container.appendChild(row);
+}
+
+function buildStackSection(container, stack, sectionLabel, accentColor) {
   if (!webgpuAvailable || !stack || stack.length === 0) return;
   if (sectionLabel) {
-    const label = document.createElement('h2');
-    label.style.cssText = 'font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#444;padding:8px 0 4px;margin:0;';
+    const label = document.createElement('div');
+    label.style.cssText = `font-size:9px;text-transform:uppercase;letter-spacing:2px;color:${accentColor || '#444'};padding:8px 0 4px;margin:0;border-left:2px solid ${accentColor || 'transparent'};padding-left:${accentColor ? '8px' : '0'};`;
     label.textContent = sectionLabel;
     container.appendChild(label);
   }
-  const charsetNames = Object.keys(CHARSETS);
-  for (const entry of stack) {
-    const effect = EFFECTS[entry.name];
-    if (!effect) continue;
-    const row = document.createElement('div');
-    row.className = 'fx-row' + (entry.enabled ? ' active' : '');
-    const header = document.createElement('div');
-    header.className = 'fx-header';
-    const toggle = document.createElement('button');
-    toggle.className = 'fx-toggle' + (entry.enabled ? ' on' : '');
-    toggle.innerHTML = entry.enabled ? '&#10003;' : '';
-    toggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      entry.enabled = !entry.enabled;
-      toggle.classList.toggle('on', entry.enabled);
-      toggle.innerHTML = entry.enabled ? '&#10003;' : '';
-      row.classList.toggle('active', entry.enabled);
-    });
-    const name = document.createElement('span');
-    name.className = 'fx-name';
-    name.textContent = EFFECT_LABELS[entry.name] || entry.name;
-    const expand = document.createElement('span');
-    expand.className = 'fx-expand';
-    expand.textContent = '\u25B8';
-    header.appendChild(toggle);
-    header.appendChild(name);
-    header.appendChild(expand);
-    const params = document.createElement('div');
-    params.className = 'fx-params';
-    for (const p of entry.params) {
-      if (p._value === undefined) p._value = p.value;
-      if (p.hidden) continue;
-      const paramRow = document.createElement('div');
-      paramRow.className = 'param-row';
-      const valId = `sv-${sectionLabel || 'fx'}-${entry.name}-${p.name}`;
-      if (p.isCharset) {
-        const displayLabel = CHARSETS[charsetNames[Math.round(p._value)]]?.label || 'Standard';
-        paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${displayLabel}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
-        params.appendChild(paramRow);
-        paramRow.querySelector('input').addEventListener('input', (ev) => {
-          const idx = Math.round(parseFloat(ev.target.value));
-          p._value = idx;
-          const csName = charsetNames[idx] || 'standard';
-          document.getElementById(valId).textContent = CHARSETS[csName]?.label || csName;
-          switchCharset(csName);
-        });
-      } else {
-        paramRow.innerHTML = `<label>${p.label}: <span id="${valId}">${p._value}</span></label><input type="range" min="${p.min}" max="${p.max}" value="${p._value}" step="${p.step}">`;
-        params.appendChild(paramRow);
-        paramRow.querySelector('input').addEventListener('input', (ev) => {
-          p._value = parseFloat(ev.target.value);
-          document.getElementById(valId).textContent = p._value;
-        });
-      }
+  const idPrefix = sectionLabel || 'fx';
+
+  // Render effects grouped by category
+  for (const cat of EFFECT_CATEGORIES) {
+    const catEntries = stack.filter(e => cat.effects.includes(e.name));
+    if (catEntries.length === 0) continue;
+    const catLabel = document.createElement('div');
+    catLabel.style.cssText = 'font-size:7px;text-transform:uppercase;letter-spacing:1.5px;color:#333;padding:6px 0 2px;';
+    catLabel.textContent = cat.label;
+    container.appendChild(catLabel);
+    for (const entry of catEntries) {
+      buildEffectRow(container, entry, idPrefix);
     }
-    header.addEventListener('click', () => { row.classList.toggle('expanded'); });
-    row.appendChild(header);
-    row.appendChild(params);
-    container.appendChild(row);
   }
 }
 
 function buildPresetsBar(targetStack) {
   if (!webgpuAvailable) return;
-  const bar = document.getElementById('presets-bar');
-  bar.innerHTML = '';
-  for (const name of Object.keys(PRESETS)) {
+  const featured = document.getElementById('presets-featured');
+  const more = document.getElementById('presets-more');
+  const expandBtn = document.getElementById('presets-expand');
+  featured.innerHTML = '';
+  more.innerHTML = '';
+  more.style.display = 'none';
+  expandBtn.textContent = 'More presets';
+
+  function makePresetBtn(name, container) {
     const btn = document.createElement('button');
     btn.className = 'src-btn';
     btn.textContent = name;
     btn.style.fontSize = '9px';
-    btn.style.padding = '3px 7px';
+    btn.style.padding = '4px 10px';
     btn.addEventListener('click', () => {
       applyPreset(name, targetStack);
-      bar.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+      featured.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+      more.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
-    bar.appendChild(btn);
+    container.appendChild(btn);
   }
+
+  // Featured presets (always visible)
+  for (const name of FEATURED_PRESETS) {
+    if (PRESETS[name]) makePresetBtn(name, featured);
+  }
+
+  // Secondary presets (behind "More")
+  for (const name of ALL_PRESET_NAMES) {
+    if (!FEATURED_PRESETS.includes(name) && name !== 'None') {
+      makePresetBtn(name, more);
+    }
+  }
+
+  let moreOpen = false;
+  expandBtn.onclick = () => {
+    moreOpen = !moreOpen;
+    more.style.display = moreOpen ? 'flex' : 'none';
+    expandBtn.textContent = moreOpen ? 'Fewer presets' : 'More presets';
+  };
 }
 
 function buildStackPanel() {
@@ -8609,22 +8700,29 @@ function buildStackPanel() {
     return;
   }
   const sourceSection = document.getElementById('source-section');
+  const stackLabel = document.getElementById('stack-label');
+
   if (currentMode === 'particles') {
+    stackLabel.textContent = 'Presets';
     buildPresetsBar(particleEffectStack);
     buildStackSection(container, particleEffectStack, null);
     if (sourceSection) sourceSection.style.display = 'none';
   } else if (currentMode === 'input') {
+    stackLabel.textContent = 'Presets';
     buildPresetsBar(inputEffectStack);
     buildStackSection(container, inputEffectStack, null);
-    if (sourceSection) sourceSection.style.display = 'block';
+    if (sourceSection) sourceSection.style.display = 'flex';
   } else if (currentMode === 'hybrid') {
+    stackLabel.textContent = 'Presets';
     buildPresetsBar(inputEffectStack);
-    buildStackSection(container, particleEffectStack, 'Particles Effects');
+    // Particle stack with warm accent
+    buildStackSection(container, particleEffectStack, 'Particle Effects', 'rgba(200,160,100,0.5)');
     const divider = document.createElement('div');
-    divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+    divider.style.cssText = 'margin:6px 0;';
     container.appendChild(divider);
-    buildStackSection(container, inputEffectStack, 'Input Effects');
-    if (sourceSection) sourceSection.style.display = 'block';
+    // Input stack with cool accent
+    buildStackSection(container, inputEffectStack, 'Input Effects', 'rgba(100,160,200,0.5)');
+    if (sourceSection) sourceSection.style.display = 'flex';
   }
 }
 
