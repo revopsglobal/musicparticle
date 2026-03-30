@@ -540,6 +540,7 @@
   <button class="source-btn" data-source="camera">Camera</button>
   <button class="source-btn" data-source="upload">Upload</button>
   <button class="source-btn" data-source="particles">Particles</button>
+  <button class="source-btn" data-source="blend">Blend</button>
 </div>
 
 
@@ -726,7 +727,6 @@
   <div class="section-title">Simulation Controls</div>
   <div id="sim-controls"></div>
 </div>
-    </div>
   </details>
 
   <!-- MIDI Controller -->
@@ -2343,18 +2343,19 @@ fn fragmentMain(@location(0) texCoord: vec2f) -> @location(0) vec4f {
   // Base: source image rendered AS characters with source colors (ALWAYS visible)
   let baseColor = sourceColor.rgb * glyphAlpha;
 
-  // Rain overlay: green tint where trail is active
+  // Rain overlay: uses BOOSTED SOURCE COLORS for the drip trail (not hardcoded green)
   var finalColor = baseColor;
   if (trail > 0.01) {
-    let trailGreen = vec3f(0.0, 0.85, 0.25);
-    let headWhite = vec3f(0.9, 1.0, 0.95);
-    let rainTint = mix(trailGreen, headWhite, headProximity);
-    let tintedChar = rainTint * glyphAlpha * (0.5 + sourceLum * 0.5);
+    // Brighten source color for the rain trail (make it pop)
+    let boostedSource = sourceColor.rgb * (1.5 + sourceLum);
+    let headWhite = vec3f(1.0, 1.0, 1.0);
+    let rainColor = mix(boostedSource, headWhite, headProximity);
+    let tintedChar = rainColor * glyphAlpha * (0.4 + sourceLum * 0.6);
 
-    // Subtle glow bleed around characters in the trail
+    // Subtle glow using source color hue
     let glowRadius = 1.0 - length(localUV - 0.5) * 1.5;
-    let glow = max(glowRadius, 0.0) * trail * 0.06;
-    let glowColor = vec3f(0.0, glow, glow * 0.3);
+    let glow = max(glowRadius, 0.0) * trail * 0.08;
+    let glowColor = sourceColor.rgb * glow;
 
     finalColor = mix(baseColor, tintedChar, trail) + glowColor;
   }
@@ -7732,32 +7733,76 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Auto-rotate button
-document.getElementById('auto-rotate-btn').addEventListener('click', (e) => {
+// Auto-rotate button: 3-state cycle (Off -> Auto -> Random)
+// Auto = rotate sims (+ presets if not particles source)
+// Random = random effects with random params on each transition
+let autoState = 'off'; // 'off' | 'auto' | 'random'
+const autoBtn = document.getElementById('auto-rotate-btn');
+
+function cycleAutoState() {
+  if (autoState === 'off') {
+    autoState = 'auto';
+    autoFxEnabled = true;
+    startAutoRotate();
+    autoBtn.textContent = 'AUTO';
+    autoBtn.classList.add('active');
+  } else if (autoState === 'auto') {
+    autoState = 'random';
+    autoFxEnabled = true;
+    autoBtn.textContent = 'RND';
+    autoBtn.classList.add('active');
+    autoBtn.style.color = 'rgba(120,255,120,0.8)';
+  } else {
+    autoState = 'off';
+    autoFxEnabled = false;
+    stopAutoRotate();
+    applyFxMode('clean');
+    autoBtn.textContent = 'AUTO';
+    autoBtn.classList.remove('active');
+    autoBtn.style.color = '';
+  }
+}
+
+autoBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  autoRotateEnabled ? stopAutoRotate() : startAutoRotate();
+  cycleAutoState();
 });
 
-// FX mode button
+// Random effect generator: picks 1-2 random effects with random params
+function applyRandomEffects() {
+  const stack = (currentSource === 'particles') ? particleEffectStack : inputEffectStack;
+  // Reset all
+  stack.forEach(e => { e.enabled = false; });
+  // Pick 1-2 random effects
+  const count = 1 + Math.floor(Math.random() * 2);
+  const indices = [];
+  while (indices.length < count) {
+    const idx = Math.floor(Math.random() * stack.length);
+    if (!indices.includes(idx)) indices.push(idx);
+  }
+  indices.forEach(idx => {
+    stack[idx].enabled = true;
+    // Randomize params within their ranges
+    stack[idx].params.forEach(p => {
+      if (p.uiOnly) return;
+      p._value = p.min + Math.random() * (p.max - p.min);
+      // Snap to step
+      p._value = Math.round(p._value / p.step) * p.step;
+    });
+  });
+  buildStackPanel();
+  // Also pick a random FX mode
+  const modes = fxModeNames.filter(m => m !== 'clean');
+  applyFxMode(modes[Math.floor(Math.random() * modes.length)]);
+}
+
+// FX mode button (removed from bottom bar, kept as function for keyboard shortcut V)
 const fxModeBtn = document.getElementById('fx-mode-btn');
 function cycleFxMode() {
   const idx = (fxModeNames.indexOf(currentFxMode) + 1) % fxModeNames.length;
   applyFxMode(fxModeNames[idx]);
   if (fxModeBtn) fxModeBtn.classList.toggle('active', currentFxMode !== 'clean');
 }
-if (fxModeBtn) fxModeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleFxMode(); });
-
-// Auto FX toggle
-const autoFxBtn = document.getElementById('auto-fx-btn');
-function toggleAutoFx() {
-  autoFxEnabled = !autoFxEnabled;
-  if (autoFxBtn) autoFxBtn.classList.toggle('active', autoFxEnabled);
-  if (!autoFxEnabled) {
-    applyFxMode('clean');
-    if (fxModeBtn) fxModeBtn.classList.remove('active');
-  }
-}
-if (autoFxBtn) autoFxBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleAutoFx(); });
 
 // Backdrop cycling
 const backdropNames = [null, 'mandelbulb', 'mandelbox', 'hybrid'];
@@ -8649,12 +8694,18 @@ function triggerAutoTransition() {
   visualStyle = newStyle;
   document.querySelectorAll('.style-option').forEach(o => o.classList.toggle('active', o.dataset.style === newStyle));
 
-  // Auto FX: pick a random FX mode on every sim transition
-  if (autoFxEnabled) {
+  // Auto/Random: apply effects on each transition
+  if (autoState === 'random') {
+    applyRandomEffects();
+  } else if (autoState === 'auto' && autoFxEnabled) {
+    // Rotate through presets
+    const presetNames = Object.keys(PRESETS).filter(n => n !== 'None');
+    const preset = presetNames[Math.floor(Math.random() * presetNames.length)];
+    const stack = (currentSource === 'particles') ? particleEffectStack : inputEffectStack;
+    applyPreset(preset, stack);
+    // Also pick a random FX mode
     const modes = fxModeNames.filter(m => m !== 'clean');
-    const newFx = modes[Math.floor(Math.random() * modes.length)];
-    applyFxMode(newFx);
-    if (fxModeBtn) fxModeBtn.classList.add('active');
+    applyFxMode(modes[Math.floor(Math.random() * modes.length)]);
   }
 }
 
@@ -9726,8 +9777,25 @@ function setSource(source) {
   // Update source pills
   document.querySelectorAll('.source-btn').forEach(b => b.classList.toggle('active', b.dataset.source === source));
 
-  if (source === 'particles') {
+  if (source === 'blend') {
+    // Blend: particles on top of nature video, both with effects
+    currentMode = 'hybrid';
+    pCanvas.style.display = 'block';
+    pCanvas.style.visibility = 'visible';
+    pCanvas.style.opacity = '0.85';
+    pCanvas.style.zIndex = '2';
+    vCanvas.style.display = 'block';
+    vCanvas.style.zIndex = '1';
+    renderer.setClearColor(0x000000, 0); // transparent so video shows through
+    // Play nature video underneath
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    video.srcObject = null;
+    video.src = '/videos/nature.mp4';
+    video.load();
+    video.play().catch(() => {});
+  } else if (source === 'particles') {
     // Show Three.js particle canvas, hide video layer
+    currentMode = 'particles';
     pCanvas.style.display = 'block';
     pCanvas.style.visibility = 'visible';
     pCanvas.style.opacity = '1';
@@ -9842,6 +9910,26 @@ window.addEventListener('resize', () => {
 // Consolidated animation loop: source-based (particles vs video input)
 function animate_consolidated() {
   requestAnimationFrame(animate_consolidated);
+
+  if (currentSource === 'blend') {
+    // Blend mode: render BOTH video and particles
+    updateAudio();
+    const elapsed = clock.getElapsedTime() * simSpeed;
+    renderVideoFX(elapsed); // video layer (z-index 1)
+    animate_production(); // particles layer (z-index 2, transparent bg)
+    // Also process particles through effects if active
+    if (webgpuAvailable) {
+      const activeFx = getActiveEffects(particleEffectStack);
+      if (activeFx.length > 0) {
+        renderer.domElement.style.visibility = 'hidden';
+        const wgpuCanvas = document.getElementById('webgpu-canvas');
+        wgpuCanvas.style.display = 'block';
+        wgpuCanvas.style.zIndex = '3';
+        renderParticlesThroughFX(elapsed);
+      }
+    }
+    return;
+  }
 
   if (currentSource !== 'particles') {
     // Video/camera/upload source: render through WebGPU effects pipeline
@@ -10039,17 +10127,25 @@ document.addEventListener('keydown', (e) => {
 
     // Load video from URL
     if (videoUrl) {
+      // Switch to input mode first (this sets up the WebGPU canvas)
       if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      const pCanvas = renderer.domElement;
+      const vCanvas = document.getElementById('webgpu-canvas');
+      pCanvas.style.display = 'none';
+      vCanvas.style.display = 'block';
+      vCanvas.style.zIndex = '1';
+      currentSource = 'nature';
+      currentMode = 'input';
+      document.querySelectorAll('.source-btn').forEach(b => b.classList.toggle('active', b.dataset.source === 'nature'));
+      // Load the custom video (muted for autoplay policy)
       video.srcObject = null;
       video.src = videoUrl;
       video.loop = true;
-      video.muted = false;
-      video.play().catch(() => {});
-      setSource('nature'); // switches to input mode, then we override the src
-      setTimeout(() => {
-        video.src = videoUrl;
-        video.play().catch(() => {});
-      }, 200);
+      video.muted = true;
+      video.load();
+      video.addEventListener('canplay', () => { video.play().catch(() => {}); }, { once: true });
+      updateBottomBar();
+      buildStackPanel();
     } else if (source) {
       // Apply source (but not upload, which requires user interaction)
       if (source !== 'upload') setSource(source);
