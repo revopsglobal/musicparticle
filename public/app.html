@@ -8092,9 +8092,8 @@ function getCrossfadeOpacity() {
 // ── Animation Loop ─────────────────────────────────────────
 const clock = new THREE.Clock();
 
-function animate() {
-  requestAnimationFrame(animate);
-
+function animate_production() {
+  // Note: requestAnimationFrame is handled by the consolidated wrapper
   updateAudio();
 
   if (!compiledSim) { composer.render(); return; }
@@ -8842,19 +8841,12 @@ window.addEventListener('resize', () => {
 // SECTION 9: Override Animation Loop for Mode Support
 // ================================================================
 
-// Patch the existing animate() to handle modes
-const _origAnimate = animate;
+// Consolidated animation loop: handles all three modes
 function animate_consolidated() {
-  // The production animate() handles particles, audio, lyrics, camera, FX, etc.
-  // We just need to also handle WebGPU rendering for input/hybrid modes
-  
-  // In particles mode: production animate() handles everything
-  // In input mode: we render video through WebGPU instead
-  // In hybrid mode: both run
-  
+  requestAnimationFrame(animate_consolidated);
+
   if (currentMode === 'input') {
-    // Skip particle rendering, do WebGPU video effects
-    requestAnimationFrame(animate_consolidated);
+    // Video effects only, no particles
     updateAudio();
     const elapsed = clock.getElapsedTime() * simSpeed;
     renderVideoFX(elapsed);
@@ -8877,7 +8869,7 @@ function animate_consolidated() {
   }
 
   // Run standard production animate for particles (all modes except input)
-  _origAnimate();
+  animate_production();
 
   // After particles render, process through WebGPU particle effects if active
   if ((currentMode === 'particles' || currentMode === 'hybrid') && webgpuAvailable) {
