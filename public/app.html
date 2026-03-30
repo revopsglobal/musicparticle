@@ -7172,11 +7172,11 @@ function cycleBackdrop() {
 // Click canvas no longer advances sim (this is a listening app)
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Sidebar
+// Sidebar toggle
 toggleBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   sidebar.classList.toggle('open');
-  toggleBtn.textContent = sidebar.classList.contains('open') ? 'x' : '+';
+  toggleBtn.textContent = sidebar.classList.contains('open') ? 'x' : 'FX';
 });
 
 // iOS install banner
@@ -8803,16 +8803,7 @@ document.body.addEventListener('drop', e => {
   }
 });
 
-// Toggle controls panel (replaces production sidebar toggle)
-// Toggle sidebar (FX panel) - toggleBtn already declared above
-const controlsPanel = document.getElementById('sidebar');
-if (toggleBtn) {
-  toggleBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    controlsPanel.classList.toggle('open');
-    toggleBtn.textContent = controlsPanel.classList.contains('open') ? 'x' : 'FX';
-  });
-}
+// Sidebar toggle handler is already attached above (line ~7176)
 
 // WebGPU resize
 window.addEventListener('resize', () => {
