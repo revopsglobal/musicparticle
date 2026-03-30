@@ -8310,15 +8310,6 @@ async function initWebGPU() {
   }
 }
 
-function getActiveEffects(stack) {
-  return stack.filter(e => e.enabled).map(e => e.name);
-}
-
-function getStackParams(stack, fxName) {
-  const entry = stack.find(e => e.name === fxName);
-  return entry ? entry.params : null;
-}
-
 // Pipelines and buffers (references to vars declared in WebGPU init section above)
 // pipelines, uniformBuffers, bindGroups already declared at line ~2339
 if (typeof pipelineData === 'undefined') var pipelineData = {};
