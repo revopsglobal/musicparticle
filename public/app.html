@@ -484,7 +484,7 @@
   <button class="mode-btn active" data-mode="particles">Particles</button>
   <button class="mode-btn" data-mode="input">Input</button>
   <button class="mode-btn" data-mode="hybrid">Hybrid</button>
-  <button class="mode-btn" data-mode="fractal">Fractal</button>
+  <!-- <button class="mode-btn" data-mode="fractal">Fractal</button> -->
 </div>
 
 
@@ -528,19 +528,7 @@
     </div>
   </div>
 
-<div id="fractal-section" style="display:none;">
-  <div style="padding:8px 14px 4px;font-size:0.45rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.2);">Fractal</div>
-  <div style="padding:0 14px 8px;display:flex;gap:3px;">
-    <button class="src-btn fractal-type-btn active" data-fractal="0" style="font-size:0.5rem;padding:3px 7px;">Tunnels</button>
-    <button class="src-btn fractal-type-btn" data-fractal="1" style="font-size:0.5rem;padding:3px 7px;">Crystal</button>
-    <button class="src-btn fractal-type-btn" data-fractal="2" style="font-size:0.5rem;padding:3px 7px;">Organic</button>
-  </div>
-  <div style="padding:0 14px 8px;">
-    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Power <input type="range" id="fractal-power" min="2" max="16" step="0.1" value="8" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
-    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Iterations <input type="range" id="fractal-iters" min="2" max="20" step="1" value="8" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
-    <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:rgba(255,255,255,0.3);margin:3px 0;">Speed <input type="range" id="fractal-speed" min="0" max="2" step="0.05" value="0.3" style="width:100px;accent-color:rgba(255,255,255,0.2);"></label>
-  </div>
-</div>
+<!-- fractal section removed for now -->
 
   <!-- Presets: featured strip + expand -->
   <h2 id="stack-label" style="margin-bottom:2px;">Presets</h2>
@@ -8766,6 +8754,110 @@ function renderVideoFX(t) {
   }
 }
 
+function ensureFractalTexture(w, h) {
+  if (fractalTextureW === w && fractalTextureH === h && fractalTexture) return;
+  if (fractalTexture) fractalTexture.destroy();
+  fractalTexture = device.createTexture({
+    size: [w, h], format: gpuFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
+  fractalTextureW = w; fractalTextureH = h;
+}
+
+function renderFractal(t) {
+  if (!device || !gpuCanvas || !gpuCtx || !fractalPipeline) return;
+  const dpr = window.devicePixelRatio;
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  if (gpuCanvas.width !== w || gpuCanvas.height !== h) {
+    gpuCanvas.width = w; gpuCanvas.height = h;
+    gpuCanvas.style.width = window.innerWidth + 'px';
+    gpuCanvas.style.height = window.innerHeight + 'px';
+  }
+
+  const power = parseFloat(document.getElementById('fractal-power')?.value || 8);
+  const iters = parseFloat(document.getElementById('fractal-iters')?.value || 8);
+  const speed = parseFloat(document.getElementById('fractal-speed')?.value || 0.3);
+  const bass = audio.sBass * audioSensitivity;
+  const mids = audio.sMids * audioSensitivity;
+  const highs = audio.sHighs * audioSensitivity;
+  const rms = audio.sRms * audioSensitivity;
+
+  const uniforms = new Float32Array([
+    gpuCanvas.width, gpuCanvas.height, t, power,
+    fractalType, iters, speed, bass,
+    mids, highs, rms, 0,
+  ]);
+  device.queue.writeBuffer(fractalUniformBuffer, 0, uniforms);
+
+  const activeEffects = getActiveEffects(fractalEffectStack);
+
+  if (activeEffects.length === 0) {
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [{ view: gpuCtx.getCurrentTexture().createView(), clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+    });
+    pass.setPipeline(fractalPipeline);
+    pass.setBindGroup(0, fractalBindGroup);
+    pass.draw(6);
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+    return;
+  }
+
+  ensureFractalTexture(gpuCanvas.width, gpuCanvas.height);
+  const encoder = device.createCommandEncoder();
+  const fractalPass = encoder.beginRenderPass({
+    colorAttachments: [{ view: fractalTexture.createView(), clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+  });
+  fractalPass.setPipeline(fractalPipeline);
+  fractalPass.setBindGroup(0, fractalBindGroup);
+  fractalPass.draw(6);
+  fractalPass.end();
+  device.queue.submit([encoder.finish()]);
+
+  ensurePingPong(gpuCanvas.width, gpuCanvas.height);
+  const screenView = gpuCtx.getCurrentTexture().createView();
+  let currentInput = fractalTexture.createView();
+
+  for (let i = 0; i < activeEffects.length; i++) {
+    const fxName = activeEffects[i];
+    const pd = pipelineData[fxName];
+    const effect = EFFECTS[fxName];
+    if (!pd || !effect) continue;
+    writeEffectUniforms(fxName, t, fractalEffectStack);
+    const isLast = (i === activeEffects.length - 1);
+    const writeTarget = isLast ? screenView : ppViews[i % 2];
+    const bgEntries = [
+      { binding: 0, resource: sampler },
+      { binding: 1, resource: currentInput },
+      { binding: 2, resource: { buffer: pd.uniformBuffer } },
+    ];
+    if (pd.useFontAtlas && atlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: atlasTexture.createView() });
+    } else if (pd.useEmojiAtlas && emojiAtlasTexture) {
+      bgEntries.push({ binding: 3, resource: atlasSampler }, { binding: 4, resource: emojiAtlasTexture.createView() });
+    }
+    const bindGroup = device.createBindGroup({ layout: pd.pipeline.getBindGroupLayout(0), entries: bgEntries });
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{ view: writeTarget, clearValue: {r:0,g:0,b:0,a:1}, loadOp:'clear', storeOp:'store' }],
+    });
+    pass.setPipeline(pd.pipeline); pass.setBindGroup(0, bindGroup); pass.draw(6); pass.end();
+    device.queue.submit([enc.finish()]);
+    if (!isLast) currentInput = ppViews[i % 2];
+  }
+}
+
+// Fractal type buttons
+document.querySelectorAll('.fractal-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fractal-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fractalType = parseInt(btn.dataset.fractal);
+  });
+});
+
 function renderParticlesThroughFX(t) {
   if (!device || !gpuCanvas || !gpuCtx) return;
   const pCanvas = renderer.domElement;
@@ -9011,6 +9103,13 @@ function buildStackPanel() {
     // Input stack with cool accent
     buildStackSection(container, inputEffectStack, 'Input Effects', 'rgba(100,160,200,0.5)');
     if (sourceSection) sourceSection.style.display = 'flex';
+  } else if (currentMode === 'fractal') {
+    stackLabel.textContent = 'Presets';
+    buildPresetsBar(fractalEffectStack);
+    buildStackSection(container, fractalEffectStack, null);
+    if (sourceSection) sourceSection.style.display = 'none';
+    const fracSec = document.getElementById('fractal-section');
+    if (fracSec) fracSec.style.display = 'block';
   }
 }
 
@@ -9032,6 +9131,7 @@ function setMode(mode) {
     vCanvas.style.display = 'none';
     vCanvas.style.zIndex = '-1';
     if (blendCtrl) blendCtrl.style.display = 'none';
+    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
     renderer.setClearColor(0x000000, 1);
     document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name;
   } else if (mode === 'input') {
@@ -9040,6 +9140,7 @@ function setMode(mode) {
     vCanvas.style.display = 'block';
     vCanvas.style.zIndex = '1';
     if (blendCtrl) blendCtrl.style.display = 'none';
+    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
   } else if (mode === 'hybrid') {
     pCanvas.style.display = 'block';
     pCanvas.style.visibility = 'visible';
@@ -9048,8 +9149,21 @@ function setMode(mode) {
     vCanvas.style.display = 'block';
     vCanvas.style.zIndex = '1';
     if (blendCtrl) blendCtrl.style.display = 'flex';
+    if (document.getElementById('fractal-section')) document.getElementById('fractal-section').style.display = 'none';
     renderer.setClearColor(0x000000, 0);
     document.getElementById('sim-name').textContent = SIMULATIONS[currentSimIndex].name + ' + FX';
+  } else if (mode === 'fractal') {
+    pCanvas.style.display = 'none';
+    pCanvas.style.zIndex = '0';
+    vCanvas.style.display = 'block';
+    vCanvas.style.zIndex = '1';
+    if (blendCtrl) blendCtrl.style.display = 'none';
+    const fracSec = document.getElementById('fractal-section');
+    if (fracSec) fracSec.style.display = 'block';
+    const srcSec = document.getElementById('source-section');
+    if (srcSec) srcSec.style.display = 'none';
+    const names = ['TUNNELS', 'CRYSTAL', 'ORGANIC'];
+    document.getElementById('sim-name').textContent = names[fractalType] || 'TUNNELS';
   }
   buildStackPanel();
 }
@@ -9094,6 +9208,7 @@ document.addEventListener('keydown', e => {
   if (e.key === '1') document.querySelector('[data-mode="particles"]')?.click();
   else if (e.key === '2') document.querySelector('[data-mode="input"]')?.click();
   else if (e.key === '3') document.querySelector('[data-mode="hybrid"]')?.click();
+  else if (e.key === '4') document.querySelector('[data-mode="fractal"]')?.click();
 });
 
 // Drag and drop video
@@ -9130,6 +9245,21 @@ window.addEventListener('resize', () => {
 // Consolidated animation loop: handles all three modes
 function animate_consolidated() {
   requestAnimationFrame(animate_consolidated);
+
+  if (currentMode === 'fractal') {
+    updateAudio();
+    const elapsed = clock.getElapsedTime() * simSpeed;
+    renderFractal(elapsed);
+    const bass = audio.sBass * audioSensitivity;
+    const mids = audio.sMids * audioSensitivity;
+    const rms = audio.sRms * audioSensitivity;
+    if (typeof barBassEl !== 'undefined') {
+      barBassEl.style.height = (2 + bass * 18) + 'px';
+      barMidEl.style.height = (2 + mids * 18) + 'px';
+      barHighEl.style.height = (2 + rms * 18) + 'px';
+    }
+    return;
+  }
 
   if (currentMode === 'input') {
     // Video effects only, no particles
